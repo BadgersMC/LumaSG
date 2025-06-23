@@ -3,6 +3,7 @@ package net.lumalyte.gui;
 import net.lumalyte.LumaSG;
 import net.lumalyte.statistics.PlayerStats;
 import net.lumalyte.statistics.StatType;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -16,72 +17,50 @@ import xyz.xenondevs.invui.window.Window;
 
 import java.text.DecimalFormat;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Menu for displaying player leaderboards.
+ * GUI menu for displaying player leaderboards.
  */
 public class LeaderboardMenu {
     private final LumaSG plugin;
     private final DecimalFormat decimalFormat = new DecimalFormat("#.##");
     
+    /** The debug logger instance for this leaderboard menu */
+    private final DebugLogger.ContextualLogger logger;
+    
     /**
-     * Constructs a new LeaderboardMenu.
+     * Creates a new leaderboard menu.
      * 
-     * @param plugin The LumaSG plugin instance
+     * @param plugin The plugin instance
      */
     public LeaderboardMenu(LumaSG plugin) {
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("LeaderboardMenu");
     }
     
     /**
-     * Opens the leaderboard menu for a player.
+     * Opens the main leaderboard menu for a player.
      * 
      * @param player The player to open the menu for
      */
     public void openMenu(Player player) {
-        openLeaderboardTab(player, StatType.KILLS);
+        openLeaderboardTab(player, StatType.WINS);
     }
     
     /**
      * Opens a specific leaderboard tab.
      * 
      * @param player The player to open the menu for
-     * @param statType The type of statistic to display
+     * @param statType The statistic type to display
      */
     public void openLeaderboardTab(Player player, StatType statType) {
-        // Create border item
-        Item borderItem = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(""));
-        
-        // Create back button
-        Item backButton = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                return new ItemBuilder(Material.ARROW)
-                    .setDisplayName("§c§lBack to Main Menu")
-                    .addLoreLines("Click to return to the main menu");
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick()) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    player.closeInventory();
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        new MainMenu(plugin).openMenu(player);
-                    });
-                }
-            }
-        };
-        
         // Create tab items
         Item killsTabItem = new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
-                boolean isActive = statType == StatType.KILLS;
-                return new ItemBuilder(isActive ? Material.DIAMOND_SWORD : Material.IRON_SWORD)
-                    .setDisplayName((isActive ? "§c§l" : "§7") + "Kills")
-                    .addLoreLines(isActive ? "§aCurrent tab" : "§7Click to view kills leaderboard");
+                Material material = statType == StatType.KILLS ? Material.DIAMOND_SWORD : Material.IRON_SWORD;
+                String name = statType == StatType.KILLS ? "§e§lKills §7(Current)" : "§7Kills";
+                return new ItemBuilder(material).setDisplayName(name);
             }
             
             @Override
@@ -96,10 +75,9 @@ public class LeaderboardMenu {
         Item winsTabItem = new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
-                boolean isActive = statType == StatType.WINS;
-                return new ItemBuilder(isActive ? Material.GOLDEN_HELMET : Material.IRON_HELMET)
-                    .setDisplayName((isActive ? "§6§l" : "§7") + "Wins")
-                    .addLoreLines(isActive ? "§aCurrent tab" : "§7Click to view wins leaderboard");
+                Material material = statType == StatType.WINS ? Material.GOLDEN_APPLE : Material.APPLE;
+                String name = statType == StatType.WINS ? "§e§lWins §7(Current)" : "§7Wins";
+                return new ItemBuilder(material).setDisplayName(name);
             }
             
             @Override
@@ -114,10 +92,30 @@ public class LeaderboardMenu {
         Item gamesTabItem = new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
-                boolean isActive = statType == StatType.GAMES_PLAYED;
-                return new ItemBuilder(isActive ? Material.CLOCK : Material.COMPASS)
-                    .setDisplayName((isActive ? "§b§l" : "§7") + "Games Played")
-                    .addLoreLines(isActive ? "§aCurrent tab" : "§7Click to view games played leaderboard");
+                Material material = statType == StatType.GAMES_PLAYED ? Material.BOOK : Material.WRITABLE_BOOK;
+                String name = statType == StatType.GAMES_PLAYED ? "§e§lGames §7(Current)" : "§7Games";
+                return new ItemBuilder(material).setDisplayName(name);
+            }
+            
+            @Override
+            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+                if (clickType.isLeftClick() && statType != StatType.GAMES_PLAYED) {
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                    openLeaderboardTab(player, StatType.GAMES_PLAYED);
+                }
+            }
+        };
+        
+        // Create border and back button items
+        Item borderItem = new SimpleItem(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
+            .setDisplayName(""));
+        
+        Item backButton = new AbstractItem() {
+            @Override
+            public ItemProvider getItemProvider() {
+                return new ItemBuilder(Material.ARROW)
+                    .setDisplayName("§c§lBack")
+                    .addLoreLines("§7Click to go back to main menu");
             }
             
             @Override
@@ -176,7 +174,7 @@ public class LeaderboardMenu {
                 });
             })
             .exceptionally(throwable -> {
-                plugin.getLogger().warning("Failed to load leaderboard data: " + throwable.getMessage());
+                logger.warn("Failed to load leaderboard data: " + throwable.getMessage());
                 
                 // Show error on main thread
                 plugin.getServer().getScheduler().runTask(plugin, () -> {

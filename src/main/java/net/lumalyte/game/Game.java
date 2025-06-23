@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MiniMessageUtils;
 import net.lumalyte.statistics.StatType;
 import org.bukkit.Bukkit;
@@ -43,6 +44,9 @@ import java.util.logging.Level;
 public class Game {
     /** The plugin instance for configuration and server access */
     private final @NotNull LumaSG plugin;
+    
+    /** The debug logger instance for this game */
+    private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** The arena where this game is being played */
     private final @NotNull Arena arena;
@@ -96,6 +100,9 @@ public class Game {
         this.gameId = UUID.randomUUID();
         this.state = GameState.WAITING;
         
+        // Initialize contextual logger for this game
+        this.logger = plugin.getDebugLogger().forContext("Game-" + arena.getName());
+        
         // Initialize game state
         this.pvpEnabled = false;
         this.isGracePeriod = false;
@@ -107,7 +114,7 @@ public class Game {
         this.scoreboardManager = new GameScoreboardManager(plugin, arena, gameId, playerManager, timerManager);
         this.celebrationManager = new GameCelebrationManager(plugin, playerManager);
         
-        plugin.getLogger().info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
+        logger.info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
     }
     
     /**
@@ -289,11 +296,11 @@ public class Game {
      */
     private CompletableFuture<Void> fillArenaChestsAsync() {
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-            plugin.getLogger().info("Starting to fill chests in arena: " + arena.getName());
+            logger.debug("Starting to fill chests in arena: " + arena.getName());
             
             // First, scan for chests if none are registered
             if (arena.getChestLocations().isEmpty()) {
-                plugin.getLogger().info("No chest locations found, scanning arena for chests...");
+                logger.debug("No chest locations found, scanning arena for chests...");
                 // Run on main thread since scanning involves world operations
                 try {
                     CompletableFuture<Integer> scanFuture = new CompletableFuture<>();
@@ -301,7 +308,7 @@ public class Game {
                     
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         int count = arena.scanForChests();
-                        plugin.getLogger().info("Found " + count + " chests in arena " + arena.getName());
+                        logger.debug("Found " + count + " chests in arena " + arena.getName());
                         scanFuture.complete(count);
                     });
                     // Wait for scan to complete
@@ -309,32 +316,32 @@ public class Game {
                     activeFutures.remove(scanFuture);
                     
                     if (chestsFound == 0) {
-                        plugin.getLogger().warning("No chests found in arena " + arena.getName() + " after scanning!");
+                        logger.warn("No chests found in arena " + arena.getName() + " after scanning!");
                     }
                 } catch (Exception e) {
-                    plugin.getLogger().severe("Error scanning for chests: " + e.getMessage());
+                    logger.severe("Error scanning for chests", e);
                 }
             }
             
             List<Location> chestLocations = arena.getChestLocations();
             if (chestLocations.isEmpty()) {
-                plugin.getLogger().warning("No chests found in arena " + arena.getName() + " - chests will not be filled!");
+                logger.warn("No chests found in arena " + arena.getName() + " - chests will not be filled!");
                 return;
             }
             
-            plugin.getLogger().info("Found " + chestLocations.size() + " chests to fill in arena " + arena.getName());
+            logger.debug("Found " + chestLocations.size() + " chests to fill in arena " + arena.getName());
             
             // Check if chest items are loaded
             if (plugin.getChestManager().getChestItems().isEmpty()) {
-                plugin.getLogger().warning("No chest items loaded! Attempting to load chest items...");
+                logger.warn("No chest items loaded! Attempting to load chest items...");
                 try {
                     CompletableFuture<Void> loadFuture = plugin.getChestManager().loadChestItems();
                     activeFutures.add(loadFuture);
                     loadFuture.get(); // Wait for completion
                     activeFutures.remove(loadFuture);
-                    plugin.getLogger().info("Chest items loaded successfully");
+                    logger.debug("Chest items loaded successfully");
                 } catch (Exception e) {
-                    plugin.getLogger().severe("Failed to load chest items: " + e.getMessage());
+                    logger.severe("Failed to load chest items", e);
                     return;
                 }
             }
@@ -369,9 +376,7 @@ public class Game {
                 }
                 
                 final String tier = selectedTier;
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Attempting to fill chest at " + chestLoc + " with tier: " + tier);
-                }
+                logger.debug("Attempting to fill chest at " + chestLoc + " with tier: " + tier);
                 
                 // Fill the chest with items from the selected tier on the main thread
                 CompletableFuture<Boolean> chestFuture = new CompletableFuture<>();
@@ -382,15 +387,13 @@ public class Game {
                     try {
                         boolean success = plugin.getChestManager().fillChest(finalChestLoc, tier);
                         if (success) {
-                            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                                plugin.getLogger().info("Successfully filled chest at " + finalChestLoc + " with tier: " + tier);
-                            }
+                            logger.debug("Successfully filled chest at " + finalChestLoc + " with tier: " + tier);
                         } else {
-                            plugin.getLogger().warning("Failed to fill chest at " + finalChestLoc + " with tier: " + tier);
+                            logger.warn("Failed to fill chest at " + finalChestLoc + " with tier: " + tier);
                         }
                         chestFuture.complete(success);
                     } catch (Exception e) {
-                        plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to fill chest at " + finalChestLoc + " with tier: " + tier, e);
+                        logger.severe("Failed to fill chest at " + finalChestLoc + " with tier: " + tier, e);
                         chestFuture.complete(false);
                     }
                 });
@@ -407,14 +410,14 @@ public class Game {
                         failedChests++;
                     }
                 } catch (Exception e) {
-                    plugin.getLogger().severe("Error filling chest: " + e.getMessage());
+                    logger.severe("Error filling chest", e);
                     failedChests++;
                 } finally {
                     activeFutures.remove(chestFuture);
                 }
             }
             
-            plugin.getLogger().info("Chest filling completed for arena " + arena.getName() + 
+            logger.debug("Chest filling completed for arena " + arena.getName() + 
                 " - Filled: " + filledChests + ", Failed: " + failedChests + ", Total: " + chestLocations.size());
         });
         
@@ -509,22 +512,16 @@ public class Game {
      */
     private void checkGameEnd() {
         if (state != GameState.ACTIVE && state != GameState.DEATHMATCH) {
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Game end check skipped - game not in ACTIVE or DEATHMATCH state (current state: " + state + ")");
-            }
+            logger.debug("Game end check skipped - game not in ACTIVE or DEATHMATCH state (current state: " + state + ")");
             return;
         }
         
         int playerCount = playerManager.getPlayerCount();
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Checking game end conditions - Active players: " + playerCount);
-        }
+        logger.debug("Checking game end conditions - Active players: " + playerCount);
         
         // End game if there's only one player left
         if (playerCount <= 1) {
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Ending game - only " + playerCount + " player(s) remaining");
-            }
+            logger.debug("Ending game - only " + playerCount + " player(s) remaining");
             endGame(null);
         }
     }
@@ -537,7 +534,7 @@ public class Game {
             return;
         }
         
-        plugin.getLogger().info("Ending game: " + gameId);
+        logger.info("Ending game: " + gameId);
         isShuttingDown = true;
         state = GameState.FINISHED;
         scoreboardManager.setCurrentGameState(state);
@@ -600,7 +597,7 @@ public class Game {
             // Remove from game manager
             plugin.getGameManager().removeGame(this);
             
-            plugin.getLogger().info("Cleaned up game: " + gameId);
+            logger.info("Cleaned up game: " + gameId);
         }, 120L); // 6 second delay (120 ticks) - gives time for celebration
     }
     
@@ -657,7 +654,7 @@ public class Game {
             
             // Cancel countdown if not enough players
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+            if (logger.isDebugEnabled()) {
                 minPlayers = 1;
             }
             if (playerManager.getPlayerCount() < minPlayers && state == GameState.COUNTDOWN) {
@@ -693,7 +690,7 @@ public class Game {
 
         // Countdown logic: start or restart if enough players
         int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+        if (logger.isDebugEnabled()) {
             minPlayers = 1;
         }
         if (playerManager.getPlayerCount() >= minPlayers) {
@@ -834,7 +831,7 @@ public class Game {
         // Remove from game manager
         plugin.getGameManager().removeGame(this);
         
-        plugin.getLogger().info("Cleaned up game: " + gameId);
+        logger.info("Cleaned up game: " + gameId);
     }
     
     /**
@@ -924,11 +921,9 @@ public class Game {
                 );
             }
             
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Recorded statistics for " + finalRankings.size() + " players in game " + gameId);
-            }
+            logger.debug("Recorded statistics for " + finalRankings.size() + " players in game " + gameId);
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to record game statistics for game " + gameId, e);
+            logger.warn("Failed to record game statistics for game " + gameId, e);
         }
     }
 } 

@@ -1,6 +1,7 @@
 package net.lumalyte.statistics;
 
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -11,7 +12,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 /**
  * Manages player statistics for the LumaSG plugin.
@@ -29,6 +29,9 @@ public class StatisticsManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull StatisticsDatabase database;
     
+    /** The debug logger instance for this statistics manager */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     /** Cache of loaded player statistics for quick access during games */
     private final @NotNull Map<UUID, PlayerStats> statisticsCache;
     
@@ -43,6 +46,7 @@ public class StatisticsManager {
     public StatisticsManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.database = new StatisticsDatabase(plugin);
+        this.logger = plugin.getDebugLogger().forContext("StatisticsManager");
         this.statisticsCache = new ConcurrentHashMap<>();
         this.pendingSaves = new ConcurrentHashMap<>();
     }
@@ -54,7 +58,7 @@ public class StatisticsManager {
      */
     public @NotNull CompletableFuture<Void> initialize() {
         return database.initialize().thenRun(() -> {
-            plugin.getLogger().info("Statistics manager initialized successfully");
+            logger.info("Statistics manager initialized successfully");
             
             // Start the periodic save task
             startPeriodicSaveTask();
@@ -92,9 +96,7 @@ public class StatisticsManager {
             if (stats == null) {
                 // Create new player statistics
                 stats = new PlayerStats(playerId, playerName);
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Created new statistics for player: " + playerName);
-                }
+                logger.debug("Created new statistics for player: " + playerName);
             } else {
                 // Update player name in case it changed
                 stats.setPlayerName(playerName);
@@ -132,7 +134,7 @@ public class StatisticsManager {
                                 long gameTimeSeconds) {
         PlayerStats stats = statisticsCache.get(playerId);
         if (stats == null) {
-            plugin.getLogger().warning("Attempted to record game result for uncached player: " + playerId);
+            logger.warn("Attempted to record game result for uncached player: " + playerId);
             return;
         }
         
@@ -168,10 +170,8 @@ public class StatisticsManager {
         // Mark for saving
         markForSaving(playerId);
         
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Recorded game result for " + stats.getPlayerName() + 
-                ": placement=" + placement + ", kills=" + kills);
-        }
+        logger.debug("Recorded game result for " + stats.getPlayerName() + 
+            ": placement=" + placement + ", kills=" + kills);
     }
     
     /**
@@ -321,7 +321,7 @@ public class StatisticsManager {
         return getPlayerStats(player.getUniqueId(), player.getName()).thenAccept(stats -> {
             // Statistics are now cached
         }).exceptionally(throwable -> {
-            plugin.getLogger().log(Level.WARNING, "Failed to preload statistics for " + player.getName(), throwable);
+            logger.warn("Failed to preload statistics for " + player.getName(), throwable);
             return null;
         });
     }
@@ -344,7 +344,7 @@ public class StatisticsManager {
         plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             if (!pendingSaves.isEmpty()) {
                 saveAllPendingStats().exceptionally(throwable -> {
-                    plugin.getLogger().log(Level.WARNING, "Failed to save pending statistics", throwable);
+                    logger.warn("Failed to save pending statistics", throwable);
                     return null;
                 });
             }

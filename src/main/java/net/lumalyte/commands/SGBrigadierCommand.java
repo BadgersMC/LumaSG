@@ -11,11 +11,16 @@ import net.lumalyte.game.GameState;
 import net.lumalyte.gui.MainMenu;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.lumalyte.util.DebugLogger;
+import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -30,11 +35,14 @@ import java.util.logging.Level;
  * @version 1.0
  * @since 1.0
  */
-public class SGBrigadierCommand {
+public class SGBrigadierCommand extends Command {
     
     private final LumaSG plugin;
     private final GameManager gameManager;
     private final ArenaManager arenaManager;
+    
+    /** The debug logger instance for this command handler */
+    private final DebugLogger.ContextualLogger logger;
     
     /**
      * Creates a new SG command handler.
@@ -42,9 +50,11 @@ public class SGBrigadierCommand {
      * @param plugin The plugin instance
      */
     public SGBrigadierCommand(LumaSG plugin) {
+        super("sg");
         this.plugin = plugin;
         this.gameManager = plugin.getGameManager();
         this.arenaManager = plugin.getArenaManager();
+        this.logger = plugin.getDebugLogger().forContext("SGBrigadierCommand");
     }
     
     /**
@@ -52,146 +62,124 @@ public class SGBrigadierCommand {
      */
     public void register() {
         // Register the command with Paper's command system
-        getPlugin().getServer().getCommandMap().register("sg", new org.bukkit.command.Command("sg") {
+        plugin.getServer().getCommandMap().register("lumasg", new Command("sg") {
             @Override
             public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String[] args) {
-                // Handle the command based on arguments
-                if (args.length == 0) {
-                    return handleMenuCommand(createContext(sender)) > 0;
-                }
-                
-                String subcommand = args[0].toLowerCase();
-                switch (subcommand) {
-                    case "join":
-                        if (args.length > 1) {
-                            return handleJoinCommand(createContext(sender, "arena", args[1])) > 0;
-                        }
-                        break;
-                    case "leave":
-                        return handleLeaveCommand(createContext(sender)) > 0;
-                    case "start":
-                        if (args.length > 1) {
-                            return handleStartCommand(createContext(sender, "arena", args[1])) > 0;
-                        }
-                        break;
-                    case "stop":
-                        return handleStopCommand(createContext(sender)) > 0;
-                    case "list":
-                        return handleListCommand(createContext(sender)) > 0;
-                    case "info":
-                        return handleInfoCommand(createContext(sender)) > 0;
-                    case "reload":
-                        return handleReloadCommand(createContext(sender)) > 0;
-                    case "wand":
-                        return handleWandCommand(createContext(sender)) > 0;
-                    case "create":
-                        if (args.length > 2) {
-                            return handleCreateCommand(createContext(sender, "name", args[1], "radius", args[2])) > 0;
-                        }
-                        break;
-                    case "arena":
-                        if (args.length > 2 && "select".equals(args[1])) {
-                            return handleArenaSelectCommand(createContext(sender, "arena", args[2])) > 0;
-                        }
-                        break;
-                    case "scanchests":
-                        if (args.length > 1) {
-                            return handleScanChestsCommand(createContext(sender, "arena", args[1])) > 0;
-                        }
-                        break;
-                    case "menu":
-                        return handleMenuCommand(createContext(sender)) > 0;
-                    case "help":
-                        return handleHelpCommand(createContext(sender)) > 0;
-                }
-                
-                // If we get here, show help
-                showHelp(sender);
-                return true;
+                return handleCommand(sender, args);
             }
             
             @Override
-            public @NotNull java.util.List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
-                java.util.List<String> completions = new ArrayList<>();
-                
-                if (args.length == 1) {
-                    // First argument - subcommand
-                    java.util.List<String> subcommands = new ArrayList<>();
-                    
-                    // Add basic commands
-                    subcommands.add("join");
-                    subcommands.add("leave");
-                    subcommands.add("list");
-                    subcommands.add("info");
-                    subcommands.add("help");
-                    subcommands.add("menu");
-                    
-                    // Add admin commands if has permission
-                    if (sender.hasPermission("lumasg.admin")) {
-                        subcommands.add("start");
-                        subcommands.add("stop");
-                        subcommands.add("reload");
-                        subcommands.add("wand");
-                        subcommands.add("create");
-                        subcommands.add("arena");
-                        subcommands.add("scanchests");
-                    }
-                    
-                    String input = args[0].toLowerCase();
-                    for (String subcommand : subcommands) {
-                        if (subcommand.startsWith(input)) {
-                            completions.add(subcommand);
-                        }
-                    }
-                } else if (args.length == 2) {
-                    // Second argument - depends on subcommand
-                    String subcommand = args[0].toLowerCase();
-                    String input = args[1].toLowerCase();
-                    
-                    switch (subcommand) {
-                        case "join":
-                        case "start":
-                        case "scanchests":
-                            // Suggest arena names
-                            for (Arena arena : arenaManager.getArenas()) {
-                                if (arena.getName().toLowerCase().startsWith(input)) {
-                                    completions.add(arena.getName());
-                                }
-                            }
-                            break;
-                        case "arena":
-                            // Suggest arena subcommands
-                            if ("select".startsWith(input)) {
-                                completions.add("select");
-                            }
-                            break;
-                    }
-                } else if (args.length == 3) {
-                    // Third argument - depends on subcommand
-                    String subcommand = args[0].toLowerCase();
-                    String secondArg = args[1].toLowerCase();
-                    String input = args[2].toLowerCase();
-                    
-                    if ("arena".equals(subcommand) && "select".equals(secondArg)) {
-                        // Suggest arena names for arena select command
-                        for (Arena arena : arenaManager.getArenas()) {
-                            if (arena.getName().toLowerCase().startsWith(input)) {
-                                completions.add(arena.getName());
-                            }
-                        }
-                    }
-                }
-                
-                return completions;
+            public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
+                return getTabComplete(sender, args);
             }
         });
+    }
+    
+    /**
+     * Handles command execution.
+     */
+    private boolean handleCommand(CommandSender sender, String[] args) {
+        if (args.length == 0) {
+            return handleMenuCommand(createContext(sender)) == 1;
+        }
+        
+        String subcommand = args[0].toLowerCase();
+        CommandContext<CommandSender> context = createContext(sender, args);
+        
+        int result = switch (subcommand) {
+            case "join" -> handleJoinCommand(context);
+            case "leave" -> handleLeaveCommand(context);
+            case "start" -> handleStartCommand(context);
+            case "stop" -> handleStopCommand(context);
+            case "list" -> handleListCommand(context);
+            case "info" -> handleInfoCommand(context);
+            case "reload" -> handleReloadCommand(context);
+            case "wand" -> handleWandCommand(context);
+            case "create" -> handleCreateCommand(context);
+            case "arena" -> {
+                if (args.length > 1 && args[1].equalsIgnoreCase("select")) {
+                    yield handleArenaSelectCommand(context);
+                }
+                yield handleHelpCommand(context);
+            }
+            case "scan" -> {
+                if (args.length > 1 && args[1].equalsIgnoreCase("chests")) {
+                    yield handleScanChestsCommand(context);
+                }
+                yield handleHelpCommand(context);
+            }
+            case "menu" -> handleMenuCommand(context);
+            case "help" -> handleHelpCommand(context);
+            default -> handleHelpCommand(context);
+        };
+        return result == 1;
+    }
+    
+    /**
+     * Provides tab completion for commands.
+     */
+    private List<String> getTabComplete(CommandSender sender, String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (args.length == 1) {
+            String partial = args[0].toLowerCase();
+            List<String> commands = Arrays.asList("join", "leave", "start", "stop", "list", "info", "menu", "help");
+            
+            if (sender.hasPermission("lumasg.admin")) {
+                commands = new ArrayList<>(commands);
+                commands.addAll(Arrays.asList("reload", "wand", "create", "arena", "scan"));
+            }
+            
+            for (String command : commands) {
+                if (command.startsWith(partial)) {
+                    completions.add(command);
+                }
+            }
+        } else if (args.length == 2) {
+            String subcommand = args[0].toLowerCase();
+            String partial = args[1].toLowerCase();
+            
+            if (subcommand.equals("join") || subcommand.equals("start") || 
+                (subcommand.equals("arena") && args.length == 2) ||
+                (subcommand.equals("scan") && args.length == 2)) {
+                
+                for (Arena arena : arenaManager.getArenas()) {
+                    if (arena.getName().toLowerCase().startsWith(partial)) {
+                        completions.add(arena.getName());
+                    }
+                }
+            } else if (subcommand.equals("arena")) {
+                if ("select".startsWith(partial)) {
+                    completions.add("select");
+                }
+            } else if (subcommand.equals("scan")) {
+                if ("chests".startsWith(partial)) {
+                    completions.add("chests");
+                }
+            }
+        } else if (args.length == 3) {
+            String subcommand = args[0].toLowerCase();
+            String action = args[1].toLowerCase();
+            String partial = args[2].toLowerCase();
+            
+            if ((subcommand.equals("arena") && action.equals("select")) ||
+                (subcommand.equals("scan") && action.equals("chests"))) {
+                
+                for (Arena arena : arenaManager.getArenas()) {
+                    if (arena.getName().toLowerCase().startsWith(partial)) {
+                        completions.add(arena.getName());
+                    }
+                }
+            }
+        }
+        
+        return completions;
     }
     
     /**
      * Creates a command context for handling commands.
      */
     private CommandContext<CommandSender> createContext(CommandSender sender, String... args) {
-        // Create a simple mock context for our command handlers
         return new CommandContext<>(sender, args);
     }
     
@@ -204,18 +192,24 @@ public class SGBrigadierCommand {
         
         public CommandContext(T source, String... args) {
             this.source = source;
-            this.arguments = new java.util.HashMap<>();
+            this.arguments = new HashMap<>();
             
-            // Parse arguments in pairs (name, value)
-            for (int i = 0; i < args.length - 1; i += 2) {
-                if (i + 1 < args.length) {
-                    arguments.put(args[i], args[i + 1]);
-                }
+            // Parse arguments into a map for easy access
+            if (args.length > 1) {
+                this.arguments.put("arena", args[1]);
+            }
+            if (args.length > 2) {
+                this.arguments.put("name", args[1]);
+                this.arguments.put("radius", args[2]);
             }
         }
         
         public T getSource() {
             return source;
+        }
+        
+        public String getArgument(String name) {
+            return arguments.get(name);
         }
     }
     
@@ -223,10 +217,7 @@ public class SGBrigadierCommand {
      * Gets a string argument from the context.
      */
     private static String getString(CommandContext<?> context, String name) {
-        if (context instanceof CommandContext) {
-            return ((CommandContext<?>) context).arguments.get(name);
-        }
-        return null;
+        return context.getArgument(name);
     }
     
     /**
@@ -463,7 +454,7 @@ public class SGBrigadierCommand {
                 .color(NamedTextColor.GREEN));
             return 1;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error reloading configuration", e);
+            logger.severe("Error reloading configuration", e);
             sender.sendMessage(Component.text("Error reloading configuration: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
@@ -489,7 +480,7 @@ public class SGBrigadierCommand {
                 .color(NamedTextColor.GREEN));
             return 1;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error giving admin wand", e);
+            logger.severe("Error giving admin wand", e);
             player.sendMessage(Component.text("Error giving admin wand: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
@@ -535,7 +526,7 @@ public class SGBrigadierCommand {
                 return 0;
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error creating arena", e);
+            logger.severe("Error creating arena", e);
             player.sendMessage(Component.text("Error creating arena: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
@@ -657,9 +648,19 @@ public class SGBrigadierCommand {
                 .color(NamedTextColor.YELLOW));
             sender.sendMessage(Component.text(" /sg arena select <arena> - Select an arena for editing")
                 .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg scanchests <arena> - Scan for chests in an arena")
+            sender.sendMessage(Component.text(" /sg scan chests <arena> - Scan for chests in an arena")
                 .color(NamedTextColor.YELLOW));
         }
+    }
+    
+    @Override
+    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String[] args) {
+        return handleCommand(sender, args);
+    }
+    
+    @Override
+    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException {
+        return getTabComplete(sender, args);
     }
     
     /**

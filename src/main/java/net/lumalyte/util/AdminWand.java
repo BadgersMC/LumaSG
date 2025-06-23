@@ -23,9 +23,13 @@ public class AdminWand {
     private final LumaSG plugin;
     private final NamespacedKey wandKey;
     
+    /** The debug logger instance for this admin wand */
+    private final DebugLogger.ContextualLogger logger;
+    
     public AdminWand(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.wandKey = new NamespacedKey(plugin, WAND_KEY);
+        this.logger = plugin.getDebugLogger().forContext("AdminWand");
     }
     
     /**
@@ -98,7 +102,7 @@ public class AdminWand {
         // Check if the player is holding the wand in their main hand after giving it
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (isWand(mainHand)) {
-            plugin.getLogger().info("Player " + player.getName() + " is holding wand after receiving it");
+            logger.debug("Player " + player.getName() + " is holding wand after receiving it");
             // Show spawn points if an arena is selected
             Arena selectedArena = plugin.getArenaManager().getSelectedArena(player);
             if (selectedArena != null) {

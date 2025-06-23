@@ -2,6 +2,7 @@ package net.lumalyte.arena;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -62,6 +63,7 @@ public class Arena implements ConfigurationSerializable {
     private volatile @Nullable World world;
     private volatile int radius;
     private final @NotNull LumaSG plugin;
+    private final @NotNull DebugLogger.ContextualLogger logger;
     private final int maxPlayers;
     private final int minPlayers;
     private final Map<Location, BukkitTask> beamTasks = new ConcurrentHashMap<>();
@@ -96,6 +98,7 @@ public class Arena implements ConfigurationSerializable {
         
         this.name = name;
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("Arena-" + name);
         this.id = UUID.randomUUID();
         this.spawnPoints = new CopyOnWriteArrayList<>();
         this.chestLocations = new CopyOnWriteArrayList<>();
@@ -128,6 +131,7 @@ public class Arena implements ConfigurationSerializable {
         
         this.name = name;
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("Arena-" + name);
         this.id = UUID.randomUUID();
         this.spawnPoints = new CopyOnWriteArrayList<>();
         this.chestLocations = new CopyOnWriteArrayList<>();
@@ -157,6 +161,7 @@ public class Arena implements ConfigurationSerializable {
         
         this.name = name;
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("Arena-" + name);
         this.id = UUID.randomUUID();
         this.spawnPoints = new CopyOnWriteArrayList<>();
         this.chestLocations = new CopyOnWriteArrayList<>();
@@ -198,7 +203,8 @@ public class Arena implements ConfigurationSerializable {
             ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Loading");
             ValidationUtils.requireNonEmpty(arenaName, "Arena Name", "Arena Loading");
             
-            plugin.getLogger().info("Loading arena: " + arenaName);
+            DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("Arena-" + arenaName);
+            logger.debug("Loading arena: " + arenaName);
             
             // Get configuration values
             int maxPlayers = section.getInt("max-players", plugin.getConfig().getInt("arena.default-max-players", 24));
@@ -213,7 +219,7 @@ public class Arena implements ConfigurationSerializable {
             ConfigurationSection centerSection = section.getConfigurationSection("center");
             if (centerSection != null) {
                 arena.center = loadLocation(centerSection);
-                plugin.getLogger().info("Loaded center location for arena: " + arenaName);
+                logger.debug("Loaded center location for arena: " + arenaName);
             }
             
             // Load spawn points with null safety
@@ -223,11 +229,11 @@ public class Arena implements ConfigurationSerializable {
                     Location location = loadLocation(spawnSection.getConfigurationSection(key));
                     if (location != null) {
                         arena.spawnPoints.add(location);
-                        plugin.getLogger().info("Loaded spawn point " + key + " for arena: " + arenaName);
+                        logger.debug("Loaded spawn point " + key + " for arena: " + arenaName);
                     }
                 }
             } else {
-                plugin.getLogger().info("No spawn points found for arena: " + arenaName);
+                logger.debug("No spawn points found for arena: " + arenaName);
             }
             
             // Load chest locations with null safety
@@ -237,25 +243,25 @@ public class Arena implements ConfigurationSerializable {
                     Location location = loadLocation(chestSection.getConfigurationSection(key));
                     if (location != null) {
                         arena.chestLocations.add(location);
-                        plugin.getLogger().info("Loaded chest location " + key + " for arena: " + arenaName);
+                        logger.debug("Loaded chest location " + key + " for arena: " + arenaName);
                     }
                 }
             } else {
-                plugin.getLogger().info("No chest locations found for arena: " + arenaName);
+                logger.debug("No chest locations found for arena: " + arenaName);
             }
             
             // Load lobby spawn with null safety
             ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
             if (lobbySection != null) {
                 arena.lobbySpawn = loadLocation(lobbySection);
-                plugin.getLogger().info("Loaded lobby spawn for arena: " + arenaName);
+                logger.debug("Loaded lobby spawn for arena: " + arenaName);
             }
             
             // Load spectator spawn with null safety
             ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
             if (spectatorSection != null) {
                 arena.spectatorSpawn = loadLocation(spectatorSection);
-                plugin.getLogger().info("Loaded spectator spawn for arena: " + arenaName);
+                logger.debug("Loaded spectator spawn for arena: " + arenaName);
             }
             
             // Load allowed blocks
@@ -265,9 +271,9 @@ public class Arena implements ConfigurationSerializable {
                     try {
                         Material material = Material.valueOf(materialName.toUpperCase());
                         arena.addAllowedBlock(material);
-                        plugin.getLogger().info("Loaded allowed block " + materialName + " for arena: " + arenaName);
+                        logger.debug("Loaded allowed block " + materialName + " for arena: " + arenaName);
                     } catch (IllegalArgumentException e) {
-                        plugin.getLogger().warning("Invalid material name in arena config: " + materialName);
+                        logger.warn("Invalid material name in arena config: " + materialName);
                     }
                 }
             } else {
@@ -278,22 +284,22 @@ public class Arena implements ConfigurationSerializable {
                 arena.addAllowedBlock(Material.LADDER);
                 arena.addAllowedBlock(Material.TORCH);
                 arena.addAllowedBlock(Material.FURNACE);
-                plugin.getLogger().info("Added default allowed blocks for arena: " + arenaName);
+                logger.debug("Added default allowed blocks for arena: " + arenaName);
             }
             
-            plugin.getLogger().info("Successfully loaded arena " + arenaName + " with " + 
+            logger.info("Successfully loaded arena " + arenaName + " with " + 
                 arena.spawnPoints.size() + " spawn points and " + 
                 arena.chestLocations.size() + " chest locations");
             
             // Log if no chest locations are found (but don't auto-scan to prevent save conflicts)
             if (arena.chestLocations.isEmpty() && arena.center != null && arena.radius > 0) {
-                plugin.getLogger().warning("No chest locations found for arena " + arenaName + 
+                logger.warn("No chest locations found for arena " + arenaName + 
                     ". Use '/sg scanchests " + arenaName + "' to scan for chests.");
             }
             
             return arena;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Unexpected error loading arena: " + arenaName, e);
+            plugin.getDebugLogger().severe("Unexpected error loading arena: " + arenaName, e);
             return null;
         }
     }
@@ -307,7 +313,7 @@ public class Arena implements ConfigurationSerializable {
     public void saveToConfig(@NotNull ConfigurationSection section) {
         ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Saving");
         
-        plugin.getLogger().info("Saving arena: " + name);
+        logger.debug("Saving arena: " + name);
         
         section.set("max-players", maxPlayers);
         section.set("min-players", minPlayers);
@@ -320,7 +326,7 @@ public class Arena implements ConfigurationSerializable {
                 centerSection = section.createSection("center");
             }
             saveLocation(centerSection, center);
-            plugin.getLogger().info("Saved center location");
+            logger.debug("Saved center location");
         }
         
         // Save spawn points with null safety
@@ -333,7 +339,7 @@ public class Arena implements ConfigurationSerializable {
             if (location != null) {
                 ConfigurationSection pointSection = spawnSection.createSection(String.valueOf(i));
                 saveLocation(pointSection, location);
-                plugin.getLogger().info("Saved spawn point " + i);
+                logger.debug("Saved spawn point " + i);
             }
         }
         
@@ -347,7 +353,7 @@ public class Arena implements ConfigurationSerializable {
             if (location != null) {
                 ConfigurationSection locationSection = chestSection.createSection(String.valueOf(i));
                 saveLocation(locationSection, location);
-                plugin.getLogger().info("Saved chest location " + i);
+                logger.debug("Saved chest location " + i);
             }
         }
         
@@ -358,7 +364,7 @@ public class Arena implements ConfigurationSerializable {
                 lobbySection = section.createSection("lobby-spawn");
             }
             saveLocation(lobbySection, lobbySpawn);
-            plugin.getLogger().info("Saved lobby spawn");
+            logger.debug("Saved lobby spawn");
         }
         
         // Save spectator spawn with null safety
@@ -368,7 +374,7 @@ public class Arena implements ConfigurationSerializable {
                 spectatorSection = section.createSection("spectator-spawn");
             }
             saveLocation(spectatorSection, spectatorSpawn);
-            plugin.getLogger().info("Saved spectator spawn");
+            logger.debug("Saved spectator spawn");
         }
         
         // Save allowed blocks
@@ -378,7 +384,7 @@ public class Arena implements ConfigurationSerializable {
         }
         section.set("allowed-blocks", allowedBlocksList);
         
-        plugin.getLogger().info("Successfully saved arena " + name + " with " + 
+        logger.info("Successfully saved arena " + name + " with " + 
             spawnPoints.size() + " spawn points and " + 
             chestLocations.size() + " chest locations");
     }
@@ -774,7 +780,7 @@ public class Arena implements ConfigurationSerializable {
      */
     public synchronized int scanForChests() {
         if (center == null || world == null) {
-            plugin.getLogger().warning("Cannot scan for chests: center or world is null in arena " + name);
+            logger.warn("Cannot scan for chests: center or world is null in arena " + name);
             return 0;
         }
 
@@ -798,11 +804,11 @@ public class Arena implements ConfigurationSerializable {
         }
 
         int chestCount = chestLocations.size();
-        plugin.getLogger().info("Found " + chestCount + " chests in arena " + name);
+        logger.info("Found " + chestCount + " chests in arena " + name);
         
         // Schedule a debounced save to persist chest locations
         plugin.getArenaManager().saveArenas().thenRun(() -> 
-            plugin.getLogger().info("Scheduled save for chest locations in arena " + name));
+            logger.debug("Scheduled save for chest locations in arena " + name));
             
         return chestCount;
     }
@@ -820,7 +826,7 @@ public class Arena implements ConfigurationSerializable {
         }
         beamTasks.clear();
         
-        plugin.getLogger().info("Cleaned up arena: " + name);
+        logger.info("Cleaned up arena: " + name);
     }
     
     /**
@@ -830,13 +836,13 @@ public class Arena implements ConfigurationSerializable {
         // Cancel existing beam tasks
         hideSpawnPoints();
         
-        plugin.getLogger().info("Showing spawn points for arena " + name + " (" + spawnPoints.size() + " points)");
+        logger.debug("Showing spawn points for arena " + name + " (" + spawnPoints.size() + " points)");
         
         for (Location location : spawnPoints) {
             if (location != null && location.getWorld() != null) {
                 createBeaconAt(location);
             } else {
-                plugin.getLogger().warning("Invalid spawn point location in arena " + name + ": " + location);
+                logger.warn("Invalid spawn point location in arena " + name + ": " + location);
             }
         }
     }
@@ -845,7 +851,7 @@ public class Arena implements ConfigurationSerializable {
      * Hides all visual indicators at spawn points.
      */
     public synchronized void hideSpawnPoints() {
-        plugin.getLogger().info("Hiding spawn points for arena " + name + " (clearing " + beamTasks.size() + " tasks)");
+        logger.debug("Hiding spawn points for arena " + name + " (clearing " + beamTasks.size() + " tasks)");
         for (BukkitTask task : beamTasks.values()) {
             if (task != null && !task.isCancelled()) {
                 task.cancel();
@@ -860,7 +866,7 @@ public class Arena implements ConfigurationSerializable {
      */
     private void createBeaconAt(@NotNull Location location) {
         if (location.getWorld() == null) {
-            plugin.getLogger().warning("Cannot create beacon: world is null for location " + location);
+            logger.warn("Cannot create beacon: world is null for location " + location);
             return;
         }
         

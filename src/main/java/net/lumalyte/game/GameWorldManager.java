@@ -2,6 +2,7 @@ package net.lumalyte.game;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -18,6 +19,9 @@ public class GameWorldManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull Arena arena;
     
+    /** The debug logger instance for this world manager */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     /** Track placed blocks during the game */
     private final @NotNull Set<Location> placedBlocks = new HashSet<>();
     
@@ -30,6 +34,7 @@ public class GameWorldManager {
     public GameWorldManager(@NotNull LumaSG plugin, @NotNull Arena arena) {
         this.plugin = plugin;
         this.arena = arena;
+        this.logger = plugin.getDebugLogger().forContext("GameWorldManager");
     }
     
     /**
@@ -54,14 +59,12 @@ public class GameWorldManager {
             if (center != null) {
                 arenaWorld.getWorldBorder().setCenter(center);
                 arenaWorld.getWorldBorder().setSize(500.0); // 500x500 border for the main game
-                plugin.getLogger().info("Set world border to 500 blocks centered at " + 
+                logger.info("Set world border to 500 blocks centered at " + 
                     String.format("(%.1f, %.1f)", center.getX(), center.getZ()));
             }
             
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Set arena world " + arenaWorld.getName() + " to peaceful and daytime (was " + 
-                    originalDifficulty + " and time " + originalTime + ")");
-            }
+            logger.debug("Set arena world " + arenaWorld.getName() + " to peaceful and daytime (was " + 
+                originalDifficulty + " and time " + originalTime + ")");
         }
     }
     
@@ -73,7 +76,7 @@ public class GameWorldManager {
         if (center != null && center.getWorld() != null) {
             center.getWorld().getWorldBorder().setCenter(center);
             center.getWorld().getWorldBorder().setSize(75.0); // 75x75 border for deathmatch
-            plugin.getLogger().info("Set deathmatch world border to 75 blocks centered at " + 
+            logger.info("Set deathmatch world border to 75 blocks centered at " + 
                 String.format("(%.1f, %.1f)", center.getX(), center.getZ()));
         }
     }
@@ -86,16 +89,14 @@ public class GameWorldManager {
         if (arenaWorld != null) {
             // Reset world border to normal size
             arenaWorld.getWorldBorder().setSize(500.0);
-            plugin.getLogger().info("Reset world border to 500 blocks for arena: " + arena.getName());
+            logger.info("Reset world border to 500 blocks for arena: " + arena.getName());
             
             // Restore original difficulty and time if available
             if (originalDifficulty != null) {
                 arenaWorld.setDifficulty(originalDifficulty);
                 arenaWorld.setTime(originalTime);
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Restored arena world " + arenaWorld.getName() + " to " + 
-                        originalDifficulty + " and time " + originalTime);
-                }
+                logger.debug("Restored arena world " + arenaWorld.getName() + " to " + 
+                    originalDifficulty + " and time " + originalTime);
             }
         }
     }

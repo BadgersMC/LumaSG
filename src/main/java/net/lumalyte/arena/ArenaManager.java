@@ -2,6 +2,7 @@ package net.lumalyte.arena;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -30,6 +31,10 @@ public class ArenaManager {
      */
     private final @NotNull LumaSG plugin;
     /**
+     * Debug logger instance for arena management.
+     */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    /**
      * List of all loaded arenas.
      */
     private final @NotNull List<Arena> arenas;
@@ -49,6 +54,7 @@ public class ArenaManager {
      */
     public ArenaManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("ArenaManager");
         this.arenas = new CopyOnWriteArrayList<>();
         this.arenaFolder = new File(plugin.getDataFolder(), "arenas");
         
@@ -65,16 +71,16 @@ public class ArenaManager {
     public void start() {
         // Create arena folder if it doesn't exist
         if (!arenaFolder.exists() && !arenaFolder.mkdirs()) {
-            plugin.getLogger().severe("Failed to create arena folder!");
+            logger.severe("Failed to create arena folder!");
             return;
         }
         
         // Load arenas asynchronously
         loadArenas().thenRun(() -> {
-            plugin.getLogger().info("Loaded " + arenas.size() + " arenas.");
+            logger.info("Loaded " + arenas.size() + " arenas.");
             // Save arenas after loading to ensure they're in the latest format
             saveArenas().thenRun(() -> 
-                plugin.getLogger().info("Saved " + arenas.size() + " arenas after loading."));
+                logger.debug("Saved " + arenas.size() + " arenas after loading."));
         });
     }
     
@@ -83,7 +89,7 @@ public class ArenaManager {
      * This method is called during plugin shutdown.
      */
     public void stop() {
-        plugin.getLogger().info("Saving " + arenas.size() + " arenas before shutdown...");
+        logger.info("Saving " + arenas.size() + " arenas before shutdown...");
         
         // Cancel any pending save task
         if (pendingSaveTask != null && !pendingSaveTask.isCancelled()) {
@@ -93,7 +99,7 @@ public class ArenaManager {
         // Save arenas synchronously before clearing
         saveArenasImmediately().join();
         arenas.clear();
-        plugin.getLogger().info("Arena save complete, cleared arena list.");
+        logger.info("Arena save complete, cleared arena list.");
     }
     
     /**
@@ -105,11 +111,11 @@ public class ArenaManager {
         return CompletableFuture.runAsync(() -> {
             File[] files = arenaFolder.listFiles((dir, name) -> name.endsWith(".yml"));
             if (files == null) {
-                plugin.getLogger().warning("No arena files found in " + arenaFolder.getPath());
+                logger.warn("No arena files found in " + arenaFolder.getPath());
                 return;
             }
             
-            plugin.getLogger().info("Found " + files.length + " arena files to load.");
+            logger.debug("Found " + files.length + " arena files to load.");
             int successfulLoads = 0;
             int failedLoads = 0;
             
@@ -117,12 +123,12 @@ public class ArenaManager {
                 String arenaName = file.getName().replace(".yml", "");
                 
                 try {
-                    plugin.getLogger().info("Loading arena from file: " + file.getName());
+                    logger.debug("Loading arena from file: " + file.getName());
                     
                     // Load configuration with validation
                     YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                     if (config.getKeys(false).isEmpty()) {
-                        plugin.getLogger().warning("Arena file " + file.getName() + " is empty - skipping");
+                        logger.warn("Arena file " + file.getName() + " is empty - skipping");
                         failedLoads++;
                         continue;
                     }
@@ -133,25 +139,25 @@ public class ArenaManager {
                         arena.setConfigFile(file);
                         arenas.add(arena);
                         successfulLoads++;
-                        plugin.getLogger().info("Successfully loaded arena: " + arenaName);
+                        logger.debug("Successfully loaded arena: " + arenaName);
                     } else {
                         failedLoads++;
-                        plugin.getLogger().severe("Failed to load arena: " + arenaName + " after all retry attempts");
+                        logger.severe("Failed to load arena: " + arenaName + " after all retry attempts");
                     }
                     
                 } catch (Exception e) {
                     failedLoads++;
-                    plugin.getLogger().log(Level.SEVERE, "Critical error loading arena: " + arenaName, e);
+                    logger.severe("Critical error loading arena: " + arenaName, e);
                 }
             }
             
-            plugin.getLogger().info("Arena loading completed: " + successfulLoads + " successful, " + failedLoads + " failed");
+            logger.info("Arena loading completed: " + successfulLoads + " successful, " + failedLoads + " failed");
             
             if (successfulLoads == 0 && files.length > 0) {
-                plugin.getLogger().severe("Failed to load any arenas! Please check your arena configurations.");
+                logger.severe("Failed to load any arenas! Please check your arena configurations.");
             }
         }).exceptionally(e -> {
-            plugin.getLogger().log(Level.SEVERE, "Failed to load arenas", e);
+            logger.severe("Failed to load arenas", e);
             return null;
         });
     }
@@ -168,7 +174,7 @@ public class ArenaManager {
                 }
                 
                 if (attempt < maxRetries) {
-                    plugin.getLogger().warning("Arena loading attempt " + attempt + " failed for " + arenaName + ", retrying...");
+                    logger.debug("Arena loading attempt " + attempt + " failed for " + arenaName + ", retrying...");
                     
                     // Brief delay before retry
                     try {
@@ -182,7 +188,7 @@ public class ArenaManager {
             } catch (Exception e) {
                 if (isRecoverableError(e)) {
                     if (attempt < maxRetries) {
-                        plugin.getLogger().warning("Recoverable error loading arena " + arenaName + 
+                        logger.warn("Recoverable error loading arena " + arenaName + 
                             " (attempt " + attempt + "/" + maxRetries + "): " + e.getMessage());
                         
                         try {
@@ -192,11 +198,11 @@ public class ArenaManager {
                             break;
                         }
                     } else {
-                        plugin.getLogger().severe("Arena " + arenaName + " failed to load after " + maxRetries + " attempts: " + e.getMessage());
+                        logger.severe("Arena " + arenaName + " failed to load after " + maxRetries + " attempts: " + e.getMessage());
                     }
                 } else {
                     // Non-recoverable error, don't retry
-                    plugin.getLogger().log(Level.SEVERE, "Non-recoverable error loading arena " + arenaName + ": " + e.getMessage(), e);
+                    logger.severe("Non-recoverable error loading arena " + arenaName + ": " + e.getMessage(), e);
                     break;
                 }
             }
@@ -245,7 +251,7 @@ public class ArenaManager {
                 }
                 
                 long saveDelayTicks = plugin.getConfig().getInt("arena.save-delay-seconds", 3) * 20L;
-                plugin.getLogger().info("Scheduling arena save in " + (saveDelayTicks / 20.0) + " seconds...");
+                logger.debug("Scheduling arena save in " + (saveDelayTicks / 20.0) + " seconds...");
                 
                 // Schedule the actual save operation
                 pendingSaveTask = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
@@ -253,12 +259,12 @@ public class ArenaManager {
                         saveScheduled.set(false);
                         performArenaSave();
                     } catch (Exception e) {
-                        plugin.getLogger().log(Level.SEVERE, "Error during scheduled arena save", e);
+                        logger.severe("Error during scheduled arena save", e);
                         saveScheduled.set(false);
                     }
                 }, saveDelayTicks);
             } else {
-                plugin.getLogger().info("Arena save already scheduled, skipping duplicate request");
+                logger.debug("Arena save already scheduled, skipping duplicate request");
             }
         });
     }
@@ -285,7 +291,7 @@ public class ArenaManager {
      * Performs the actual arena save operation.
      */
     private void performArenaSave() {
-        plugin.getLogger().info("Starting to save " + arenas.size() + " arenas...");
+        logger.debug("Starting to save " + arenas.size() + " arenas...");
         
         for (Arena arena : arenas) {
             try {
@@ -302,13 +308,13 @@ public class ArenaManager {
                 arena.saveToConfig(config);
                 config.save(file);
                 
-                plugin.getLogger().info("Successfully saved arena: " + arena.getName() + " to " + file.getName());
+                logger.debug("Successfully saved arena: " + arena.getName() + " to " + file.getName());
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to save arena: " + arena.getName(), e);
+                logger.severe("Failed to save arena: " + arena.getName(), e);
             }
         }
         
-        plugin.getLogger().info("Finished saving all arenas.");
+        logger.debug("Finished saving all arenas.");
     }
     
     /**
@@ -339,11 +345,11 @@ public class ArenaManager {
      * @param arena The arena to add
      */
     public void addArena(@NotNull Arena arena) {
-        plugin.getLogger().info("Adding new arena: " + arena.getName());
+        logger.info("Adding new arena: " + arena.getName());
         arenas.add(arena);
         // Save arenas immediately when a new one is added
         saveArenas().thenRun(() -> 
-            plugin.getLogger().info("Saved arenas after adding: " + arena.getName()));
+            logger.debug("Saved arenas after adding: " + arena.getName()));
     }
     
     /**
@@ -352,7 +358,7 @@ public class ArenaManager {
      * @param arena The arena to remove
      */
     public void removeArena(@NotNull Arena arena) {
-        plugin.getLogger().info("Removing arena: " + arena.getName());
+        logger.info("Removing arena: " + arena.getName());
         arenas.remove(arena);
         
         // Delete arena file asynchronously
@@ -360,19 +366,19 @@ public class ArenaManager {
             File file = new File(arenaFolder, arena.getName() + ".yml");
             if (file.exists()) {
                 if (file.delete()) {
-                    plugin.getLogger().info("Successfully deleted arena file: " + file.getName());
+                    logger.debug("Successfully deleted arena file: " + file.getName());
                 } else {
-                    plugin.getLogger().warning("Failed to delete arena file: " + file.getName());
+                    logger.warn("Failed to delete arena file: " + file.getName());
                 }
             }
         }).exceptionally(e -> {
-            plugin.getLogger().log(Level.SEVERE, "Failed to delete arena file: " + arena.getName(), e);
+            logger.severe("Failed to delete arena file: " + arena.getName(), e);
             return null;
         });
         
         // Save remaining arenas
         saveArenas().thenRun(() -> 
-            plugin.getLogger().info("Saved remaining arenas after removing: " + arena.getName()));
+            logger.debug("Saved remaining arenas after removing: " + arena.getName()));
     }
     
     /**
@@ -396,7 +402,7 @@ public class ArenaManager {
     public @Nullable Arena createArena(@NotNull String name, @NotNull org.bukkit.Location center, int radius) {
         // Check if arena with this name already exists
         if (getArena(name) != null) {
-            plugin.getLogger().warning("Arena with name " + name + " already exists!");
+            logger.warn("Arena with name " + name + " already exists!");
             return null;
         }
         
@@ -411,14 +417,14 @@ public class ArenaManager {
             addArena(arena);
             
             // Scan for chests automatically
-            plugin.getLogger().info("Scanning for chests in newly created arena: " + name);
+            logger.debug("Scanning for chests in newly created arena: " + name);
             int chestCount = arena.scanForChests();
-            plugin.getLogger().info("Found " + chestCount + " chests in arena: " + name);
+            logger.debug("Found " + chestCount + " chests in arena: " + name);
             
-            plugin.getLogger().info("Successfully created arena: " + name);
+            logger.info("Successfully created arena: " + name);
             return arena;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create arena: " + name, e);
+            logger.severe("Failed to create arena: " + name, e);
             return null;
         }
     }

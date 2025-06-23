@@ -6,7 +6,6 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -24,7 +23,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Level;
 
 /**
@@ -49,11 +47,12 @@ public class ItemUtils {
      * @return The created ItemStack, or null if creation failed
      */
     public static @Nullable ItemStack createItemFromConfig(@NotNull LumaSG plugin, @NotNull ConfigurationSection section, @NotNull String itemKey) {
+        DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("ItemUtils");
         try {
             // Get material
             String materialName = section.getString("material");
             if (materialName == null) {
-                plugin.getLogger().warning("No material specified for item: " + itemKey);
+                logger.warn("No material specified for item: " + itemKey);
                 return null;
             }
             
@@ -61,7 +60,7 @@ public class ItemUtils {
             try {
                 material = Material.valueOf(materialName.toUpperCase());
             } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("Invalid material: " + materialName + " for item: " + itemKey);
+                logger.warn("Invalid material: " + materialName + " for item: " + itemKey);
                 return null;
             }
             
@@ -69,7 +68,7 @@ public class ItemUtils {
             ItemStack itemStack = new ItemStack(material);
             ItemMeta meta = itemStack.getItemMeta();
             if (meta == null) {
-                plugin.getLogger().warning("Failed to get item meta for material: " + material);
+                logger.warn("Failed to get item meta for material: " + material);
                 return itemStack;
             }
             
@@ -79,7 +78,7 @@ public class ItemUtils {
                 if (name != null) {
                     Component displayName = MiniMessageUtils.parseMessage(name);
                     meta.displayName(displayName);
-                    plugin.getLogger().info("Set display name for item: " + itemKey);
+                    logger.debug("Set display name for item: " + itemKey);
                 }
             }
             
@@ -92,7 +91,7 @@ public class ItemUtils {
                         lore.add(MiniMessageUtils.parseMessage(line));
                     }
                     meta.lore(lore);
-                    plugin.getLogger().info("Set lore for item: " + itemKey);
+                    logger.debug("Set lore for item: " + itemKey);
                 }
             }
             
@@ -100,14 +99,14 @@ public class ItemUtils {
             if (section.contains("custom-model-data")) {
                 int cmd = section.getInt("custom-model-data");
                 meta.setCustomModelData(cmd);
-                plugin.getLogger().info("Set custom model data: " + cmd);
+                logger.debug("Set custom model data: " + cmd);
             }
             
             // Set unbreakable
             if (section.contains("unbreakable")) {
                 boolean unbreakable = section.getBoolean("unbreakable");
                 meta.setUnbreakable(unbreakable);
-                plugin.getLogger().info("Set unbreakable: " + unbreakable);
+                logger.debug("Set unbreakable: " + unbreakable);
             }
             
             // Add item flags
@@ -117,9 +116,9 @@ public class ItemUtils {
                     try {
                         ItemFlag flag = ItemFlag.valueOf(flagString.toUpperCase());
                         meta.addItemFlags(flag);
-                        plugin.getLogger().info("Added item flag: " + flag);
+                        logger.debug("Added item flag: " + flag);
                     } catch (IllegalArgumentException e) {
-                        plugin.getLogger().warning("Invalid item flag: " + flagString);
+                        logger.warn("Invalid item flag: " + flagString);
                     }
                 }
             }
@@ -135,10 +134,10 @@ public class ItemUtils {
                             if (enchant != null) {
                                 int level = enchantSection.getInt(enchantKey);
                                 meta.addEnchant(enchant, level, true);
-                                plugin.getLogger().info("Added enchantment: " + enchantKey + " level " + level);
+                                logger.debug("Added enchantment: " + enchantKey + " level " + level);
                             }
                         } catch (IllegalArgumentException e) {
-                            plugin.getLogger().warning("Invalid enchantment: " + enchantKey);
+                            logger.warn("Invalid enchantment: " + enchantKey);
                         }
                     }
                 }
@@ -164,10 +163,10 @@ public class ItemUtils {
                                 
                                 meta.addAttributeModifier(attribute, modifier);
                             } else {
-                                plugin.getLogger().warning("Invalid attribute: " + attributeKey);
+                                logger.warn("Invalid attribute: " + attributeKey);
                             }
                         } catch (IllegalArgumentException e) {
-                            plugin.getLogger().warning("Invalid attribute: " + attributeKey);
+                            logger.warn("Invalid attribute: " + attributeKey);
                         }
                     }
                 }
@@ -182,7 +181,7 @@ public class ItemUtils {
                             PotionType potionType = PotionType.valueOf(potionTypeStr.toUpperCase());
                             potionMeta.setBasePotionType(potionType);
                         } catch (IllegalArgumentException e) {
-                            plugin.getLogger().warning("Invalid potion type: " + potionTypeStr);
+                            logger.warn("Invalid potion type: " + potionTypeStr);
                         }
                     }
                 }
@@ -213,10 +212,10 @@ public class ItemUtils {
                                         
                                         potionMeta.addCustomEffect(effect, true);
                                     } else {
-                                        plugin.getLogger().warning("Invalid potion effect type: " + effectKey);
+                                        logger.warn("Invalid potion effect type: " + effectKey);
                                     }
                                 } catch (IllegalArgumentException e) {
-                                    plugin.getLogger().warning("Invalid potion effect type: " + effectKey);
+                                    logger.warn("Invalid potion effect type: " + effectKey);
                                 }
                             }
                         }
@@ -241,7 +240,7 @@ public class ItemUtils {
             itemStack.setItemMeta(meta);
             return itemStack;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error creating item: " + itemKey, e);
+            logger.severe("Error creating item: " + itemKey, e);
             return null;
         }
     }

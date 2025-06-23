@@ -1,13 +1,13 @@
 package net.lumalyte.hooks;
 
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
-import java.util.logging.Level;
 
 /**
  * Hook for the Nexo plugin.
@@ -21,8 +21,12 @@ public class NexoHook implements PluginHook {
     
     private final LumaSG plugin;
     
+    /** The debug logger instance for this nexo hook */
+    private final DebugLogger.ContextualLogger logger;
+    
     public NexoHook(LumaSG plugin) {
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("NexoHook");
     }
     
     @Override
@@ -45,7 +49,7 @@ public class NexoHook implements PluginHook {
         nexoPlugin = Bukkit.getPluginManager().getPlugin(PLUGIN_NAME);
         
         if (nexoPlugin == null || !nexoPlugin.isEnabled()) {
-            plugin.getLogger().info("Nexo plugin not found or not enabled. Nexo item support will be disabled.");
+            logger.info("Nexo plugin not found or not enabled. Nexo item support will be disabled.");
             return false;
         }
         
@@ -60,7 +64,7 @@ public class NexoHook implements PluginHook {
                 try {
                     nexoAPIClass = Class.forName("com.nexo.api.NexoAPI");
                 } catch (ClassNotFoundException ex) {
-                    plugin.getLogger().warning("Nexo API class not found. Nexo item support will be disabled.");
+                    logger.warn("Nexo API class not found. Nexo item support will be disabled.");
                     return false;
                 }
             }
@@ -69,10 +73,10 @@ public class NexoHook implements PluginHook {
             getItemMethod = nexoAPIClass.getMethod("getItem", String.class);
             
             available = true;
-            plugin.getLogger().info("Successfully hooked into Nexo!");
+            logger.info("Successfully hooked into Nexo!");
             return true;
         } catch (NoSuchMethodException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to hook into Nexo API. Nexo item support will be disabled.", e);
+            logger.warn("Failed to hook into Nexo API. Nexo item support will be disabled.", e);
             return false;
         }
     }
@@ -94,7 +98,7 @@ public class NexoHook implements PluginHook {
                 return Optional.of((ItemStack) result);
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to get Nexo item: " + itemId, e);
+            logger.warn("Failed to get Nexo item: " + itemId, e);
         }
         
         return Optional.empty();

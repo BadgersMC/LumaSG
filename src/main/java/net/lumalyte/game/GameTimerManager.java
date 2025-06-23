@@ -5,6 +5,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +14,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 /**
  * Manages all timing aspects of a game instance.
@@ -22,6 +22,9 @@ import java.util.logging.Level;
 public class GameTimerManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull GamePlayerManager playerManager;
+    
+    /** The debug logger instance for this timer manager */
+    private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** Map of active scheduled tasks for proper cleanup */
     private final @NotNull Map<Integer, BukkitTask> activeTasks = new ConcurrentHashMap<>();
@@ -51,6 +54,7 @@ public class GameTimerManager {
     public GameTimerManager(@NotNull LumaSG plugin, @NotNull GamePlayerManager playerManager) {
         this.plugin = plugin;
         this.playerManager = playerManager;
+        this.logger = plugin.getDebugLogger().forContext("GameTimerManager");
         
         // Load configuration values
         this.countdown = plugin.getConfig().getInt("game.countdown-seconds", 30);
@@ -113,7 +117,7 @@ public class GameTimerManager {
                 
                 countdown--;
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Error in countdown task", e);
+                logger.severe("Error in countdown task", e);
                 BukkitTask task = activeTasks.remove(taskIdRef[0]);
                 if (task != null) {
                     task.cancel();
@@ -174,11 +178,9 @@ public class GameTimerManager {
         int deathmatchStartTime = gameTime - deathmatchTime;
         
         // Add debug logging
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Game timing: Total game time: " + gameTime + " seconds");
-            plugin.getLogger().info("Game timing: Deathmatch time: " + deathmatchTime + " seconds");
-            plugin.getLogger().info("Game timing: Deathmatch will start after: " + deathmatchStartTime + " seconds");
-        }
+        logger.debug("Game timing: Total game time: " + gameTime + " seconds");
+        logger.debug("Game timing: Deathmatch time: " + deathmatchTime + " seconds");
+        logger.debug("Game timing: Deathmatch will start after: " + deathmatchStartTime + " seconds");
         
         // Schedule deathmatch at the calculated time
         BukkitTask deathmatchTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
@@ -197,9 +199,7 @@ public class GameTimerManager {
      * Schedules the game to end after deathmatch duration.
      */
     public void scheduleDeathmatchEnd(@NotNull Runnable onGameEnd) {
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Scheduling game end after deathmatch: " + deathmatchTime + " seconds");
-        }
+        logger.debug("Scheduling game end after deathmatch: " + deathmatchTime + " seconds");
         
         BukkitTask deathmatchEndTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
             onGameEnd, 
@@ -215,9 +215,7 @@ public class GameTimerManager {
         long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
         int remaining = Math.max(0, totalTime - (int)elapsedTime);
         
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Timer Debug - Total: " + totalTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
-        }
+        logger.debug("Timer Debug - Total: " + totalTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
         
         return remaining;
     }

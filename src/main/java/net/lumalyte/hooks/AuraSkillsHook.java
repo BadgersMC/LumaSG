@@ -10,6 +10,7 @@ import dev.aurelium.auraskills.api.event.mana.ManaRegenerateEvent;
 import net.lumalyte.LumaSG;
 import net.lumalyte.game.Game;
 import net.lumalyte.game.GameManager;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,7 +21,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Level;
 
 /**
  * Hook for the AuraSkills plugin to handle player stat modifications and game mechanics.
@@ -40,6 +40,9 @@ public class AuraSkillsHook implements PluginHook, Listener {
     
     private final LumaSG plugin;
     
+    /** The debug logger instance for this AuraSkills hook */
+    private final DebugLogger.ContextualLogger logger;
+    
     /**
      * Creates a new AuraSkills hook.
      * 
@@ -47,6 +50,7 @@ public class AuraSkillsHook implements PluginHook, Listener {
      */
     public AuraSkillsHook(@NotNull LumaSG plugin) {
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("AuraSkillsHook");
     }
     
     @Override
@@ -76,7 +80,7 @@ public class AuraSkillsHook implements PluginHook, Listener {
             api = AuraSkillsApi.get();
             return true;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to initialize AuraSkills hook: " + e.getMessage());
+            logger.warn("Failed to initialize AuraSkills hook: " + e.getMessage());
             return false;
         }
     }
@@ -87,7 +91,7 @@ public class AuraSkillsHook implements PluginHook, Listener {
             available = true;
             // Register event listeners
             plugin.getServer().getPluginManager().registerEvents(this, plugin);
-            plugin.getLogger().info("Successfully hooked into AuraSkills!");
+            logger.info("Successfully hooked into AuraSkills!");
             return true;
         }
         return false;
@@ -144,9 +148,9 @@ public class AuraSkillsHook implements PluginHook, Listener {
             player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).setBaseValue(20.0);
             player.setHealth(Math.min(player.getHealth(), 20.0));
             
-            plugin.getLogger().info("Reset AuraSkills stats for player: " + player.getName());
+            logger.info("Reset AuraSkills stats for player: " + player.getName());
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to reset AuraSkills stats for player: " + player.getName(), e);
+            logger.warn("Failed to reset AuraSkills stats for player: " + player.getName(), e);
         }
     }
     
@@ -173,9 +177,9 @@ public class AuraSkillsHook implements PluginHook, Listener {
             // Update player's max health
             player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).setBaseValue(stats.health);
             
-            plugin.getLogger().info("Restored AuraSkills stats for player: " + player.getName());
+            logger.info("Restored AuraSkills stats for player: " + player.getName());
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to restore AuraSkills stats for player: " + player.getName(), e);
+            logger.warn("Failed to restore AuraSkills stats for player: " + player.getName(), e);
         }
     }
     
@@ -198,81 +202,83 @@ public class AuraSkillsHook implements PluginHook, Listener {
      * Sets all stats to their default values for the game.
      */
     private void setDefaultStats(@NotNull SkillsUser user, @NotNull PlayerStats originalStats) {
-        // Calculate differences between current and default values
+        // Reset health to default (20.0)
         double healthDiff = 20.0 - originalStats.health;
-        double toughnessDiff = 0.0 - originalStats.toughness;
-        double strengthDiff = 1.0 - originalStats.strength;
-        double regenDiff = 1.0 - originalStats.regeneration;
-        double luckDiff = 0.0 - originalStats.luck;
-        double wisdomDiff = 0.0 - originalStats.wisdom;
-        double critChanceDiff = 0.0 - originalStats.critChance;
-        double critDamageDiff = 0.0 - originalStats.critDamage;
-        double speedDiff = 0.2 - originalStats.speed; // Default walk speed
+        if (healthDiff != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "health", Stats.HEALTH, healthDiff));
+        }
         
-        // Add modifiers to normalize stats
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "health", Stats.HEALTH, healthDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "toughness", Stats.TOUGHNESS, toughnessDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "strength", Stats.STRENGTH, strengthDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "regeneration", Stats.REGENERATION, regenDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "luck", Stats.LUCK, luckDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "wisdom", Stats.WISDOM, wisdomDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "crit_chance", Stats.CRIT_CHANCE, critChanceDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "crit_damage", Stats.CRIT_DAMAGE, critDamageDiff));
-        user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "speed", Stats.SPEED, speedDiff));
+        // Reset other stats to 0 (default values)
+        if (originalStats.toughness != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "toughness", Stats.TOUGHNESS, -originalStats.toughness));
+        }
+        if (originalStats.strength != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "strength", Stats.STRENGTH, -originalStats.strength));
+        }
+        if (originalStats.regeneration != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "regeneration", Stats.REGENERATION, -originalStats.regeneration));
+        }
+        if (originalStats.luck != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "luck", Stats.LUCK, -originalStats.luck));
+        }
+        if (originalStats.wisdom != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "wisdom", Stats.WISDOM, -originalStats.wisdom));
+        }
+        if (originalStats.critChance != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "crit_chance", Stats.CRIT_CHANCE, -originalStats.critChance));
+        }
+        if (originalStats.critDamage != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "crit_damage", Stats.CRIT_DAMAGE, -originalStats.critDamage));
+        }
+        if (originalStats.speed != 0) {
+            user.addStatModifier(new StatModifier(MODIFIER_PREFIX + "speed", Stats.SPEED, -originalStats.speed));
+        }
     }
     
     /**
-     * Checks if a player is in a game.
+     * Checks if a player is currently in a Survival Games match.
+     * 
+     * @param player The player to check
+     * @return true if the player is in a game, false otherwise
      */
     private boolean isInGame(Player player) {
         GameManager gameManager = plugin.getGameManager();
-        if (gameManager == null) return false;
-        
         Game game = gameManager.getGameByPlayer(player);
         return game != null;
     }
     
     /**
-     * Event handler to prevent skill XP gain during games.
+     * Prevents players from gaining XP during games.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onXpGain(XpGainEvent event) {
-        if (!available) return;
-        
-        Player player = event.getPlayer();
-        if (isInGame(player)) {
+        if (isInGame(event.getPlayer())) {
             event.setCancelled(true);
         }
     }
     
     /**
-     * Event handler to prevent mana ability usage during games.
+     * Prevents players from using mana abilities during games.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onManaAbilityActivate(ManaAbilityActivateEvent event) {
-        if (!available) return;
-        
-        Player player = event.getPlayer();
-        if (isInGame(player)) {
+        if (isInGame(event.getPlayer())) {
             event.setCancelled(true);
         }
     }
     
     /**
-     * Event handler to prevent mana regeneration during games.
+     * Prevents mana regeneration during games to maintain balance.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onManaRegenerate(ManaRegenerateEvent event) {
-        if (!available) return;
-        
-        Player player = event.getPlayer();
-        if (isInGame(player)) {
+        if (isInGame(event.getPlayer())) {
             event.setCancelled(true);
         }
     }
     
     /**
-     * Simple class to store player stats.
+     * Stores original player stats for restoration after the game.
      */
     private static class PlayerStats {
         final double health;

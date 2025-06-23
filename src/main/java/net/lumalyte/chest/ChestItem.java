@@ -2,24 +2,23 @@ package net.lumalyte.chest;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.hooks.NexoHook;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ItemUtils;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
-
 import org.bukkit.inventory.ItemStack;
-
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Represents an item that can be found in Survival Games chests.
+ * Represents an item that can be found in survival game chests.
  * 
- * <p>This class encapsulates all the properties of a chest item, including
- * its material, amount range, spawn chance, tier, and various metadata such
- * as custom names, lore, enchantments, and attributes. It also supports
- * integration with external item systems like Nexo.</p>
+ * <p>ChestItems define the loot pool for survival game chests. Each item
+ * has configurable properties including spawn amounts, chance/weight, and
+ * tier classification for different chest types.</p>
  * 
- * <p>ChestItem instances can be created from various sources including
- * Material types, ItemStacks, or external item IDs. They can be serialized
- * to and from configuration files for persistent storage.</p>
+ * <p>This class supports both regular Bukkit items and external Nexo items,
+ * providing a unified interface for chest loot management.</p>
  * 
  * @author LumaLyte
  * @version 1.0
@@ -27,31 +26,31 @@ import org.bukkit.inventory.ItemStack;
  */
 public class ChestItem {
     
-    /** The base ItemStack for this chest item (null for Nexo items) */
+    /** The actual item stack for this chest item (null for Nexo items) */
     private final ItemStack itemStack;
     
-    /** Minimum amount of this item that can spawn */
+    /** The minimum amount that can spawn in a chest */
     private final int minAmount;
     
-    /** Maximum amount of this item that can spawn */
+    /** The maximum amount that can spawn in a chest */
     private final int maxAmount;
     
-    /** Spawn chance/weight for this item (higher = more likely to spawn) */
+    /** The spawn chance/weight for this item */
     private final double chance;
     
-    /** Whether this item is a Nexo item (external item system) */
+    /** Whether this item is a Nexo item */
     private final boolean isNexoItem;
     
-    /** The Nexo item ID (only used if isNexoItem is true) */
+    /** The Nexo item ID (only used for Nexo items) */
     private final String nexoItemId;
     
-    /** The tier/category this item belongs to (e.g., "common", "rare") */
+    /** The tier this item belongs to */
     private final String tier;
     
     /**
-     * Creates a new chest item from a material with default tier.
+     * Creates a new chest item with a material and default tier.
      * 
-     * @param material The material type for this item
+     * @param material The material for the item
      * @param minAmount The minimum amount that can spawn
      * @param maxAmount The maximum amount that can spawn
      * @param chance The spawn chance/weight for this item
@@ -61,9 +60,9 @@ public class ChestItem {
     }
     
     /**
-     * Creates a new chest item from a material with a specific tier.
+     * Creates a new chest item with a material and specific tier.
      * 
-     * @param material The material type for this item
+     * @param material The material for the item
      * @param minAmount The minimum amount that can spawn
      * @param maxAmount The maximum amount that can spawn
      * @param chance The spawn chance/weight for this item
@@ -80,9 +79,9 @@ public class ChestItem {
     }
     
     /**
-     * Creates a new chest item from an ItemStack with default tier.
+     * Creates a new chest item with an item stack and default tier.
      * 
-     * @param itemStack The ItemStack to use as the base
+     * @param itemStack The item stack for this chest item
      * @param minAmount The minimum amount that can spawn
      * @param maxAmount The maximum amount that can spawn
      * @param chance The spawn chance/weight for this item
@@ -92,16 +91,16 @@ public class ChestItem {
     }
     
     /**
-     * Creates a new chest item from an ItemStack with a specific tier.
+     * Creates a new chest item with an item stack and specific tier.
      * 
-     * @param itemStack The ItemStack to use as the base
+     * @param itemStack The item stack for this chest item
      * @param minAmount The minimum amount that can spawn
      * @param maxAmount The maximum amount that can spawn
      * @param chance The spawn chance/weight for this item
      * @param tier The tier/category this item belongs to
      */
     public ChestItem(ItemStack itemStack, int minAmount, int maxAmount, double chance, String tier) {
-        this.itemStack = itemStack;
+        this.itemStack = itemStack.clone();
         this.minAmount = minAmount;
         this.maxAmount = maxAmount;
         this.chance = chance;
@@ -156,8 +155,10 @@ public class ChestItem {
      * @return The created ChestItem, or null if creation failed
      */
     public static ChestItem fromConfig(LumaSG plugin, ConfigurationSection section, String itemKey) {
+        DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("ChestItem");
+        
         if (section == null) {
-            plugin.getLogger().warning("Null configuration section for item: " + itemKey);
+            logger.warn("Null configuration section for item: " + itemKey);
             return null;
         }
         
@@ -170,7 +171,7 @@ public class ChestItem {
                 double chance = section.getDouble("chance", 10.0);
                 String tier = section.getString("tier", "common");
                 
-                plugin.getLogger().info("Created Nexo item: " + nexoItemId + " with chance " + chance + " and tier " + tier);
+                logger.debug("Created Nexo item: " + nexoItemId + " with chance " + chance + " and tier " + tier);
                 return new ChestItem(nexoItemId, minAmount, maxAmount, chance, tier);
             }
         }
@@ -186,7 +187,7 @@ public class ChestItem {
         double chance = section.getDouble("chance", 10.0);
         String tier = section.getString("tier", "common");
         
-        plugin.getLogger().info("Successfully created item: " + itemKey + " with material " + itemStack.getType());
+        logger.debug("Successfully created item: " + itemKey + " with material " + itemStack.getType());
         return new ChestItem(itemStack, minAmount, maxAmount, chance, tier);
     }
     
@@ -203,7 +204,8 @@ public class ChestItem {
             if (nexoHook != null && nexoHook.isAvailable()) {
                 return nexoHook.getNexoItem(nexoItemId).orElse(createFallbackItem(plugin));
             } else {
-                plugin.getLogger().warning("Nexo items are not available. Using fallback item for: " + nexoItemId);
+                DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("ChestItem");
+                logger.warn("Nexo items are not available. Using fallback item for: " + nexoItemId);
                 return createFallbackItem(plugin);
             }
         }
@@ -233,7 +235,8 @@ public class ChestItem {
                 fallback.setItemMeta(meta);
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to create fallback item metadata: " + e.getMessage());
+            DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("ChestItem");
+            logger.warn("Failed to create fallback item metadata: " + e.getMessage());
         }
         return fallback;
     }

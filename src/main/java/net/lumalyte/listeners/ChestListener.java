@@ -5,6 +5,7 @@ import net.lumalyte.chest.ChestManager;
 import net.lumalyte.game.Game;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.game.GameState;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -22,7 +23,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
-import java.util.logging.Level;
 
 /**
  * Handles all chest-related events in Survival Games.
@@ -52,6 +52,9 @@ public class ChestListener implements Listener {
     /** The game manager for checking game states and player participation */
     private final GameManager gameManager;
     
+    /** The debug logger instance for this chest listener */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     /** The set of opened chests */
     private final Set<Block> openedChests;
 
@@ -69,6 +72,7 @@ public class ChestListener implements Listener {
         this.plugin = plugin;
         this.chestManager = plugin.getChestManager();
         this.gameManager = plugin.getGameManager();
+        this.logger = plugin.getDebugLogger().forContext("ChestListener");
         this.openedChests = new HashSet<>();
         this.random = new Random();
     }
@@ -107,7 +111,7 @@ public class ChestListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling chest open for " + player.getName(), e);
+            logger.warn("Error handling chest open for " + player.getName(), e);
         }
     }
     
@@ -140,7 +144,7 @@ public class ChestListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling chest break for " + player.getName(), e);
+            logger.warn("Error handling chest break for " + player.getName(), e);
         }
     }
     
@@ -173,7 +177,7 @@ public class ChestListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling chest place for " + player.getName(), e);
+            logger.warn("Error handling chest place for " + player.getName(), e);
         }
     }
     
@@ -201,41 +205,37 @@ public class ChestListener implements Listener {
                 // Check if player is in a game
                 Game game = gameManager.getGameByPlayer(player);
                 if (game != null && game.getState() != GameState.WAITING) {
-                    // Player is in an active game, check inventory interaction rules
+                    // Player is in an active game, handle chest interaction
                     handleChestInventoryInteraction(event, player, game);
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling inventory click for " + player.getName(), e);
+            logger.warn("Error handling inventory click for " + player.getName(), e);
         }
     }
     
     /**
      * Handles chest interactions when a player is in an active game.
      * 
-     * <p>This method manages chest filling and access rules for players
-     * who are currently participating in a Survival Games match.</p>
-     * 
-     * @param chest The chest being interacted with
-     * @param player The player interacting with the chest
-     * @param game The game the player is participating in
+     * @param chest The chest being opened
+     * @param player The player opening the chest
+     * @param game The game the player is in
      */
     private void handleChestInGame(@NotNull Chest chest, @NotNull Player player, @NotNull Game game) {
-        Block block = chest.getBlock();
+        Block chestBlock = chest.getBlock();
         
-        // Check if this chest is in the game's arena
-        if (!isChestInArena(block.getLocation(), game)) {
-            return;
-        }
-        
-        // Track opened chests for statistics if needed
-        if (!openedChests.contains(block)) {
-            openedChests.add(block);
-            
-            // Record chest opening statistics if enabled
-            if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
-                plugin.getConfig().getBoolean("statistics.track-chests", true)) {
-                plugin.getStatisticsManager().recordChestOpened(player.getUniqueId());
+        // Check if this chest is in the game arena
+        if (isChestInArena(chestBlock.getLocation(), game)) {
+            // Check if this chest has already been opened
+            if (!openedChests.contains(chestBlock)) {
+                // Fill the chest with loot
+                chestManager.fillChest(chestBlock.getLocation());
+                openedChests.add(chestBlock);
+                
+                // Record chest opened statistic if enabled
+                if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
+                    plugin.getStatisticsManager().recordChestOpened(player.getUniqueId());
+                }
             }
         }
     }
@@ -243,60 +243,41 @@ public class ChestListener implements Listener {
     /**
      * Handles chest interactions when a player is not in a game.
      * 
-     * <p>This method manages chest access for players who are not currently
-     * participating in a Survival Games match.</p>
-     * 
-     * @param chest The chest being interacted with
-     * @param player The player interacting with the chest
+     * @param chest The chest being opened
+     * @param player The player opening the chest
      */
     private void handleChestOutsideGame(@NotNull Chest chest, @NotNull Player player) {
-        // Check if chest is in an arena but player is not in a game
-        // This might be used for lobby chests or admin chests
-        boolean allowNonGameAccess = plugin.getConfig().getBoolean("chest.allow-non-game-access", true);
-        if (!allowNonGameAccess) {
-            // Prevent access to arena chests when not in a game
-            player.closeInventory();
-            player.sendMessage("§cYou must be in a game to access this chest!");
-        }
+        // For now, we don't do anything special for chests outside of games
+        // This could be extended in the future for lobby chests or other features
     }
     
     /**
-     * Handles inventory interaction rules for chests during games.
+     * Handles inventory click events within chest inventories during games.
      * 
      * @param event The inventory click event
      * @param player The player clicking
      * @param game The game the player is in
      */
     private void handleChestInventoryInteraction(@NotNull InventoryClickEvent event, @NotNull Player player, @NotNull Game game) {
-        // Check if chest interaction is allowed during this game state
-        boolean allowChestInteraction = plugin.getConfig().getBoolean("game.allow-chest-interaction", true);
-        if (!allowChestInteraction) {
-            event.setCancelled(true);
-            player.sendMessage("§cChest interaction is disabled during this game phase!");
-            return;
-        }
-        
-        // Additional rules can be added here, such as:
-        // - Preventing item movement during certain game states
-        // - Restricting access to specific chest types
-        // - Limiting the number of items that can be taken
+        // For now, we allow all chest interactions during games
+        // This could be extended to add restrictions or special behaviors
     }
     
     /**
      * Checks if a chest location is within a game arena.
      * 
-     * @param location The chest location to check
-     * @param game The game/arena to check against
+     * @param location The location to check
+     * @param game The game to check against
      * @return true if the chest is in the arena, false otherwise
      */
     private boolean isChestInArena(@NotNull org.bukkit.Location location, @NotNull Game game) {
         // This is a simplified check - in a real implementation, you'd check
-        // against the arena's actual boundaries and chest locations
+        // against the arena's actual boundaries
         return location.getWorld().equals(game.getArena().getWorld());
     }
     
     /**
-     * Clears the list of opened chests.
+     * Clears the set of opened chests (typically called when a game ends).
      */
     public void clearOpenedChests() {
         openedChests.clear();

@@ -3,6 +3,7 @@ package net.lumalyte.game;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ErrorHandlingUtils;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.entity.Player;
@@ -47,6 +48,9 @@ public class GameManager {
     
     /** Circuit breaker for game creation failures */
     private final @NotNull ErrorHandlingUtils.CircuitBreaker gameCreationCircuitBreaker;
+    
+    /** The debug logger instance for this game manager */
+    private final @NotNull DebugLogger.ContextualLogger logger;
 
     /**
      * Constructs a new GameManager instance.
@@ -61,8 +65,9 @@ public class GameManager {
         this.activeGames = new ConcurrentHashMap<>();
         this.allGames = new CopyOnWriteArrayList<>();
         this.gameCreationCircuitBreaker = new ErrorHandlingUtils.CircuitBreaker(5, 60000L); // 5 failures, 1 minute reset
+        this.logger = plugin.getDebugLogger().forContext("GameManager");
         
-        plugin.getLogger().info("GameManager initialized successfully");
+        logger.info("GameManager initialized successfully");
     }
 
     /**
@@ -101,16 +106,13 @@ public class GameManager {
         } catch (RuntimeException e) {
             // Handle our wrapped LumaSGException
             if (e.getCause() instanceof LumaSGException) {
-                ErrorHandlingUtils.logError(plugin.getLogger(), "Game Creation", 
-                    "Arena: " + arena.getName() + ", Cause: " + e.getCause().getMessage(), e.getCause());
+                logger.severe("Game Creation failed for arena: " + arena.getName() + ", Cause: " + e.getCause().getMessage(), e.getCause());
             } else {
-                ErrorHandlingUtils.logError(plugin.getLogger(), "Game Creation", 
-                    "Arena: " + arena.getName(), e);
+                logger.severe("Game Creation failed for arena: " + arena.getName(), e);
             }
             return null;
         } catch (Exception e) {
-            ErrorHandlingUtils.logError(plugin.getLogger(), "Game Creation", 
-                "Arena: " + arena.getName(), e);
+            logger.severe("Game Creation failed for arena: " + arena.getName(), e);
             return null;
         }
     }
@@ -123,7 +125,7 @@ public class GameManager {
      * @throws LumaSGException if game creation fails
      */
     private @NotNull Game createGameInternal(@NotNull Arena arena) throws LumaSGException {
-        plugin.getLogger().info("Creating new game in arena: " + arena.getName());
+        logger.info("Creating new game in arena: " + arena.getName());
         
         // Validate arena state
         validateArenaForGameCreation(arena);
@@ -156,7 +158,7 @@ public class GameManager {
         activeGames.put(gameId, game);
         allGames.add(game);
         
-        plugin.getLogger().info("Successfully created game: " + gameId + " in arena: " + arena.getName());
+        logger.info("Successfully created game: " + gameId + " in arena: " + arena.getName());
         return game;
     }
     
@@ -212,202 +214,192 @@ public class GameManager {
     /**
      * Gets a game by its unique identifier.
      * 
-     * @param gameId The unique identifier of the game
+     * @param gameId The game identifier
      * @return The Game instance, or null if not found
      * @throws LumaSGException if gameId is null or empty
      */
     public @Nullable Game getGame(@NotNull String gameId) {
-        ValidationUtils.requireNonEmpty(gameId, "Game ID", "Getting Game");
-        
-        return ErrorHandlingUtils.safeExecute(() -> {
+        try {
+            ValidationUtils.requireNonEmpty(gameId, "Game ID", "Game Retrieval");
+            
             Game game = activeGames.get(gameId);
             if (game != null) {
-                // Validate game state integrity
                 validateGameIntegrity(game);
             }
             return game;
-        }, null, plugin.getLogger(), "Get Game: " + gameId);
+            
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve game: " + gameId, e);
+            return null;
+        }
     }
     
     /**
-     * Validates the integrity of a game's state.
+     * Validates the integrity of a game instance.
      * 
      * @param game The game to validate
-     * @throws RuntimeException if the game state is corrupted
      */
     private void validateGameIntegrity(@NotNull Game game) {
-        if (game.getGameId() == null) {
-            throw new RuntimeException("Game has corrupted state: null game ID");
+        List<String> corruptedGameIds = new ArrayList<>();
+        
+        try {
+            // Basic validation
+            if (game.getGameId() == null || game.getArena() == null || game.getState() == null) {
+                corruptedGameIds.add(game.getGameId() != null ? game.getGameId().toString() : "unknown");
+                return;
+            }
+            
+            // Additional integrity checks can be added here
+            
+        } catch (Exception e) {
+            logger.warn("Game integrity validation failed for game: " + game.getGameId(), e);
+            corruptedGameIds.add(game.getGameId().toString());
         }
         
-        if (game.getArena() == null) {
-            throw new RuntimeException("Game has corrupted state: null arena");
-        }
-        
-        if (game.getState() == null) {
-            throw new RuntimeException("Game has corrupted state: null game state");
+        // Remove corrupted games
+        if (!corruptedGameIds.isEmpty()) {
+            logger.warn("Removing " + corruptedGameIds.size() + " corrupted games: " + corruptedGameIds);
+            for (String corruptedId : corruptedGameIds) {
+                activeGames.remove(corruptedId);
+            }
         }
     }
 
     /**
      * Gets all currently active games.
      * 
-     * @return A list of all active games (defensive copy)
+     * @return A list of all active games (never null)
      */
     public @NotNull List<Game> getActiveGames() {
-        List<Game> validGames = new ArrayList<>();
-        List<String> corruptedGameIds = new ArrayList<>();
+        return new ArrayList<>(activeGames.values());
+    }
+    
+    /**
+     * Finds an available game in the specified arena.
+     * 
+     * <p>An available game is one that is in the WAITING state and has space
+     * for additional players.</p>
+     * 
+     * @param arena The arena to search for available games
+     * @return An available Game instance, or null if none found
+     * @throws LumaSGException if arena is null
+     */
+    public @Nullable Game findAvailableGame(@NotNull Arena arena) {
+        ValidationUtils.requireNonNull(arena, "Arena", "Find Available Game");
         
-        for (Map.Entry<String, Game> entry : activeGames.entrySet()) {
-            String gameId = entry.getKey();
-            Game game = entry.getValue();
-            
-            if (game == null) {
-                corruptedGameIds.add(gameId);
-                continue;
-            }
-            
-            try {
-                validateGameIntegrity(game);
-                validGames.add(game);
-            } catch (Exception e) {
-                ErrorHandlingUtils.logError(plugin.getLogger(), Level.WARNING, 
-                    "Game Integrity Check", "Game ID: " + gameId, e);
-                corruptedGameIds.add(gameId);
-            }
-        }
-        
-        // Remove corrupted games
-        if (!corruptedGameIds.isEmpty()) {
-            plugin.getLogger().warning("Removing " + corruptedGameIds.size() + " corrupted games: " + corruptedGameIds);
-            for (String corruptedId : corruptedGameIds) {
-                activeGames.remove(corruptedId);
-            }
-        }
-        
-        return validGames;
+        return activeGames.values().stream()
+            .filter(game -> game.getArena().equals(arena))
+            .filter(game -> game.getState() == GameState.WAITING)
+            .filter(game -> game.getPlayers().size() < game.getArena().getMaxPlayers())
+            .findFirst()
+            .orElse(null);
     }
 
     /**
      * Gets all games that have been created (including finished ones).
      * 
-     * @return A list of all games (defensive copy)
+     * @return A list of all games (never null)
      */
     public @NotNull List<Game> getAllGames() {
-        return new ArrayList<>(allGames);
+        return Collections.unmodifiableList(allGames);
     }
 
     /**
-     * Finds the game that a specific player is currently participating in.
-     * 
-     * <p>This method searches through all active games to find which one
-     * contains the specified player.</p>
+     * Finds the game that a player is currently in.
      * 
      * @param player The player to search for
-     * @return The Game instance the player is in, or null if not found
+     * @return The Game instance the player is in, or null if not in any game
      * @throws LumaSGException if player is null
      */
     public @Nullable Game getGameByPlayer(@NotNull Player player) {
-        ValidationUtils.requireNonNull(player, "Player", "Finding Game by Player");
-        
-        return ErrorHandlingUtils.safeExecute(() -> {
-            for (Game game : getActiveGames()) { // Use getActiveGames() for corruption detection
-                if (game != null && game.getPlayers().contains(player.getUniqueId())) {
-                    return game;
-                }
-            }
+        try {
+            ValidationUtils.requireNonNull(player, "Player", "Find Game by Player");
+            
+            return activeGames.values().stream()
+                .filter(game -> game.getPlayers().contains(player))
+                .findFirst()
+                .orElse(null);
+            
+        } catch (Exception e) {
+            logger.warn("Failed to find game for player: " + player.getName(), e);
             return null;
-        }, null, plugin.getLogger(), "Find Game by Player: " + player.getName());
+        }
     }
 
     /**
-     * Finds all active games in a specific arena.
+     * Finds all games in the specified arena.
      * 
-     * <p>This method returns all games that are currently running in the
-     * specified arena. Typically, there should only be one active game per arena.</p>
-     * 
-     * @param arena The arena to search in
-     * @return A list of active games in the arena
+     * @param arena The arena to search for games
+     * @return A list of games in the arena (never null)
      * @throws LumaSGException if arena is null
      */
-    public @NotNull List<Game> getGamesByArena(@NotNull Arena arena) {
-        ValidationUtils.requireNonNull(arena, "Arena", "Finding Games by Arena");
-        
-        return ErrorHandlingUtils.safeExecute(() -> {
-            List<Game> games = new ArrayList<>();
-            for (Game game : getActiveGames()) { // Use getActiveGames() for corruption detection
-                if (game != null && game.getArena().equals(arena)) {
-                    games.add(game);
-                }
-            }
-            return games;
-        }, new ArrayList<>(), plugin.getLogger(), "Find Games by Arena: " + arena.getName());
+    public @NotNull List<Game> findGamesByArena(@NotNull Arena arena) {
+        try {
+            ValidationUtils.requireNonNull(arena, "Arena", "Find Games by Arena");
+            
+            return activeGames.values().stream()
+                .filter(game -> game.getArena().equals(arena))
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            
+        } catch (Exception e) {
+            logger.warn("Failed to find games for arena: " + arena.getName(), e);
+            return new ArrayList<>();
+        }
     }
 
     /**
-     * Gets the first active game in a specific arena.
+     * Gets the first active game in the specified arena.
      * 
-     * <p>This method returns the first active game found in the specified arena,
-     * or null if no games are active in that arena. Typically, there should only
-     * be one active game per arena.</p>
-     * 
-     * @param arena The arena to search in
-     * @return The first active game in the arena, or null if none found
+     * @param arena The arena to search
+     * @return The first Game instance found, or null if none
      * @throws LumaSGException if arena is null
      */
     public @Nullable Game getGameByArena(@NotNull Arena arena) {
-        ValidationUtils.requireNonNull(arena, "Arena", "Finding Game by Arena");
+        ValidationUtils.requireNonNull(arena, "Arena", "Get Game by Arena");
         
-        List<Game> games = getGamesByArena(arena);
-        return games.isEmpty() ? null : games.get(0);
+        return activeGames.values().stream()
+            .filter(game -> game.getArena().equals(arena))
+            .findFirst()
+            .orElse(null);
     }
 
     /**
      * Removes a game from the active games registry.
      * 
-     * <p>This method is typically called when a game ends or is cancelled.
-     * The game will be removed from the active games list but will remain
-     * in the allGames list for historical purposes.</p>
-     * 
      * @param game The game to remove
-     * @return true if the game was successfully removed, false otherwise
+     * @return True if the game was removed, false if it wasn't found
      * @throws LumaSGException if game is null
      */
     public boolean removeGame(@NotNull Game game) {
-        ValidationUtils.requireNonNull(game, "Game", "Removing Game");
-        
-        return ErrorHandlingUtils.safeExecute(() -> {
-            String gameId = game.getGameId().toString();
-            ValidationUtils.requireNonEmpty(gameId, "Game ID", "Removing Game");
+        try {
+            ValidationUtils.requireNonNull(game, "Game", "Game Removal");
             
-            Game removed = activeGames.remove(gameId);
-            if (removed != null) {
-                plugin.getLogger().info("Successfully removed game: " + gameId);
-                
-                // Perform cleanup on the removed game
-                try {
-                    if (removed != game) {
-                        plugin.getLogger().warning("Removed game instance differs from requested game for ID: " + gameId);
-                    }
-                    
-                    // Additional cleanup can be added here
+            String gameId = game.getGameId().toString();
+            Game removedGame = activeGames.remove(gameId);
+            
+            if (removedGame != null) {
+                if (removedGame.equals(game)) {
+                    logger.info("Successfully removed game: " + gameId);
                     return true;
-                } catch (Exception e) {
-                    ErrorHandlingUtils.logError(plugin.getLogger(), Level.WARNING, 
-                        "Game Cleanup", "Game ID: " + gameId, e);
-                    return true; // Still consider removal successful
+                } else {
+                    logger.warn("Removed game instance differs from requested game for ID: " + gameId);
+                    return true; // Still consider it successful since something was removed
                 }
             } else {
-                plugin.getLogger().warning("Attempted to remove non-existent game: " + gameId);
+                logger.warn("Attempted to remove non-existent game: " + gameId);
                 return false;
             }
-        }, false, plugin.getLogger(), "Remove Game: " + game.getGameId());
+            
+        } catch (Exception e) {
+            logger.warn("Failed to remove game: " + game.getGameId(), e);
+            return false;
+        }
     }
 
     /**
-     * Gets the total number of currently active games.
+     * Gets the number of currently active games.
      * 
-     * @return The number of active games
+     * @return The count of active games
      */
     public int getActiveGameCount() {
         return activeGames.size();
@@ -416,107 +408,92 @@ public class GameManager {
     /**
      * Gets the total number of games that have been created.
      * 
-     * @return The total number of games (including finished ones)
+     * @return The total count of games
      */
     public int getTotalGameCount() {
         return allGames.size();
     }
 
     /**
-     * Checks if a player is currently participating in any active game.
+     * Checks if a player is currently in any game.
      * 
      * @param player The player to check
-     * @return true if the player is in an active game, false otherwise
+     * @return True if the player is in a game, false otherwise
      * @throws LumaSGException if player is null
      */
     public boolean isPlayerInGame(@NotNull Player player) {
-        ValidationUtils.requireNonNull(player, "Player", "Checking Player Game Status");
         return getGameByPlayer(player) != null;
     }
 
     /**
      * Gets the number of active games in a specific arena.
      * 
-     * @param arena The arena to check
+     * @param arena The arena to count games for
      * @return The number of active games in the arena
      * @throws LumaSGException if arena is null
      */
     public int getActiveGameCountInArena(@NotNull Arena arena) {
-        ValidationUtils.requireNonNull(arena, "Arena", "Getting Active Game Count");
-        return getGamesByArena(arena).size();
+        return findGamesByArena(arena).size();
     }
 
     /**
-     * Checks if an arena currently has any active games.
+     * Checks if an arena has any active games.
      * 
      * @param arena The arena to check
-     * @return true if the arena has active games, false otherwise
+     * @return True if the arena has active games, false otherwise
      * @throws LumaSGException if arena is null
      */
     public boolean hasActiveGames(@NotNull Arena arena) {
-        ValidationUtils.requireNonNull(arena, "Arena", "Checking Active Games");
-        return !getGamesByArena(arena).isEmpty();
+        return getActiveGameCountInArena(arena) > 0;
     }
 
     /**
-     * Shuts down all active games and cleans up resources.
-     * 
-     * <p>This method should be called when the plugin is being disabled
-     * to ensure all games are properly terminated and resources are freed.</p>
+     * Shuts down the GameManager and all active games.
      */
     public void shutdown() {
-        plugin.getLogger().info("Shutting down GameManager...");
+        logger.info("Shutting down GameManager...");
         
-        // End all active games with null safety
-        List<Game> gamesToEnd = new ArrayList<>(activeGames.values());
-        for (Game game : gamesToEnd) {
+        // Stop all active games
+        List<Game> gamesToStop = new ArrayList<>(activeGames.values());
+        for (Game game : gamesToStop) {
             try {
-                if (game != null) {
-                    game.endGame(null);
-                }
+                game.endGame(null);
             } catch (Exception e) {
-                ErrorHandlingUtils.logError(plugin.getLogger(), Level.WARNING, 
-                    "Game Shutdown", "Game ID: " + (game != null ? game.getGameId() : "unknown"), e);
+                logger.warn("Error stopping game during shutdown: " + game.getGameId(), e);
             }
         }
         
-        // Clear all collections
+        // Clear collections
         activeGames.clear();
         allGames.clear();
         
-        plugin.getLogger().info("GameManager shutdown complete");
+        logger.info("GameManager shutdown complete");
     }
 
     /**
-     * Gets an existing game in the specified arena or creates a new one if none exists.
+     * Gets or creates a game in the specified arena.
      * 
-     * <p>This method first checks if there's an active game in the specified arena.
-     * If one exists, it returns that game. Otherwise, it creates a new game
-     * in the arena.</p>
+     * <p>This method first attempts to find an available game in the arena.
+     * If none is found, it creates a new game.</p>
      * 
      * @param arena The arena to get or create a game in
-     * @return The existing or newly created Game instance, or null if creation failed
+     * @return A Game instance, or null if creation failed
      * @throws LumaSGException if arena is null
      */
     public @Nullable Game getOrCreateGame(@NotNull Arena arena) {
-        ValidationUtils.requireNonNull(arena, "Arena", "Get or Create Game");
-        
-        // Check if there's an existing game in this arena
-        Game existingGame = getGameByArena(arena);
-        if (existingGame != null) {
-            return existingGame;
+        Game game = findAvailableGame(arena);
+        if (game == null) {
+            game = createGame(arena);
         }
-        
-        // No existing game, create a new one
-        return createGame(arena);
+        return game;
     }
 
     /**
-     * Gets all active games.
+     * Gets all games (active and finished).
      * 
-     * @return A collection of all active games
+     * @return A collection of all games
      */
     public @NotNull Collection<Game> getGames() {
-        return Collections.unmodifiableCollection(activeGames.values());
+        return Collections.unmodifiableCollection(allGames);
     }
 } 

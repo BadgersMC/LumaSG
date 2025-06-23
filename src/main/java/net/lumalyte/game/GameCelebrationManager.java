@@ -5,6 +5,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MiniMessageUtils;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -32,6 +33,9 @@ public class GameCelebrationManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull GamePlayerManager playerManager;
     
+    /** Debug logger instance for game celebration management */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     // Memory management: Track scheduled tasks for cleanup
     private final @NotNull Map<Integer, BukkitTask> activeTasks = new ConcurrentHashMap<>();
     
@@ -48,6 +52,9 @@ public class GameCelebrationManager {
             .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .connectionPool(new okhttp3.ConnectionPool(5, 5, java.util.concurrent.TimeUnit.MINUTES))
             .build();
+        
+        // Initialize debug logger
+        this.logger = plugin.getDebugLogger().forContext("GameCelebrationManager");
     }
     
     /**
@@ -63,10 +70,8 @@ public class GameCelebrationManager {
             .replace("<player>", winner.getName());
         
         // Add debug logging for MiniMessage parsing
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Parsing winner title: " + titleFormat);
-            plugin.getLogger().info("Parsing winner subtitle: " + subtitleFormat);
-        }
+        logger.debug("Parsing winner title: " + titleFormat);
+        logger.debug("Parsing winner subtitle: " + subtitleFormat);
         
         Component titleComponent;
         Component subtitleComponent;
@@ -74,12 +79,10 @@ public class GameCelebrationManager {
             titleComponent = MiniMessageUtils.parseMessage(titleFormat);
             subtitleComponent = MiniMessageUtils.parseMessage(subtitleFormat);
             
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Successfully parsed winner title and subtitle");
-            }
+            logger.debug("Successfully parsed winner title and subtitle");
         } catch (Exception e) {
             // Fallback to plain text if parsing fails
-            plugin.getLogger().warning("Failed to parse MiniMessage for winner title: " + e.getMessage());
+            logger.warn("Failed to parse MiniMessage for winner title: " + e.getMessage());
             titleComponent = Component.text("WINNER!", NamedTextColor.GOLD, TextDecoration.BOLD);
             subtitleComponent = Component.text(winner.getName(), NamedTextColor.YELLOW, TextDecoration.BOLD);
         }
@@ -302,7 +305,7 @@ public class GameCelebrationManager {
         int size = plugin.getConfig().getInt("rewards.winner-announcement.pixel-art.size", 8);
         String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "█");
         
-        plugin.getLogger().info("Attempting to fetch pixel art for " + winner.getName() + " from: " + apiUrl);
+        logger.info("Attempting to fetch pixel art for " + winner.getName() + " from: " + apiUrl);
         
         // Submit async task to fetch and display pixel art
         BukkitTask pixelArtTask = plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -317,14 +320,14 @@ public class GameCelebrationManager {
                     .addHeader("User-Agent", "LumaSG-Plugin")
                     .build();
                 
-                plugin.getLogger().info("Sending request to fetch skin image...");
+                logger.debug("Sending request to fetch skin image...");
                 
                 // Execute request
                 response = httpClient.newCall(request).execute();
-                plugin.getLogger().info("Received response: " + response.code() + " " + response.message());
+                logger.debug("Received response: " + response.code() + " " + response.message());
                 
                 if (!response.isSuccessful()) {
-                    plugin.getLogger().warning("Failed to fetch skin image: " + response.code() + " " + response.message());
+                    logger.warn("Failed to fetch skin image: " + response.code() + " " + response.message());
                     // Try fallback
                     tryFallbackPixelArt(winner, character, size);
                     return;
@@ -333,16 +336,16 @@ public class GameCelebrationManager {
                 // Read the image
                 image = ImageIO.read(response.body().byteStream());
                 if (image == null) {
-                    plugin.getLogger().warning("Failed to read image from response");
+                    logger.warn("Failed to read image from response");
                     tryFallbackPixelArt(winner, character, size);
                     return;
                 }
                 
-                plugin.getLogger().info("Successfully read image: " + image.getWidth() + "x" + image.getHeight());
+                logger.debug("Successfully read image: " + image.getWidth() + "x" + image.getHeight());
                 
                 // Scale image to desired size if needed
                 if (image.getWidth() != size || image.getHeight() != size) {
-                    plugin.getLogger().info("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + size + "x" + size);
+                    logger.debug("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + size + "x" + size);
                     scaledImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
                     java.awt.Graphics2D g2d = scaledImage.createGraphics();
                     try {
@@ -393,7 +396,7 @@ public class GameCelebrationManager {
                 
                 // Show pixel art in chat
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    plugin.getLogger().info("Displaying pixel art for " + winner.getName());
+                    logger.debug("Displaying pixel art for " + winner.getName());
                     broadcastMessage(Component.text("🎉 Winner: " + winner.getName() + " 🎉", net.kyori.adventure.text.format.NamedTextColor.GOLD));
                     broadcastMessage(Component.text("")); // Empty line before pixel art
                     for (Component line : pixelArt) {
@@ -403,10 +406,10 @@ public class GameCelebrationManager {
                 });
                 
             } catch (IOException e) {
-                plugin.getLogger().warning("Error reading image: " + e.getMessage());
+                logger.warn("Error reading image: " + e.getMessage());
                 tryFallbackPixelArt(winner, character, size);
             } catch (Exception e) {
-                plugin.getLogger().warning("Error processing pixel art: " + e.getMessage());
+                logger.warn("Error processing pixel art: " + e.getMessage());
                 e.printStackTrace();
                 tryFallbackPixelArt(winner, character, size);
             } finally {
@@ -431,7 +434,7 @@ public class GameCelebrationManager {
      */
     private void tryFallbackPixelArt(@NotNull Player winner, @NotNull String character, int size) {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            plugin.getLogger().info("Using fallback pixel art for " + winner.getName());
+            logger.debug("Using fallback pixel art for " + winner.getName());
             
             // Create a simple pattern as fallback
             Component[] fallbackArt = new Component[size];

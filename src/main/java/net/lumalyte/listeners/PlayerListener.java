@@ -4,6 +4,7 @@ import net.lumalyte.LumaSG;
 import net.lumalyte.game.Game;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.game.GameState;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MessageUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -23,8 +24,6 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.logging.Level;
 
 /**
  * Handles all player-related events in Survival Games.
@@ -50,6 +49,9 @@ public class PlayerListener implements Listener {
     /** The game manager for tracking active games and players */
     private final GameManager gameManager;
     
+    /** The debug logger instance for this player listener */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     /**
      * Constructs a new PlayerListener instance.
      * 
@@ -58,6 +60,7 @@ public class PlayerListener implements Listener {
     public PlayerListener(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.gameManager = plugin.getGameManager();
+        this.logger = plugin.getDebugLogger().forContext("PlayerListener");
     }
     
     /**
@@ -91,7 +94,7 @@ public class PlayerListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling player join for " + player.getName(), e);
+            logger.warn("Error handling player join for " + player.getName(), e);
         }
     }
     
@@ -124,13 +127,13 @@ public class PlayerListener implements Listener {
             // This ensures scoreboards don't persist if there's an edge case
             player.setScoreboard(org.bukkit.Bukkit.getScoreboardManager().getMainScoreboard());
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling player quit for " + player.getName(), e);
+            logger.warn("Error handling player quit for " + player.getName(), e);
             
             // Even if there's an error, try to reset the scoreboard
             try {
                 player.setScoreboard(org.bukkit.Bukkit.getScoreboardManager().getMainScoreboard());
             } catch (Exception ex) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to reset scoreboard for " + player.getName(), ex);
+                logger.severe("Failed to reset scoreboard for " + player.getName(), ex);
             }
         }
     }
@@ -150,16 +153,12 @@ public class PlayerListener implements Listener {
         Player player = event.getEntity();
         
         try {
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Player death event for " + player.getName());
-            }
+            logger.debug("Player death event for " + player.getName());
             
             Game game = gameManager.getGameByPlayer(player);
             if (game != null) {
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Player " + player.getName() + " died in game " + game.getGameId() + 
-                        " (state: " + game.getState() + ", players: " + game.getPlayers().size() + ")");
-                }
+                logger.debug("Player " + player.getName() + " died in game " + game.getGameId() + 
+                    " (state: " + game.getState() + ", players: " + game.getPlayers().size() + ")");
                 
                 if (game.getState() != GameState.WAITING) {
                     // Player died in an active game
@@ -176,16 +175,14 @@ public class PlayerListener implements Listener {
                     // Clear death drops
                     event.getDrops().clear();
                     
-                    if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                        plugin.getLogger().info("Player " + player.getName() + " eliminated from game " + game.getGameId() + 
-                            " (remaining players: " + game.getPlayers().size() + ")");
-                    }
+                    logger.debug("Player " + player.getName() + " eliminated from game " + game.getGameId() + 
+                        " (remaining players: " + game.getPlayers().size() + ")");
                 }
-            } else if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Player " + player.getName() + " died but was not in a game");
+            } else {
+                logger.debug("Player " + player.getName() + " died but was not in a game");
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling player death for " + player.getName(), e);
+            logger.warn("Error handling player death for " + player.getName(), e);
         }
     }
     
@@ -220,7 +217,7 @@ public class PlayerListener implements Listener {
                 }, 1L);
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling player respawn for " + player.getName(), e);
+            logger.warn("Error handling player respawn for " + player.getName(), e);
         }
     }
     
@@ -256,7 +253,7 @@ public class PlayerListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling entity damage for " + player.getName(), e);
+            logger.warn("Error handling entity damage for " + player.getName(), e);
         }
     }
     
@@ -301,7 +298,7 @@ public class PlayerListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling PvP damage between " + 
+            logger.warn("Error handling PvP damage between " + 
                 attacker.getName() + " and " + victim.getName(), e);
         }
     }
@@ -331,7 +328,7 @@ public class PlayerListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Error handling player teleport for " + player.getName(), e);
+            logger.warn("Error handling player teleport for " + player.getName(), e);
         }
     }
     

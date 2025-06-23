@@ -2,6 +2,7 @@ package net.lumalyte.game;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -25,6 +26,9 @@ public class GamePlayerManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull Arena arena;
     private final @NotNull UUID gameId;
+    
+    /** Debug logger instance for game player management */
+    private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** Set of all players currently participating in the game */
     private final @NotNull Set<UUID> players;
@@ -76,6 +80,9 @@ public class GamePlayerManager {
         this.inventories = new ConcurrentHashMap<>();
         this.armorContents = new ConcurrentHashMap<>();
         this.previousLocations = new ConcurrentHashMap<>();
+        
+        // Initialize logger
+        this.logger = plugin.getDebugLogger().forContext("GamePlayerManager");
     }
     
     /**
@@ -110,7 +117,7 @@ public class GamePlayerManager {
                         player.getInventory().clear();
                         player.getInventory().setArmorContents(null);
                     } catch (Exception e) {
-                        plugin.getLogger().warning("Failed to save inventory for player: " + player.getName());
+                        logger.warn("Failed to save inventory for player: " + player.getName());
                     }
                 }
                 
@@ -240,7 +247,7 @@ public class GamePlayerManager {
                 if (inv != null) player.getInventory().setContents(inv);
                 if (armor != null) player.getInventory().setArmorContents(armor);
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to restore inventory for player: " + player.getName());
+                logger.warn("Failed to restore inventory for player: " + player.getName());
             }
         }
         
@@ -284,9 +291,7 @@ public class GamePlayerManager {
             // If no unused spawn found, use random available spawn
             if (finalSpawnPoint == null) {
                 finalSpawnPoint = spawnPoints.get(new Random().nextInt(spawnPoints.size()));
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().warning("No unused spawn points found for " + player.getName() + ", using random spawn point");
-                }
+                logger.warn("No unused spawn points found for " + player.getName() + ", using random spawn point");
             }
             
             // Store and teleport to spawn point
@@ -297,18 +302,16 @@ public class GamePlayerManager {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (player.isOnline()) {
                     player.teleport(spawnPoint);
-                    if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                        plugin.getLogger().info("Teleported " + player.getName() + " to spawn point at: " + 
-                            String.format("World: %s, X: %.2f, Y: %.2f, Z: %.2f", 
-                                spawnPoint.getWorld().getName(),
-                                spawnPoint.getX(),
-                                spawnPoint.getY(),
-                                spawnPoint.getZ()));
-                    }
+                    logger.debug("Teleported " + player.getName() + " to spawn point at: " + 
+                        String.format("World: %s, X: %.2f, Y: %.2f, Z: %.2f", 
+                            spawnPoint.getWorld().getName(),
+                            spawnPoint.getX(),
+                            spawnPoint.getY(),
+                            spawnPoint.getZ()));
                 }
             }, 2L);
         } else {
-            plugin.getLogger().warning("No spawn points configured for arena " + arena.getName());
+            logger.warn("No spawn points configured for arena " + arena.getName());
         }
     }
     
@@ -317,39 +320,35 @@ public class GamePlayerManager {
      */
     private void teleportToLobby(@NotNull Player player) {
         if (player == null || !player.isOnline()) {
-            plugin.getLogger().warning("Attempted to teleport null or offline player to lobby");
+            logger.warn("Attempted to teleport null or offline player to lobby");
             return;
         }
 
         Location lobbyLocation = getLobbyLocation();
         if (lobbyLocation == null) {
-            plugin.getLogger().warning("Lobby location is null! Check config.yml lobby settings");
+            logger.warn("Lobby location is null! Check config.yml lobby settings");
             return;
         }
 
         if (lobbyLocation.getWorld() == null) {
-            plugin.getLogger().warning("Lobby world is null! Check config.yml lobby.world setting");
+            logger.warn("Lobby world is null! Check config.yml lobby.world setting");
             return;
         }
 
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Attempting to teleport " + player.getName() + " to lobby at: " + 
-                String.format("World: %s, X: %.2f, Y: %.2f, Z: %.2f", 
-                    lobbyLocation.getWorld().getName(),
-                    lobbyLocation.getX(),
-                    lobbyLocation.getY(),
-                    lobbyLocation.getZ()));
-        }
+        logger.debug("Attempting to teleport " + player.getName() + " to lobby at: " + 
+            String.format("World: %s, X: %.2f, Y: %.2f, Z: %.2f", 
+                lobbyLocation.getWorld().getName(),
+                lobbyLocation.getX(),
+                lobbyLocation.getY(),
+                lobbyLocation.getZ()));
 
         // Add a small delay to ensure teleport happens after other cleanup
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             try {
                 player.teleport(lobbyLocation);
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Successfully teleported " + player.getName() + " to lobby");
-                }
+                logger.debug("Successfully teleported " + player.getName() + " to lobby");
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to teleport " + player.getName() + " to lobby: " + e.getMessage());
+                logger.warn("Failed to teleport " + player.getName() + " to lobby: " + e.getMessage());
             }
         }, 2L);
     }
@@ -371,7 +370,7 @@ public class GamePlayerManager {
                     (float) plugin.getConfig().getDouble("lobby.pitch", 0.0)
                 );
             } else {
-                plugin.getLogger().warning("Could not find lobby world: " + worldName);
+                logger.warn("Could not find lobby world: " + worldName);
             }
         }
         return null;

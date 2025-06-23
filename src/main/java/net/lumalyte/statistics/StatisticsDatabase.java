@@ -1,6 +1,7 @@
 package net.lumalyte.statistics;
 
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,7 +15,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
 
 /**
  * Manages SQLite database operations for player statistics.
@@ -33,6 +33,9 @@ public class StatisticsDatabase {
     private final @NotNull File databaseFile;
     private final @NotNull ExecutorService executorService;
     private final @NotNull DateTimeFormatter dateTimeFormatter;
+    
+    /** The debug logger instance for this statistics database */
+    private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** SQL for creating the player statistics table */
     private static final String CREATE_TABLE_SQL = """
@@ -97,6 +100,7 @@ public class StatisticsDatabase {
             return thread;
         });
         this.dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        this.logger = plugin.getDebugLogger().forContext("StatisticsDatabase");
         
         // Ensure the plugin data folder exists
         if (!plugin.getDataFolder().exists()) {
@@ -113,9 +117,9 @@ public class StatisticsDatabase {
         return CompletableFuture.runAsync(() -> {
             try (Connection connection = getConnection()) {
                 createTables(connection);
-                plugin.getLogger().info("Statistics database initialized successfully");
+                logger.info("Statistics database initialized successfully");
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to initialize statistics database", e);
+                logger.severe("Failed to initialize statistics database", e);
                 throw new RuntimeException("Database initialization failed", e);
             }
         }, executorService);
@@ -172,11 +176,9 @@ public class StatisticsDatabase {
                 
                 statement.executeUpdate();
                 
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                    plugin.getLogger().info("Saved statistics for player: " + stats.getPlayerName());
-                }
+                logger.debug("Saved statistics for player: " + stats.getPlayerName());
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to save player statistics for " + stats.getPlayerName(), e);
+                logger.severe("Failed to save player statistics for " + stats.getPlayerName(), e);
                 throw new RuntimeException("Failed to save player statistics", e);
             }
         }, executorService);
@@ -203,7 +205,7 @@ public class StatisticsDatabase {
                 
                 return null; // Player not found
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to load player statistics for " + playerId, e);
+                logger.severe("Failed to load player statistics for " + playerId, e);
                 throw new RuntimeException("Failed to load player statistics", e);
             }
         }, executorService);
@@ -237,7 +239,7 @@ public class StatisticsDatabase {
                     }
                 }
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to load leaderboard for " + statType, e);
+                logger.severe("Failed to load leaderboard for " + statType, e);
                 throw new RuntimeException("Failed to load leaderboard", e);
             }
             
@@ -261,7 +263,7 @@ public class StatisticsDatabase {
                 }
                 return 0;
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to get total player count", e);
+                logger.severe("Failed to get total player count", e);
                 throw new RuntimeException("Failed to get total player count", e);
             }
         }, executorService);
@@ -304,7 +306,7 @@ public class StatisticsDatabase {
                     totalTimePlayed, bestPlacement, currentWinStreak, bestWinStreak, top3Finishes,
                     totalDamageDealt, totalDamageTaken, chestsOpened, firstJoined, lastPlayed, lastUpdated);
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to create PlayerStats from result set", e);
+            logger.warn("Failed to create PlayerStats from result set", e);
             return null;
         }
     }
@@ -340,7 +342,7 @@ public class StatisticsDatabase {
             if (!executorService.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
             }
-            plugin.getLogger().info("Statistics database shutdown completed");
+            logger.info("Statistics database shutdown completed");
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
@@ -361,9 +363,9 @@ public class StatisticsDatabase {
                 statement.execute("VACUUM");
                 statement.execute("ANALYZE");
                 
-                plugin.getLogger().info("Database maintenance completed");
+                logger.info("Database maintenance completed");
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "Database maintenance failed", e);
+                logger.warn("Database maintenance failed", e);
             }
         }, executorService);
     }

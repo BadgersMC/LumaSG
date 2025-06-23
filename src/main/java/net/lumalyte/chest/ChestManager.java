@@ -2,6 +2,7 @@ package net.lumalyte.chest;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ItemUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -46,6 +47,8 @@ import java.util.stream.Collectors;
  */
 public class ChestManager {
     private final @NotNull LumaSG plugin;
+    /** Debug logger instance for chest management */
+    private final @NotNull DebugLogger.ContextualLogger logger;
     /** Thread-safe list for chest items */
     private final @NotNull List<ChestItem> chestItems;
     private @NotNull File chestFile;
@@ -60,6 +63,7 @@ public class ChestManager {
      */
     public ChestManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
+        this.logger = plugin.getDebugLogger().forContext("ChestManager");
         this.chestItems = new CopyOnWriteArrayList<>();
         this.chestFile = new File(plugin.getDataFolder(), "chest.yml");
         
@@ -75,7 +79,7 @@ public class ChestManager {
     public void start() {
         // Load chest items
         loadChestItems().thenRun(() -> 
-            plugin.getLogger().info("Loaded " + chestItems.size() + " chest items."));
+            logger.info("Loaded " + chestItems.size() + " chest items."));
     }
     
     /**
@@ -103,7 +107,7 @@ public class ChestManager {
                 ConfigurationSection tiersSection = config.getConfigurationSection("tiers");
                 
                 if (tiersSection == null) {
-                    plugin.getLogger().warning("No tiers section found in chest.yml");
+                    logger.warn("No tiers section found in chest.yml");
                     return;
                 }
                 
@@ -112,11 +116,11 @@ public class ChestManager {
                 try {
                     // Clear existing items
                     chestItems.clear();
-                    plugin.getLogger().info("Loading chest items from configuration...");
+                    logger.debug("Loading chest items from configuration...");
                     
                     // Load items from each tier
                     for (String tierName : tiersSection.getKeys(false)) {
-                        plugin.getLogger().info("Processing tier: " + tierName);
+                        logger.debug("Processing tier: " + tierName);
                         ConfigurationSection tierSection = tiersSection.getConfigurationSection(tierName);
                         if (tierSection != null) {
                             ConfigurationSection itemsSection = tierSection.getConfigurationSection("items");
@@ -124,7 +128,7 @@ public class ChestManager {
                                 for (String key : itemsSection.getKeys(false)) {
                                     ConfigurationSection itemSection = itemsSection.getConfigurationSection(key);
                                     if (itemSection != null) {
-                                        plugin.getLogger().info("Loading item: " + key + " for tier: " + tierName);
+                                        logger.debug("Loading item: " + key + " for tier: " + tierName);
                                         // Create a new section that includes the tier
                                         YamlConfiguration enrichedSection = new YamlConfiguration();
                                         enrichedSection.set("tier", tierName);
@@ -136,21 +140,21 @@ public class ChestManager {
                                         
                                         // Check if this is a Nexo item and handle it gracefully
                                         if (enrichedSection.contains("nexo-item") && !plugin.getHookManager().isHookAvailable("Nexo")) {
-                                            plugin.getLogger().info("Skipping Nexo item: " + key + " because Nexo plugin is not available");
+                                            logger.debug("Skipping Nexo item: " + key + " because Nexo plugin is not available");
                                             continue;
                                         }
                                         
                                         ChestItem item = ChestItem.fromConfig(plugin, enrichedSection, key);
                                         if (item != null) {
                                             chestItems.add(item);
-                                            plugin.getLogger().info("Successfully loaded item: " + key + " for tier: " + tierName);
+                                            logger.debug("Successfully loaded item: " + key + " for tier: " + tierName);
                                         } else {
-                                            plugin.getLogger().warning("Failed to create item: " + key + " for tier: " + tierName);
+                                            logger.warn("Failed to create item: " + key + " for tier: " + tierName);
                                         }
                                     }
                                 }
                             } else {
-                                plugin.getLogger().warning("No items section found for tier: " + tierName);
+                                logger.warn("No items section found for tier: " + tierName);
                             }
                         }
                     }
@@ -166,16 +170,16 @@ public class ChestManager {
                         itemsPerTier.merge(item.getTier(), 1, Integer::sum);
                     }
                     
-                    plugin.getLogger().info("Chest items loaded - Summary:");
+                    logger.info("Chest items loaded - Summary:");
                     for (Map.Entry<String, Integer> entry : itemsPerTier.entrySet()) {
-                        plugin.getLogger().info("Tier " + entry.getKey() + ": " + entry.getValue() + " items");
+                        logger.info("Tier " + entry.getKey() + ": " + entry.getValue() + " items");
                     }
                 } finally {
                     itemsLock.readLock().unlock();
                 }
                 
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to load chest items", e);
+                logger.severe("Failed to load chest items", e);
             }
         });
     }
@@ -203,7 +207,7 @@ public class ChestManager {
         }
         
         try {
-            plugin.getLogger().info("Attempting to fill chest at " + location + " with tier: " + tier);
+            logger.debug("Attempting to fill chest at " + location + " with tier: " + tier);
             
             // Validate world exists
             if (location.getWorld() == null) {
@@ -231,7 +235,7 @@ public class ChestManager {
             // Fill with loot from the specified tier
             List<ChestItem> loot = getLootForTier(tier);
             if (loot.isEmpty()) {
-                plugin.getLogger().warning("No loot found for tier: " + tier + " (available tiers: " + getTiers() + ")");
+                logger.warn("No loot found for tier: " + tier + " (available tiers: " + getTiers() + ")");
                 return false;
             }
             
@@ -240,7 +244,7 @@ public class ChestManager {
             int minItems = plugin.getConfig().getInt("chest.min-items", 3);
             int maxItems = plugin.getConfig().getInt("chest.max-items", 8);
             int itemsToAdd = random.nextInt(minItems, maxItems + 1);
-            plugin.getLogger().info("Adding " + itemsToAdd + " items to chest");
+            logger.debug("Adding " + itemsToAdd + " items to chest");
             
             int addedItems = 0;
             for (int i = 0; i < itemsToAdd; i++) {
@@ -253,26 +257,26 @@ public class ChestManager {
                         if (itemStack != null) {
                             inventory.setItem(slot, itemStack);
                             addedItems++;
-                            plugin.getLogger().info("Added item to chest: " + itemStack.getType() + " in slot " + slot);
+                            logger.debug("Added item to chest: " + itemStack.getType() + " in slot " + slot);
                         } else {
-                            plugin.getLogger().warning("Failed to create ItemStack for item: " + item.getMaterial());
+                            logger.warn("Failed to create ItemStack for item: " + item.getMaterial());
                         }
                     } else {
-                        plugin.getLogger().warning("No empty slots available in chest at " + location);
+                        logger.warn("No empty slots available in chest at " + location);
                         break;
                     }
                 } else {
-                    plugin.getLogger().warning("Failed to get random item for tier: " + tier);
+                    logger.warn("Failed to get random item for tier: " + tier);
                 }
             }
             
-            plugin.getLogger().info("Successfully filled chest at " + location + " with " + addedItems + " items");
+            logger.debug("Successfully filled chest at " + location + " with " + addedItems + " items");
             return addedItems > 0;
             
         } catch (LumaSGException e) {
             throw e; // Re-throw LumaSG exceptions
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Unexpected error filling chest at " + location, e);
+            logger.severe("Unexpected error filling chest at " + location, e);
             throw LumaSGException.chestError("Unexpected error: " + e.getMessage(), location.toString());
         }
     }
@@ -289,14 +293,14 @@ public class ChestManager {
      */
     public boolean fillChest(@NotNull Location location) {
         if (chestItems.isEmpty()) {
-            plugin.getLogger().warning("No chest items available for chest filling");
+            logger.warn("No chest items available for chest filling");
             return false;
         }
         
         // Select a random tier from available items
         Set<String> availableTiers = getTiers();
         if (availableTiers.isEmpty()) {
-            plugin.getLogger().warning("No tiers available for chest filling");
+            logger.warn("No tiers available for chest filling");
             return false;
         }
         
@@ -305,7 +309,7 @@ public class ChestManager {
         try {
             return fillChest(location, tier);
         } catch (LumaSGException.ChestException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to fill chest at " + location + " with tier " + tier, e);
+            logger.severe("Failed to fill chest at " + location + " with tier " + tier, e);
             return false;
         }
     }
@@ -509,7 +513,7 @@ public class ChestManager {
         List<ChestItem> tierItems = getTierItems(tier);
         
         if (tierItems.isEmpty()) {
-            plugin.getLogger().warning("No items found for tier: " + tier);
+            logger.warn("No items found for tier: " + tier);
             return items;
         }
         

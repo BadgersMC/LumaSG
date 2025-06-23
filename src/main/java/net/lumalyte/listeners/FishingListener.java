@@ -3,6 +3,7 @@ package net.lumalyte.listeners;
 import net.lumalyte.LumaSG;
 import net.lumalyte.game.Game;
 import net.lumalyte.game.GameState;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -35,6 +36,9 @@ public class FishingListener implements Listener {
     private final @NotNull Random random = new Random();
     private @Nullable ConfigurationSection fishingConfig;
     private @Nullable File fishingFile;
+    
+    /** The debug logger instance for this fishing listener */
+    private final @NotNull DebugLogger.ContextualLogger logger;
 
     /**
      * Constructs a new FishingListener.
@@ -44,6 +48,7 @@ public class FishingListener implements Listener {
     public FishingListener(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.fishingFile = new File(plugin.getDataFolder(), "fishing.yml");
+        this.logger = plugin.getDebugLogger().forContext("FishingListener");
         
         // Save default fishing configuration if it doesn't exist
         if (!fishingFile.exists()) {
@@ -59,7 +64,7 @@ public class FishingListener implements Listener {
     private void loadFishingConfig() {
         try {
             if (fishingFile == null || !fishingFile.exists()) {
-                plugin.getLogger().warning("fishing.yml not found, fishing loot will not be available");
+                logger.warn("fishing.yml not found, fishing loot will not be available");
                 return;
             }
             
@@ -67,12 +72,12 @@ public class FishingListener implements Listener {
             fishingConfig = fishingYml;
             
             if (fishingConfig == null) {
-                plugin.getLogger().warning("Failed to load fishing.yml");
+                logger.warn("Failed to load fishing.yml");
             } else {
-                plugin.getLogger().info("Fishing loot configuration loaded successfully");
+                logger.info("Fishing loot configuration loaded successfully");
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error loading fishing loot configuration: " + e.getMessage());
+            logger.warn("Error loading fishing loot configuration: " + e.getMessage());
         }
     }
 
@@ -106,23 +111,19 @@ public class FishingListener implements Listener {
             loadFishingConfig();
             
             if (fishingConfig == null) {
-                plugin.getLogger().warning("Fishing loot configuration not available");
+                logger.warn("Fishing loot configuration not available");
                 return;
             }
         }
 
         // Debug logging
-        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-            plugin.getLogger().info("Player " + player.getName() + " caught something while fishing in an active game");
-        }
+        logger.debug("Player " + player.getName() + " caught something while fishing in an active game");
 
         // Check if player catches a special item
         double specialChance = fishingConfig.getDouble("special_catch_chance", 25.0);
         double roll = random.nextDouble() * 100;
         if (roll > specialChance) {
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Player didn't get a special item (rolled " + roll + " > " + specialChance + ")");
-            }
+            logger.debug("Player didn't get a special item (rolled " + roll + " > " + specialChance + ")");
             return; // Normal fish catch
         }
 
@@ -135,7 +136,7 @@ public class FishingListener implements Listener {
         // Get all possible special items
         ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
         if (itemsSection == null) {
-            plugin.getLogger().warning("No items section found in fishing.yml");
+            logger.warn("No items section found in fishing.yml");
             return;
         }
 
@@ -162,14 +163,14 @@ public class FishingListener implements Listener {
         }
 
         if (selectedItem == null) {
-            plugin.getLogger().warning("Failed to select a random fishing item");
+            logger.warn("Failed to select a random fishing item");
             return;
         }
 
         // Get the item configuration
         ConfigurationSection itemConfig = itemsSection.getConfigurationSection(selectedItem);
         if (itemConfig == null) {
-            plugin.getLogger().warning("Invalid item config for: " + selectedItem);
+            logger.warn("Invalid item config for: " + selectedItem);
             return;
         }
 
@@ -177,7 +178,7 @@ public class FishingListener implements Listener {
             // Create the special item using ItemUtils
             ItemStack item = ItemUtils.createItemFromConfig(plugin, itemConfig, selectedItem);
             if (item == null) {
-                plugin.getLogger().warning("Failed to create item: " + selectedItem);
+                logger.warn("Failed to create item: " + selectedItem);
                 return;
             }
             
@@ -213,11 +214,9 @@ public class FishingListener implements Listener {
             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
             player.spawnParticle(org.bukkit.Particle.SPLASH, player.getLocation(), 50, 0.5, 0.5, 0.5, 0.1);
 
-            if (plugin.getConfig().getBoolean("debug.enabled", false)) {
-                plugin.getLogger().info("Player " + player.getName() + " caught special item: " + selectedItem);
-            }
+            logger.debug("Player " + player.getName() + " caught special item: " + selectedItem);
         } catch (Exception e) {
-            plugin.getLogger().warning("Error creating special fishing item: " + e.getMessage());
+            logger.warn("Error creating special fishing item: " + e.getMessage());
         }
     }
 } 

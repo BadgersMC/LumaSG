@@ -6,6 +6,7 @@ import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
 import net.lumalyte.util.AdminWand;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -39,6 +40,10 @@ public class AdminWandListener implements Listener {
     private final LumaSG plugin;
     private final AdminWand adminWand;
     private final ArenaManager arenaManager;
+    
+    /** Debug logger instance for admin wand listener */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     private final Map<UUID, Arena> selectedArenas;
     private final Set<UUID> playersHoldingWand;
     
@@ -46,6 +51,7 @@ public class AdminWandListener implements Listener {
         this.plugin = plugin;
         this.adminWand = new AdminWand(plugin);
         this.arenaManager = plugin.getArenaManager();
+        this.logger = plugin.getDebugLogger().forContext("AdminWandListener");
         this.selectedArenas = new HashMap<>();
         this.playersHoldingWand = new HashSet<>();
     }
@@ -62,16 +68,16 @@ public class AdminWandListener implements Listener {
         
         // Get the selected arena directly from the map for consistency
         Arena selectedArena = selectedArenas.get(player.getUniqueId());
-        plugin.getLogger().info("Player " + player.getName() + " interacting with wand, selected arena: " + 
+        logger.debug("Player " + player.getName() + " interacting with wand, selected arena: " + 
             (selectedArena != null ? selectedArena.getName() : "null"));
             
         if (selectedArena == null) {
-            plugin.getLogger().info("No arena selected for player: " + player.getName() + ", selectedArenas map size: " + selectedArenas.size());
+            logger.debug("No arena selected for player: " + player.getName() + ", selectedArenas map size: " + selectedArenas.size());
             // Log admin wand interactions for audit purposes
             for (Map.Entry<UUID, Arena> entry : selectedArenas.entrySet()) {
                 Player mapPlayer = Bukkit.getPlayer(entry.getKey());
                 String playerName = mapPlayer != null ? mapPlayer.getName() : "Unknown";
-                plugin.getLogger().info("Map entry: " + playerName + " -> " + entry.getValue().getName());
+                logger.debug("Map entry: " + playerName + " -> " + entry.getValue().getName());
             }
             
             player.sendMessage(Component.text("Please select an arena first using /sg arena select <n>")
@@ -147,12 +153,12 @@ public class AdminWandListener implements Listener {
         // Check old slot for wand
         ItemStack oldItem = player.getInventory().getItem(event.getPreviousSlot());
         if (oldItem != null && adminWand.isWand(oldItem)) {
-            plugin.getLogger().info("Player " + player.getName() + " switched away from wand");
+            logger.debug("Player " + player.getName() + " switched away from wand");
             // Hide beacons when switching away from wand
             Arena selectedArena = selectedArenas.get(playerId);
             if (selectedArena != null) {
                 selectedArena.hideSpawnPoints();
-                plugin.getLogger().info("Hiding spawn points for " + player.getName() + " in arena " + selectedArena.getName());
+                logger.debug("Hiding spawn points for " + player.getName() + " in arena " + selectedArena.getName());
             }
             playersHoldingWand.remove(playerId);
             // IMPORTANT: Do NOT remove the selected arena when switching away from the wand
@@ -162,18 +168,18 @@ public class AdminWandListener implements Listener {
         // Check new slot for wand
         ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
         if (newItem != null && adminWand.isWand(newItem)) {
-            plugin.getLogger().info("Player " + player.getName() + " switched to wand");
+            logger.debug("Player " + player.getName() + " switched to wand");
             // Show beacons when switching to wand
             Arena selectedArena = selectedArenas.get(playerId);
             if (selectedArena != null) {
                 selectedArena.showSpawnPoints();
                 playersHoldingWand.add(playerId);
-                plugin.getLogger().info("Showing spawn points for " + player.getName() + " in arena " + selectedArena.getName() + 
+                logger.debug("Showing spawn points for " + player.getName() + " in arena " + selectedArena.getName() + 
                     ", points: " + selectedArena.getSpawnPoints().size());
             } else {
                 player.sendMessage(Component.text("Please select an arena first using /sg arena select <n>")
                     .color(NamedTextColor.RED));
-                plugin.getLogger().info("Player " + player.getName() + " has no selected arena");
+                logger.debug("Player " + player.getName() + " has no selected arena");
             }
         }
     }
@@ -188,7 +194,7 @@ public class AdminWandListener implements Listener {
             Arena selectedArena = selectedArenas.get(player.getUniqueId());
             if (selectedArena != null) {
                 selectedArena.hideSpawnPoints();
-                plugin.getLogger().info("Hiding spawn points due to wand drop for " + player.getName());
+                logger.debug("Hiding spawn points due to wand drop for " + player.getName());
             }
             playersHoldingWand.remove(player.getUniqueId());
             // Do NOT remove the selected arena when dropping the wand
@@ -207,7 +213,7 @@ public class AdminWandListener implements Listener {
             Arena selectedArena = selectedArenas.get(player.getUniqueId());
             if (selectedArena != null) {
                 selectedArena.hideSpawnPoints();
-                plugin.getLogger().info("Hiding spawn points due to inventory click for " + player.getName());
+                logger.debug("Hiding spawn points due to inventory click for " + player.getName());
             }
             playersHoldingWand.remove(player.getUniqueId());
             // Do NOT remove the selected arena when moving the wand in inventory
@@ -227,7 +233,7 @@ public class AdminWandListener implements Listener {
             Arena selectedArena = selectedArenas.get(player.getUniqueId());
             if (selectedArena != null) {
                 selectedArena.hideSpawnPoints();
-                plugin.getLogger().info("Hiding spawn points due to hand swap for " + player.getName());
+                logger.debug("Hiding spawn points due to hand swap for " + player.getName());
             }
             playersHoldingWand.remove(player.getUniqueId());
             // Do NOT remove the selected arena when swapping the wand
@@ -244,14 +250,14 @@ public class AdminWandListener implements Listener {
             Arena selectedArena = selectedArenas.get(playerId);
             if (selectedArena != null) {
                 selectedArena.hideSpawnPoints();
-                plugin.getLogger().info("Hiding spawn points due to player quit: " + player.getName());
+                logger.debug("Hiding spawn points due to player quit: " + player.getName());
             }
             playersHoldingWand.remove(playerId);
         }
         
         // Only remove from selectedArenas when the player actually quits the server
         selectedArenas.remove(playerId);
-        plugin.getLogger().info("Removed arena selection for player due to quit: " + player.getName());
+        logger.debug("Removed arena selection for player due to quit: " + player.getName());
     }
     
     /**
@@ -262,19 +268,19 @@ public class AdminWandListener implements Listener {
         Arena previousArena = selectedArenas.get(player.getUniqueId());
         if (previousArena != null) {
             previousArena.hideSpawnPoints();
-            plugin.getLogger().info("Hiding spawn points for previous arena: " + previousArena.getName());
+            logger.debug("Hiding spawn points for previous arena: " + previousArena.getName());
         }
         
         // Set new arena and show its beacons if holding wand
         selectedArenas.put(player.getUniqueId(), arena);
-        plugin.getLogger().info("Set selected arena for " + player.getName() + " to: " + arena.getName());
+        logger.debug("Set selected arena for " + player.getName() + " to: " + arena.getName());
         
         ItemStack heldItem = player.getInventory().getItemInMainHand();
         if (adminWand.isWand(heldItem)) {
             arena.showSpawnPoints();
             playersHoldingWand.add(player.getUniqueId());
         } else {
-            plugin.getLogger().info("Player is not holding wand, spawn points not shown for: " + arena.getName());
+            logger.debug("Player is not holding wand, spawn points not shown for: " + arena.getName());
         }
         
         player.sendMessage(Component.text("Selected arena: ")
@@ -291,7 +297,7 @@ public class AdminWandListener implements Listener {
      */
     public @Nullable Arena getSelectedArena(@NotNull Player player) {
         Arena arena = selectedArenas.get(player.getUniqueId());
-        plugin.getLogger().info("Getting selected arena for " + player.getName() + ": " + 
+        logger.debug("Getting selected arena for " + player.getName() + ": " + 
             (arena != null ? arena.getName() : "null"));
         return arena;
     }
@@ -301,7 +307,7 @@ public class AdminWandListener implements Listener {
      * This ensures the player is properly tracked if they're holding the wand when it's given.
      */
     public void onWandGiven(@NotNull Player player) {
-        plugin.getLogger().info("Registering wand given to player: " + player.getName());
+        logger.debug("Registering wand given to player: " + player.getName());
         playersHoldingWand.add(player.getUniqueId());
     }
     

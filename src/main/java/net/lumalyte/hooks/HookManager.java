@@ -1,6 +1,7 @@
 package net.lumalyte.hooks;
 
 import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -8,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
 
 /**
  * Manages hooks to other plugins.
@@ -19,9 +19,13 @@ public class HookManager {
     private PlaceholderAPIHook placeholderAPIHook;
     private AuraSkillsHook auraSkillsHook;
     
+    /** The debug logger instance for this hook manager */
+    private final @NotNull DebugLogger.ContextualLogger logger;
+    
     public HookManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.hooks = new HashMap<>();
+        this.logger = plugin.getDebugLogger().forContext("HookManager");
     }
     
     /**
@@ -40,7 +44,7 @@ public class HookManager {
             try {
                 hook.disable();
             } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Failed to disable hook: " + hook.getPluginName(), e);
+                logger.warn("Failed to disable hook: " + hook.getPluginName(), e);
             }
         }
         
@@ -70,15 +74,15 @@ public class HookManager {
             if (nexoHook.initialize()) {
                 if (nexoHook.enable()) {
                     hooks.put(nexoHook.getPluginName(), nexoHook);
-                    plugin.getLogger().info("Successfully enabled Nexo hook!");
+                    logger.info("Successfully enabled Nexo hook!");
                 } else {
-                    plugin.getLogger().warning("Failed to enable Nexo hook!");
+                    logger.warn("Failed to enable Nexo hook!");
                 }
             } else {
-                plugin.getLogger().info("Nexo plugin not found or not compatible.");
+                logger.info("Nexo plugin not found or not compatible.");
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to initialize Nexo hook", e);
+            logger.warn("Failed to initialize Nexo hook", e);
         }
     }
     
@@ -91,16 +95,16 @@ public class HookManager {
             if (placeholderPlugin != null) {
                 placeholderAPIHook = new PlaceholderAPIHook(plugin);
                 if (placeholderAPIHook.register()) {
-                    plugin.getLogger().info("Successfully registered PlaceholderAPI hook!");
+                    logger.info("Successfully registered PlaceholderAPI hook!");
                 } else {
-                    plugin.getLogger().warning("Failed to register PlaceholderAPI hook!");
+                    logger.warn("Failed to register PlaceholderAPI hook!");
                     placeholderAPIHook = null;
                 }
             } else {
-                plugin.getLogger().info("PlaceholderAPI plugin not found.");
+                logger.info("PlaceholderAPI plugin not found.");
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to initialize PlaceholderAPI hook", e);
+            logger.warn("Failed to initialize PlaceholderAPI hook", e);
             placeholderAPIHook = null;
         }
     }
@@ -114,17 +118,17 @@ public class HookManager {
             if (auraSkillsHook.initialize()) {
                 if (auraSkillsHook.enable()) {
                     hooks.put(auraSkillsHook.getPluginName(), auraSkillsHook);
-                    plugin.getLogger().info("Successfully enabled AuraSkills hook!");
+                    logger.info("Successfully enabled AuraSkills hook!");
                 } else {
-                    plugin.getLogger().warning("Failed to enable AuraSkills hook!");
+                    logger.warn("Failed to enable AuraSkills hook!");
                     auraSkillsHook = null;
                 }
             } else {
-                plugin.getLogger().info("AuraSkills plugin not found or not compatible.");
+                logger.info("AuraSkills plugin not found or not compatible.");
                 auraSkillsHook = null;
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to initialize AuraSkills hook", e);
+            logger.warn("Failed to initialize AuraSkills hook", e);
             auraSkillsHook = null;
         }
     }

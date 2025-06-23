@@ -12,6 +12,7 @@ import net.lumalyte.listeners.ChestListener;
 import net.lumalyte.listeners.FishingListener;
 import net.lumalyte.listeners.PlayerListener;
 import net.lumalyte.statistics.StatisticsManager;
+import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.PluginManager;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
  */
 public class LumaSG extends JavaPlugin {
     
+    // Single 4 lyfe
     /** Static instance for global access */
     private static LumaSG instance;
     
@@ -36,6 +38,7 @@ public class LumaSG extends JavaPlugin {
     private HookManager hookManager;
     private StatisticsManager statisticsManager;
     private AdminWandListener adminWandListener;
+    private DebugLogger debugLogger;
     
     @Override
     public void onEnable() {
@@ -52,6 +55,10 @@ public class LumaSG extends JavaPlugin {
         saveDefaultConfig();
         saveResource("chest.yml", false);
         saveResource("fishing.yml", false);
+        saveResource("config.yml", false);
+        
+        // Initialize debug logger early
+        debugLogger = new DebugLogger(this);
         
         // Initialize managers
         arenaManager = new ArenaManager(this);
@@ -93,13 +100,13 @@ public class LumaSG extends JavaPlugin {
         
         // Check for PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            getLogger().info("PlaceholderAPI found! Registering placeholders...");
+            debugLogger.startup("PlaceholderAPI found! Registering placeholders...");
         } else {
-            getLogger().warning("PlaceholderAPI not found. Placeholders will not be available.");
-            getLogger().warning("Download PlaceholderAPI from: https://www.spigotmc.org/resources/placeholderapi.6245/");
+            debugLogger.warn("PlaceholderAPI not found. Placeholders will not be available.");
+            debugLogger.warn("Download PlaceholderAPI from: https://www.spigotmc.org/resources/placeholderapi.6245/");
         }
         
-        getLogger().info("LumaSG has been enabled!");
+        debugLogger.startup("LumaSG has been enabled!");
     }
     
     @Override
@@ -121,7 +128,7 @@ public class LumaSG extends JavaPlugin {
                 arenaManager.stop();
             }
             
-            getLogger().info("LumaSG has been disabled successfully!");
+            debugLogger.shutdown("LumaSG has been disabled successfully!");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Error during plugin shutdown", e);
         }
@@ -143,7 +150,7 @@ public class LumaSG extends JavaPlugin {
             chestManager.start();
             hookManager.start();
             
-            getLogger().info("LumaSG has been reloaded successfully!");
+            debugLogger.info("LumaSG has been reloaded successfully!");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Error during plugin reload", e);
         }
@@ -153,7 +160,7 @@ public class LumaSG extends JavaPlugin {
         // Register the SG command using Paper's command system
         SGBrigadierCommand sgCommand = new SGBrigadierCommand(this);
         sgCommand.register();
-        getLogger().info("Registered 'sg' command using Paper's command system");
+        debugLogger.debug("Registered 'sg' command using Paper's command system");
     }
     
     private void registerListeners() {
@@ -196,6 +203,13 @@ public class LumaSG extends JavaPlugin {
     
     public @NotNull StatisticsManager getStatisticsManager() {
         return statisticsManager;
+    }
+    
+    /**
+     * Gets the debug logger instance.
+     */
+    public @NotNull DebugLogger getDebugLogger() {
+        return debugLogger;
     }
     
     /**

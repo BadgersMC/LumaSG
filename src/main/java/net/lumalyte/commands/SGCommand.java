@@ -14,6 +14,7 @@ import net.lumalyte.game.Game;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.game.GameState;
 import net.lumalyte.gui.MainMenu;
+import net.lumalyte.util.DebugLogger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -26,6 +27,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+
+import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.
@@ -57,6 +60,9 @@ public class SGCommand {
     private final GameManager gameManager;
     private final ArenaManager arenaManager;
     
+    /** The debug logger instance for this command handler */
+    private final DebugLogger.ContextualLogger logger;
+    
     /**
      * Creates a new SG command handler.
      * 
@@ -66,6 +72,7 @@ public class SGCommand {
         this.plugin = plugin;
         this.gameManager = plugin.getGameManager();
         this.arenaManager = plugin.getArenaManager();
+        this.logger = plugin.getDebugLogger().forContext("SGCommand");
     }
     
     /**
@@ -390,7 +397,7 @@ public class SGCommand {
                 .color(NamedTextColor.GREEN));
             return 1;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error reloading configuration", e);
+            logger.severe("Error reloading configuration", e);
             sender.sendMessage(Component.text("Error reloading configuration: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
@@ -416,7 +423,7 @@ public class SGCommand {
                 .color(NamedTextColor.GREEN));
             return 1;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error giving admin wand", e);
+            logger.severe("Error giving admin wand", e);
             player.sendMessage(Component.text("Error giving admin wand: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
@@ -460,7 +467,7 @@ public class SGCommand {
                 return 0;
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error creating arena", e);
+            logger.severe("Error creating arena", e);
             player.sendMessage(Component.text("Error creating arena: " + e.getMessage())
                 .color(NamedTextColor.RED));
             return 0;
