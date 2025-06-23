@@ -8,6 +8,7 @@ server-credentials.properties
 # IDE
 .idea/
 .vscode/
+.codebuddy/
 *.iml
 *.ipr
 *.iws
@@ -76,3 +77,11 @@ tmp/
 
 # Ignore cursor AI rules
 .cursor/rules/codacy.mdc
+
+# Personal Development Logs (exclude from repository)
+*_SUMMARY.md
+*_FIXES_SUMMARY.md
+*_FIX.md
+TODO.md
+DEPLOYMENT.md
+# Keep README.md and SECURITY.md as they are important project documentation
