@@ -1,0 +1,121 @@
+# LumaSG Fishing Loot Configuration
+# Special items that can be obtained through fishing during Survival Games
+
+# Chance for a special item (vs. normal fish) - out of 100
+special_catch_chance: 25
+  
+# Items that can be caught
+items:
+  special_sword:
+    material: DIAMOND_SWORD
+    chance: 10.0
+    name: "<!italic><blue>Poseidon's Blade</blue>"
+    lore:
+      - "<!italic><gray>A legendary sword pulled</gray>"
+      - "<!italic><gray>from the depths</gray>"
+    unbreakable: true
+    enchantments:
+      sharpness: 2
+      knockback: 2
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    attributes:
+      GENERIC_ATTACK_DAMAGE: 8.0
+      
+  trident:
+    material: TRIDENT
+    chance: 5.0
+    name: "<!italic><dark_aqua>Ocean's Fury</dark_aqua>"
+    lore:
+      - "<!italic><gray>A powerful trident imbued</gray>"
+      - "<!italic><gray>with the ocean's might</gray>"
+    unbreakable: true
+    enchantments:
+      loyalty: 2
+      channeling: 1
+    
+  special_bow:
+    material: BOW
+    chance: 10.0
+    name: "<!italic><blue>Tide Caller</blue>"
+    lore:
+      - "<!italic><gray>A bow blessed by</gray>"
+      - "<!italic><gray>the sea spirits</gray>"
+    unbreakable: true
+    enchantments:
+      power: 3
+      punch: 1
+      infinity: 1
+      
+  depth_strider_boots:
+    material: DIAMOND_BOOTS
+    chance: 8.0
+    name: "<!italic><dark_aqua>Aqua Walker</dark_aqua>"
+    lore:
+      - "<!italic><gray>Boots enchanted with</gray>"
+      - "<!italic><gray>the power of the tides</gray>"
+    unbreakable: true
+    enchantments:
+      depth_strider: 3
+      protection: 2
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+      
+  special_pearl:
+    material: ENDER_PEARL
+    min-amount: 2
+    max-amount: 4
+    chance: 15.0
+    name: "<!italic><light_purple>Pearl of the Deep</light_purple>"
+    lore:
+      - "<!italic><gray>Mysterious pearls from</gray>"
+      - "<!italic><gray>the ocean depths</gray>"
+      
+  special_apple:
+    material: ENCHANTED_GOLDEN_APPLE
+    chance: 5.0
+    name: "<!italic><gold>Golden Fish Apple</gold>"
+    lore:
+      - "<!italic><gray>A mystical apple infused</gray>"
+      - "<!italic><gray>with marine magic</gray>"
+      
+  special_potion:
+    material: SPLASH_POTION
+    chance: 12.0
+    name: "<!italic><aqua>Splash of the Sea</aqua>"
+    potion-type: WATER
+    custom-effects:
+      regeneration:
+        duration: 200
+        amplifier: 1
+        ambient: false
+        particles: true
+        icon: true
+      speed:
+        duration: 200
+        amplifier: 1
+        ambient: false
+        particles: true
+        icon: true
+        
+  diamond_bundle:
+    material: DIAMOND
+    min-amount: 3
+    max-amount: 5
+    chance: 15.0
+    name: "<!italic><aqua>Ocean's Diamonds</aqua>"
+    lore:
+      - "<!italic><gray>Precious gems from</gray>"
+      - "<!italic><gray>the sea floor</gray>"
+      
+  xp_bottle_bundle:
+    material: EXPERIENCE_BOTTLE
+    min-amount: 4
+    max-amount: 8
+    chance: 20.0
+    name: "<!italic><green>Wisdom of the Waves</green>"
+    lore:
+      - "<!italic><gray>Ancient knowledge</gray>"
+      - "<!italic><gray>captured in bottles</gray>" 

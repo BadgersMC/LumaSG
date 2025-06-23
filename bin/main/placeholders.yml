@@ -1,0 +1,48 @@
+# LumaSG PlaceholderAPI Integration
+# This file provides examples of how to use LumaSG placeholders in your scoreboard plugins
+
+# Available Placeholders:
+# Note: All placeholders start with %lumasg_
+
+# Player-specific placeholders (require a player context):
+# %lumasg_in_game% - Returns "true" if the player is in a game, "false" otherwise
+# %lumasg_game_state% - Returns the current state of the game (WAITING, COUNTDOWN, GRACE_PERIOD, ACTIVE, DEATHMATCH, FINISHED)
+# %lumasg_game_time% - DEPRECATED: Alias for game_time_colored (kept for backward compatibility)
+# %lumasg_game_time_colored% - Returns the remaining time in the format "MM:SS" with color based on remaining time:
+#                      - Green (§a): 75-100% of time remaining
+#                      - Yellow (§e): 50-75% of time remaining
+#                      - Orange (§6): 25-50% of time remaining
+#                      - Red (§c): 0-25% of time remaining
+# %lumasg_game_time_stripped% - Returns the remaining time in the format "MM:SS" without any color codes
+# %lumasg_game_players% - Returns the number of players in the game
+# %lumasg_game_max_players% - Returns the maximum number of players allowed in the game
+# %lumasg_game_arena% - Returns the name of the arena
+# %lumasg_game_pvp_enabled% - Returns "true" if PvP is enabled, "false" otherwise
+# %lumasg_game_is_grace_period% - Returns "true" if the game is in grace period, "false" otherwise
+# %lumasg_game_kills% - Returns the number of kills the player has
+
+# Global placeholders (do not require a player context):
+# %lumasg_total_games% - Returns the total number of active games
+# %lumasg_total_arenas% - Returns the total number of arenas
+
+# Example TAB Plugin configuration:
+# ```
+# tablist:
+#   header: "&6&lSurvival Games"
+#   footer: "&7Playing on &e%lumasg_game_arena%"
+#   format:
+#     - "&e%player_name% &7- &c%lumasg_game_kills% kills"
+# ```
+
+# Example Scoreboard configuration:
+# ```
+# scoreboard:
+#   title: "&6&lSurvival Games"
+#   lines:
+#     - "&7Arena: &e%lumasg_game_arena%"
+#     - "&7Players: &e%lumasg_game_players%/%lumasg_game_max_players%"
+#     - "&7Time: %lumasg_game_time_colored%"  # No color code needed as the placeholder includes color
+#     - "&7Raw Time: &e%lumasg_game_time_stripped%"  # Use this if you want to apply your own colors
+#     - "&7Kills: &e%lumasg_game_kills%"
+#     - "&7State: &e%lumasg_game_state%"
+# ``` 

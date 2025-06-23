@@ -1,0 +1,399 @@
+plugins {
+    id 'java'
+    id 'io.github.goooler.shadow' version '8.1.8'
+    id 'idea'
+    id 'eclipse'
+    id 'org.hidetake.ssh' version '2.11.2'
+    id 'maven-publish'
+}
+
+group = 'net.lumalyte'
+version = '0.0.1'
+description = 'A Survival Games plugin for Paper servers'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'papermc-repo'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+    maven {
+        name = 'sonatype'
+        url = 'https://oss.sonatype.org/content/groups/public/'
+    }
+    maven {
+        name = 'xenondevs'
+        url = 'https://repo.xenondevs.xyz/releases'
+    }
+    // PlaceholderAPI Repository
+    maven {
+        name = 'placeholderapi'
+        url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
+    }
+    // Additional repository for PlaceholderAPI
+    maven {
+        name = 'jitpack'
+        url = 'https://jitpack.io'
+    }
+    // AuraSkills Repository
+    maven {
+        name = 'aurelium'
+        url = 'https://repo.aurelium.dev/releases'
+    }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    compileOnly 'net.kyori:adventure-text-minimessage:4.14.0'
+    
+    compileOnly 'xyz.xenondevs.invui:invui-core:1.46'
+    compileOnly 'xyz.xenondevs.invui:inventory-access-r22:1.46'
+    
+    // Add Brigadier API for modern command system
+    compileOnly 'com.mojang:brigadier:1.0.18'
+    
+    // Add PlaceholderAPI dependency
+    compileOnly 'com.github.PlaceholderAPI:PlaceholderAPI:2.11.2'
+    
+    compileOnly 'dev.aurelium:auraskills-api-bukkit:2.2.4'
+    
+    // Add OkHttp for HTTP requests
+    compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+
+def targetJavaVersion = 21
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        options.release = targetJavaVersion
+    }
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    def props = [version: version, description: project.description]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('paper-plugin.yml') {
+        expand props
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    archiveBaseName.set(project.name)
+    
+    minimize {
+        exclude(dependency('io.papermc.paper:paper-api:.*'))
+        exclude(dependency('xyz.xenondevs.invui:.*'))
+    }
+    
+    manifest {
+        attributes('paperweight-mappings-namespace': 'mojang')
+    }
+}
+
+tasks.register('buildAndCopy', Copy) {
+    dependsOn shadowJar
+    from shadowJar.archiveFile
+    into "server/plugins"
+    doFirst {
+        def pluginsDir = file("server/plugins")
+        if (!pluginsDir.exists()) {
+            pluginsDir.mkdirs()
+        }
+    }
+    doLast {
+        println "Copied ${shadowJar.archiveFileName.get()} to server/plugins"
+    }
+}
+
+build {
+    dependsOn shadowJar
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+}
+
+// Load server credentials from separate file
+def credentialsFile = file('server-credentials.properties')
+def serverProps = new Properties()
+if (credentialsFile.exists()) {
+    credentialsFile.withInputStream { serverProps.load(it) }
+} else {
+    logger.warn("server-credentials.properties not found! Please create it with your server details.")
+}
+
+// Server deployment configuration
+ext {
+    serverHost = serverProps.getProperty('server.host', 'localhost')
+    serverPort = (serverProps.getProperty('server.port', '22')) as Integer
+    serverUser = serverProps.getProperty('server.user', 'user')
+    serverPassword = serverProps.getProperty('server.password', '')
+    serverPluginsPath = serverProps.getProperty('server.plugins.path', '/plugins')
+}
+
+// SSH/SFTP configuration
+ssh.settings {
+    knownHosts = allowAnyHosts
+}
+
+remotes {
+    gameServer {
+        host = serverHost
+        port = serverPort
+        user = serverUser
+        password = serverPassword
+    }
+}
+
+// Task to upload plugin to server using WinSCP (if available)
+tasks.register('deployToServerWinSCP') {
+    dependsOn shadowJar
+    group = 'deployment'
+    description = 'Builds and uploads the plugin using WinSCP command line'
+    
+    doLast {
+        def jarFile = shadowJar.archiveFile.get().asFile
+        def jarName = shadowJar.archiveFileName.get()
+        
+        // Create WinSCP script
+        def scriptContent = """
+open sftp://${serverUser}:${serverPassword}@${serverHost}:${serverPort}
+put "${jarFile.absolutePath}" "${serverPluginsPath}/"
+exit
+"""
+        
+        def scriptFile = file("${buildDir}/winscp-script.txt")
+        scriptFile.parentFile.mkdirs()
+        scriptFile.text = scriptContent
+        
+        try {
+            exec {
+                commandLine 'winscp.com', '/script=' + scriptFile.absolutePath
+            }
+            println "Successfully deployed ${jarName} using WinSCP"
+        } catch (Exception e) {
+            println "WinSCP not found. Please install WinSCP or use manual deployment."
+            println "JAR file location: ${jarFile.absolutePath}"
+        }
+    }
+}
+
+// Debug task to explore the server filesystem
+tasks.register('exploreServer') {
+    group = 'deployment'
+    description = 'Explores the server filesystem to find the correct paths'
+    
+    doLast {
+        ssh.run {
+            session(remotes.gameServer) {
+                println "=== SERVER FILESYSTEM EXPLORATION ==="
+                
+                // Check current working directory
+                def pwd = execute 'pwd'
+                println "Current directory: ${pwd}"
+                
+                // List contents of current directory
+                def lsHome = execute 'ls -la'
+                println "Contents of current directory:"
+                println "${lsHome}"
+                
+                // Check if there's a plugins directory
+                try {
+                    def lsPlugins = execute 'ls -la plugins'
+                    println "Contents of plugins directory:"
+                    println "${lsPlugins}"
+                } catch (Exception e) {
+                    println "No plugins directory in current location"
+                }
+                
+                // Check if there's a container directory
+                try {
+                    def lsContainer = execute 'ls -la container'
+                    println "Contents of container directory:"
+                    println "${lsContainer}"
+                } catch (Exception e) {
+                    println "No container directory in current location"
+                }
+                
+                // Look for any JAR files that might be our uploaded files
+                try {
+                    def findJars = execute 'find . -name "*.jar" -type f 2>/dev/null | head -10'
+                    println "JAR files found:"
+                    println "${findJars}"
+                } catch (Exception e) {
+                    println "Could not search for JAR files"
+                }
+                
+                println "=== END EXPLORATION ==="
+            }
+        }
+    }
+}
+
+// Original SSH-based deployment task
+tasks.register('deployToServer') {
+    dependsOn shadowJar
+    group = 'deployment'
+    description = 'Builds and uploads the plugin to the game server'
+    
+    doFirst {
+        println "Connecting to: ${serverHost}:${serverPort}"
+        println "Username: ${serverUser}"
+        println "Password length: ${serverPassword.length()} characters"
+        println "Plugins path: ${serverPluginsPath}"
+    }
+    
+    doLast {
+        def jarName = shadowJar.archiveFileName.get()
+        def jarFile = shadowJar.archiveFile.get().asFile
+        
+        try {
+            ssh.run {
+                session(remotes.gameServer) {
+                    // Try SCP instead of SFTP
+                    put from: jarFile, into: "${serverPluginsPath}/${jarName}"
+                    
+                    println "Successfully deployed ${jarName} to ${serverHost}:${serverPluginsPath}"
+                    
+                    // Verify the file was uploaded
+                    try {
+                        def verifyUpload = execute "ls -la ${serverPluginsPath}/${jarName}"
+                        println "File verification: ${verifyUpload}"
+                    } catch (Exception e) {
+                        println "Could not verify file upload: ${e.message}"
+                    }
+                }
+            }
+        } catch (Exception e) {
+            println "Deployment failed: ${e.message}"
+            println "This might be because the server doesn't support SFTP/SCP properly"
+            println "Please check your server credentials and network connection"
+            throw e
+        }
+    }
+}
+
+// Task to restart server after deployment (optional)
+tasks.register('deployAndRestart') {
+    dependsOn deployToServer
+    group = 'deployment'
+    description = 'Deploys plugin and restarts the server'
+    
+    doLast {
+        ssh.run {
+            session(remotes.gameServer) {
+                println "Stopping server..."
+                
+                // Try multiple common server stop methods
+                try {
+                    // Method 1: systemctl (for systemd services)
+                    execute 'sudo systemctl stop minecraft-server'
+                    println "Server stopped via systemctl"
+                } catch (Exception e1) {
+                    try {
+                        // Method 2: screen session
+                        execute 'screen -S minecraft -X stuff "stop^M"'
+                        println "Stop command sent to screen session"
+                    } catch (Exception e2) {
+                        try {
+                            // Method 3: tmux session
+                            execute 'tmux send-keys -t minecraft "stop" Enter'
+                            println "Stop command sent to tmux session"
+                        } catch (Exception e3) {
+                            println "Warning: Could not stop server automatically. Please stop it manually."
+                        }
+                    }
+                }
+                
+                // Wait a bit for server to stop
+                println "Waiting for server to stop..."
+                execute 'sleep 5'
+                
+                // Start server again
+                try {
+                    execute 'sudo systemctl start minecraft-server'
+                    println "Server started via systemctl"
+                } catch (Exception e) {
+                    println "Warning: Could not start server automatically. Please start it manually."
+                }
+                
+                println "Deployment and restart process completed"
+            }
+        }
+    }
+}
+
+// Simple task to show JAR location for manual upload
+tasks.register('showJarLocation') {
+    dependsOn shadowJar
+    group = 'deployment'
+    description = 'Shows the location of the built JAR file for manual upload'
+    
+    doLast {
+        def jarFile = shadowJar.archiveFile.get().asFile
+        def jarName = shadowJar.archiveFileName.get()
+        
+        println ""
+        println "========================================="
+        println "Plugin built successfully!"
+        println "========================================="
+        println "JAR file: ${jarFile.absolutePath}"
+        println "File name: ${jarName}"
+        println ""
+        println "SFTP Details:"
+        println "Host: ${serverHost}"
+        println "Port: ${serverPort}"
+        println "Username: ${serverUser}"
+        println "Upload to: ${serverPluginsPath}"
+        println ""
+        println "You can now upload this file using FileZilla or any SFTP client."
+        println "========================================="
+    }
+}
+
+// Task for hot reload (if server supports it)
+tasks.register('deployHotReload') {
+    dependsOn deployToServer
+    group = 'deployment'
+    description = 'Deploys plugin and attempts hot reload via server command'
+    
+    doLast {
+        ssh.run {
+            session(remotes.gameServer) {
+                println "Attempting to reload plugin..."
+                
+                try {
+                    // Try to reload via screen
+                    execute 'screen -S minecraft -X stuff "plugman reload LumaSG^M"'
+                    println "Reload command sent via screen"
+                } catch (Exception e1) {
+                    try {
+                        // Try to reload via tmux
+                        execute 'tmux send-keys -t minecraft "plugman reload LumaSG" Enter'
+                        println "Reload command sent via tmux"
+                    } catch (Exception e2) {
+                        println "Warning: Could not send reload command. Plugin will load on next server restart."
+                    }
+                }
+            }
+        }
+    }
+} 

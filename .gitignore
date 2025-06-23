@@ -1,0 +1,78 @@
+# Gradle
+.gradle/
+build/
+
+# Credentials (keep secure!)
+server-credentials.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Minecraft Server (if testing locally)
+server/
+world/
+world_nether/
+world_the_end/
+logs/
+crash-reports/
+plugins/
+cache/
+banned-*.json
+ops.json
+whitelist.json
+usercache.json
+usernamecache.json
+server.properties
+bukkit.yml
+spigot.yml
+paper.yml
+
+# Maps and Worlds (Don't include copyrighted maps)
+sg_breeze_island/
+maps/
+worlds/
+*.mca
+*.dat
+session.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Sensitive data
+config/database.yml
+config/secrets.yml
+*.key
+*.pem
+*.p12
+*.keystore
+
+# Logs and temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Ignore cursor AI rules
+.cursor/rules/codacy.mdc

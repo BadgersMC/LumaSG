@@ -1,0 +1,130 @@
+# LumaSG Configuration
+
+# Lobby Settings
+lobby:
+  enabled: true
+  world: "world"
+  x: -25.0
+  y: 77.0
+  z: 34.0
+  yaw: 0.0
+  pitch: 0.0
+  teleport-on-leave: true
+  teleport-on-end: true
+
+# Game Settings
+game:
+  min-players: 1
+  max-players: 24
+  countdown-seconds: 30
+  grace-period-seconds: 30
+  game-time-minutes: 10
+  deathmatch-time-minutes: 3
+  teleport-delay: 1
+  allow-spectating: true
+  clear-inventory: true
+  restore-inventory: true
+  save-location: true
+  
+# Arena Settings
+arena:
+  default-radius: 200
+  default-max-players: 24
+  default-min-players: 2
+  auto-save: true
+  save-delay-seconds: 3  # Delay before saving arena changes (prevents excessive saves)
+  immediate-save-on-shutdown: true  # Always save immediately during shutdown
+  
+# Scoreboard Settings
+scoreboard:
+  enabled: true
+  title: "<!italic><gradient:gold:yellow>Survival Games</gradient>"
+  update-interval: 40
+  lines:
+    - "<!italic><gradient:dark_purple:light_purple>breeze_island</gradient>"
+    - ""
+    - "<!italic><gradient:gray:white>Players: <gradient:green:aqua><players>/<max_players></gradient></gradient>"
+    - ""
+    - "<!italic><gradient:gray:white>Time: <gradient:green:aqua><time></gradient></gradient>"
+    - ""
+  deathmatch-lines:
+    - "<!italic><gradient:red:dark_red><bold>DEATHMATCH</bold></gradient>"
+
+# PlaceholderAPI Integration
+# These settings control the PlaceholderAPI integration
+# You can use both the built-in scoreboard and PlaceholderAPI simultaneously
+placeholderapi:
+  enabled: true
+  # See placeholders.yml for available placeholders and example configurations
+  
+# Chest Settings
+chest:
+  min-items: 3
+  max-items: 8
+  refill-chests: true
+  refill-time: 300
+  tier-chances:
+    center:
+      common: 20
+      uncommon: 50
+      rare: 30
+    middle:
+      common: 40
+      uncommon: 50
+      rare: 10
+    outer:
+      common: 70
+      uncommon: 25
+      rare: 5
+  distance-based-loot: true
+
+# Spectator Settings
+spectator:
+  enabled: true
+  teleport-to-lobby-after-game: true
+  
+# Reward Settings
+rewards:
+  enabled: true
+  mob-coins: 1000
+  win-command: "mobcoins give <player> 1000"
+  kill-command: ""
+  winner-announcement:
+    enabled: true
+    use-pixel-art: true
+    title: "<gradient:gold:yellow:gold><bold>WINNER!</bold></gradient>"
+    subtitle: "<gradient:#FFFF00:#FFA500:#FF4500><bold><player></bold></gradient>"
+    message: "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!"
+    fireworks: true
+    pixel-art:
+      enabled: true
+      api-url: "https://starlightskins.lunareclipse.studio/render/pixel/<uuid>/face"
+      size: 8
+      character: "⬜"
+
+# Messages
+messages:
+  prefix: "<dark_gray>[<gold>LumaSG</gold>] <reset>"
+  broadcast-events: true
+  game-start: "<green>The game has started! Good luck!"
+  grace-period-start: "<yellow>Grace period has started! PvP is disabled for <time> seconds."
+  grace-period-end: "<red>Grace period has ended! PvP is now enabled!"
+  player-join: "<gray><player> <yellow>has joined the game! <gray>(<current>/<max>)"
+  player-leave: "<gray><player> <yellow>has left the game! <gray>(<current>/<max>)"
+  player-death: "<gray><player> <red>has been eliminated!"
+  player-kill: "<gray><player> <red>has been eliminated by <gray><killer><red>!"
+  game-end: "<green>The game has ended! <gray><player> <green>is the winner!"
+  countdown: "<yellow>Game starting in <gray><time> <yellow>seconds!"
+  
+# Statistics Settings
+statistics:
+  enabled: true
+  save-interval-seconds: 300  # How often to save pending statistics (5 minutes)
+  preload-on-join: true       # Preload player statistics when they join the server
+  track-damage: true          # Track damage dealt and taken
+  track-chests: true          # Track chests opened
+
+# Debug Settings
+debug:
+  enabled: false  # Set to false by default for production
+  log-level: "INFO" 

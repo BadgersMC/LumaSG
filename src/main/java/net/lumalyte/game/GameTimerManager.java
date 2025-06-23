@@ -1,0 +1,271 @@
+package net.lumalyte.game;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
+import net.lumalyte.LumaSG;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.NotNull;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+
+/**
+ * Manages all timing aspects of a game instance.
+ * Handles countdowns, game timers, and scheduled tasks.
+ */
+public class GameTimerManager {
+    private final @NotNull LumaSG plugin;
+    private final @NotNull GamePlayerManager playerManager;
+    
+    /** Map of active scheduled tasks for proper cleanup */
+    private final @NotNull Map<Integer, BukkitTask> activeTasks = new ConcurrentHashMap<>();
+    
+    /** Current countdown value in seconds */
+    private int countdown;
+    
+    /** Total game time in seconds */
+    private int gameTime;
+    
+    /** Grace period duration in seconds (PvP disabled) */
+    private int gracePeriod;
+    
+    /** Deathmatch duration in seconds */
+    private int deathmatchTime;
+    
+    /** Timestamp when the game started (for duration tracking) */
+    private long startTime;
+    
+    /** Title display timing configuration for countdown messages */
+    private static final Title.Times TITLE_TIMES = Title.Times.times(
+        Duration.ofMillis(500),  // Fade in time
+        Duration.ofMillis(1500), // Stay time
+        Duration.ofMillis(500)   // Fade out time
+    );
+    
+    public GameTimerManager(@NotNull LumaSG plugin, @NotNull GamePlayerManager playerManager) {
+        this.plugin = plugin;
+        this.playerManager = playerManager;
+        
+        // Load configuration values
+        this.countdown = plugin.getConfig().getInt("game.countdown-seconds", 30);
+        this.gameTime = plugin.getConfig().getInt("game.game-time-minutes", 20) * 60;
+        this.gracePeriod = plugin.getConfig().getInt("game.grace-period-seconds", 30);
+        this.deathmatchTime = plugin.getConfig().getInt("game.deathmatch-time-minutes", 5) * 60;
+        
+        this.startTime = System.currentTimeMillis();
+    }
+    
+    /**
+     * Starts the countdown with a custom duration.
+     */
+    public void startCountdown(int seconds, @NotNull Runnable onComplete) {
+        if (seconds < 0) {
+            throw new IllegalArgumentException("Countdown duration cannot be negative");
+        }
+        
+        this.countdown = seconds;
+        startCountdown(onComplete);
+    }
+    
+    /**
+     * Starts the countdown using the default duration from configuration.
+     */
+    public void startCountdown(@NotNull Runnable onComplete) {
+        // Cancel any existing countdown task
+        cancelAllTasks();
+        
+        // Start new countdown task that runs every second (20 ticks)
+        final int[] taskIdRef = new int[1];
+        BukkitTask countdownTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            try {
+                if (countdown <= 0) {
+                    // Countdown finished, start the game
+                    BukkitTask task = activeTasks.remove(taskIdRef[0]);
+                    if (task != null) {
+                        task.cancel();
+                    }
+                    onComplete.run();
+                    return;
+                }
+                
+                // Show countdown title to players (every 10 seconds or last 10 seconds)
+                if (countdown <= 10 || countdown % 10 == 0) {
+                    Title title = Title.title(
+                        Component.text("Game Starting", NamedTextColor.GREEN, TextDecoration.BOLD),
+                        Component.text("in " + countdown + " seconds", NamedTextColor.YELLOW),
+                        TITLE_TIMES
+                    );
+                    
+                    // Show title to all players in the game
+                    for (UUID playerId : playerManager.getPlayers()) {
+                        Player player = playerManager.getCachedPlayer(playerId);
+                        if (player != null) {
+                            player.showTitle(title);
+                        }
+                    }
+                }
+                
+                countdown--;
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Error in countdown task", e);
+                BukkitTask task = activeTasks.remove(taskIdRef[0]);
+                if (task != null) {
+                    task.cancel();
+                }
+            }
+        }, 0L, 20L); // Run every 20 ticks (1 second)
+        
+        taskIdRef[0] = countdownTask.getTaskId();
+        activeTasks.put(countdownTask.getTaskId(), countdownTask);
+    }
+    
+    /**
+     * Cancels the countdown.
+     */
+    public void cancelCountdown() {
+        cancelAllTasks();
+        
+        // Clear any displayed titles
+        for (UUID playerId : playerManager.getPlayers()) {
+            Player player = playerManager.getCachedPlayer(playerId);
+            if (player != null) {
+                player.clearTitle();
+            }
+        }
+    }
+    
+    /**
+     * Starts the grace period timer.
+     */
+    public void startGracePeriod(@NotNull Runnable onComplete) {
+        // Inform players that grace period has started
+        Title title = Title.title(
+            Component.text("Grace Period", NamedTextColor.GREEN, TextDecoration.BOLD),
+            Component.text("The hunt begins!", NamedTextColor.YELLOW),
+            TITLE_TIMES
+        );
+        
+        // Show title to all players
+        for (UUID playerId : playerManager.getPlayers()) {
+            Player player = playerManager.getCachedPlayer(playerId);
+            if (player != null) {
+                player.showTitle(title);
+                // Play a sound to indicate game has started
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+            }
+        }
+        
+        BukkitTask gracePeriodTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
+            onComplete, gracePeriod * 20L);
+        activeTasks.put(gracePeriodTask.getTaskId(), gracePeriodTask);
+    }
+    
+    /**
+     * Schedules the deathmatch to start.
+     */
+    public void scheduleDeathmatch(@NotNull Runnable onDeathmatch, @NotNull Runnable onGameEnd) {
+        // Calculate when the deathmatch should start
+        int deathmatchStartTime = gameTime - deathmatchTime;
+        
+        // Add debug logging
+        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+            plugin.getLogger().info("Game timing: Total game time: " + gameTime + " seconds");
+            plugin.getLogger().info("Game timing: Deathmatch time: " + deathmatchTime + " seconds");
+            plugin.getLogger().info("Game timing: Deathmatch will start after: " + deathmatchStartTime + " seconds");
+        }
+        
+        // Schedule deathmatch at the calculated time
+        BukkitTask deathmatchTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
+            onDeathmatch, 
+            deathmatchStartTime * 20L);
+        activeTasks.put(deathmatchTask.getTaskId(), deathmatchTask);
+        
+        // Schedule game end
+        BukkitTask gameEndTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
+            onGameEnd, 
+            gameTime * 20L);
+        activeTasks.put(gameEndTask.getTaskId(), gameEndTask);
+    }
+    
+    /**
+     * Schedules the game to end after deathmatch duration.
+     */
+    public void scheduleDeathmatchEnd(@NotNull Runnable onGameEnd) {
+        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+            plugin.getLogger().info("Scheduling game end after deathmatch: " + deathmatchTime + " seconds");
+        }
+        
+        BukkitTask deathmatchEndTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
+            onGameEnd, 
+            deathmatchTime * 20L);
+        activeTasks.put(deathmatchEndTask.getTaskId(), deathmatchEndTask);
+    }
+    
+    /**
+     * Gets the remaining time in seconds.
+     */
+    public int getTimeRemaining() {
+        int totalTime = plugin.getConfig().getInt("game.game-time-minutes", 20) * 60;
+        long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
+        int remaining = Math.max(0, totalTime - (int)elapsedTime);
+        
+        if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+            plugin.getLogger().info("Timer Debug - Total: " + totalTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
+        }
+        
+        return remaining;
+    }
+    
+    /**
+     * Resets the start time (called when game actually starts).
+     */
+    public void resetStartTime() {
+        this.startTime = System.currentTimeMillis();
+    }
+    
+    /**
+     * Cancels all active scheduled tasks.
+     */
+    private void cancelAllTasks() {
+        for (BukkitTask task : activeTasks.values()) {
+            if (!task.isCancelled()) {
+                task.cancel();
+            }
+        }
+        activeTasks.clear();
+    }
+    
+    /**
+     * Cleans up all scheduled tasks.
+     */
+    public void cleanup() {
+        cancelAllTasks();
+    }
+    
+    // Getters
+    public int getCountdown() {
+        return countdown;
+    }
+    
+    public int getGameTime() {
+        return gameTime;
+    }
+    
+    public int getGracePeriod() {
+        return gracePeriod;
+    }
+    
+    public int getDeathmatchTime() {
+        return deathmatchTime;
+    }
+    
+    public long getStartTime() {
+        return startTime;
+    }
+} 

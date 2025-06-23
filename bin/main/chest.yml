@@ -1,0 +1,393 @@
+# LumaSG Chest Configuration
+# This file contains the configuration for chest loot in the Survival Games
+
+tiers:
+  common:
+    items:
+      wooden_sword:
+        material: WOODEN_SWORD
+        min-amount: 1
+        max-amount: 1
+        chance: 15.0
+        name: "<!italic><gray>Wooden Sword</gray>"
+        unbreakable: true
+        
+      stone_axe:
+        material: STONE_AXE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><gray>Stone Axe</gray>"
+        unbreakable: true
+        
+      leather_armor:
+        material: LEATHER_HELMET
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><gray>Leather Cap</gray>"
+        unbreakable: true
+        
+      leather_chestplate:
+        material: LEATHER_CHESTPLATE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><gray>Leather Tunic</gray>"
+        unbreakable: true
+        
+      leather_leggings:
+        material: LEATHER_LEGGINGS
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><gray>Leather Pants</gray>"
+        unbreakable: true
+        
+      leather_boots:
+        material: LEATHER_BOOTS
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><gray>Leather Boots</gray>"
+        unbreakable: true
+        
+      bread:
+        material: BREAD
+        min-amount: 1
+        max-amount: 3
+        chance: 20.0
+        
+      apple:
+        material: APPLE
+        min-amount: 1
+        max-amount: 2
+        chance: 15.0
+        
+      arrow:
+        material: ARROW
+        min-amount: 2
+        max-amount: 6
+        chance: 10.0
+        
+      stick:
+        material: STICK
+        min-amount: 1
+        max-amount: 3
+        chance: 15.0
+
+        
+      iron_ingot:
+        material: IRON_INGOT
+        min-amount: 1
+        max-amount: 2
+        chance: 12.0
+  
+  uncommon:
+    items:
+      stone_sword:
+        material: STONE_SWORD
+        min-amount: 1
+        max-amount: 1
+        chance: 15.0
+        name: "<!italic><green>Stone Sword</green>"
+        unbreakable: true
+        enchantments:
+          knockback: 1
+        
+      iron_axe:
+        material: IRON_AXE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><green>Iron Axe</green>"
+        unbreakable: true
+        
+      chainmail_helmet:
+        material: CHAINMAIL_HELMET
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><green>Chainmail Helmet</green>"
+        unbreakable: true
+        
+      chainmail_chestplate:
+        material: CHAINMAIL_CHESTPLATE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><green>Chainmail Chestplate</green>"
+        unbreakable: true
+        
+      chainmail_leggings:
+        material: CHAINMAIL_LEGGINGS
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><green>Chainmail Leggings</green>"
+        unbreakable: true
+        
+      chainmail_boots:
+        material: CHAINMAIL_BOOTS
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><green>Chainmail Boots</green>"
+        unbreakable: true
+        
+      bow:
+        material: BOW
+        min-amount: 1
+        max-amount: 1
+        chance: 15.0
+        name: "<!italic><green>Bow</green>"
+        unbreakable: true
+        
+      cooked_beef:
+        material: COOKED_BEEF
+        min-amount: 1
+        max-amount: 3
+        chance: 20.0
+        
+      golden_apple:
+        material: GOLDEN_APPLE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        
+      arrow:
+        material: ARROW
+        min-amount: 4
+        max-amount: 8
+        chance: 15.0
+        
+      fishing_rod:
+        material: FISHING_ROD
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><green>Fishing Rod</green>"
+        unbreakable: true
+
+      diamond:
+        material: DIAMOND
+        min-amount: 1
+        max-amount: 2
+        chance: 8.0
+        
+      iron_ingot:
+        material: IRON_INGOT
+        min-amount: 2
+        max-amount: 3
+        chance: 15.0
+
+        
+      experience_bottle:
+        material: EXPERIENCE_BOTTLE
+        min-amount: 2
+        max-amount: 4
+        chance: 10.0
+        
+      splash_potion:
+        material: SPLASH_POTION
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        potion-type: POISON
+        custom-effects:
+          poison:
+            duration: 100
+            amplifier: 0
+            ambient: false
+            particles: true
+            icon: true
+  
+  rare:
+    items:
+      iron_sword:
+        material: IRON_SWORD
+        min-amount: 1
+        max-amount: 1
+        chance: 15.0
+        name: "<!italic><aqua>Iron Sword</aqua>"
+        lore:
+          - "<!italic><gray>A powerful sword</gray>"
+          - "<!italic><gray>forged from iron</gray>"
+        unbreakable: true
+        enchantments:
+          sharpness: 1
+        item-flags:
+          - HIDE_ATTRIBUTES
+          - HIDE_UNBREAKABLE
+        attributes:
+          ATTACK_DAMAGE: 7.0
+        
+      diamond_axe:
+        material: DIAMOND_AXE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><aqua>Diamond Axe</aqua>"
+        unbreakable: true
+        enchantments:
+          efficiency: 2
+        
+      iron_helmet:
+        material: IRON_HELMET
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><aqua>Iron Helmet</aqua>"
+        unbreakable: true
+        enchantments:
+          protection: 1
+        
+      iron_chestplate:
+        material: IRON_CHESTPLATE
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><aqua>Iron Chestplate</aqua>"
+        unbreakable: true
+        enchantments:
+          protection: 1
+        
+      iron_leggings:
+        material: IRON_LEGGINGS
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><aqua>Iron Leggings</aqua>"
+        unbreakable: true
+        enchantments:
+          protection: 1
+        
+      iron_boots:
+        material: IRON_BOOTS
+        min-amount: 1
+        max-amount: 1
+        chance: 12.0
+        name: "<!italic><aqua>Iron Boots</aqua>"
+        unbreakable: true
+        enchantments:
+          protection: 1
+        
+      power_bow:
+        material: BOW
+        min-amount: 1
+        max-amount: 1
+        chance: 15.0
+        name: "<!italic><aqua>Power Bow</aqua>"
+        unbreakable: true
+        enchantments:
+          power: 2
+          punch: 1
+        
+      diamond_sword:
+        material: DIAMOND_SWORD
+        min-amount: 1
+        max-amount: 1
+        chance: 10.0
+        name: "<!italic><light_purple>Diamond Sword</light_purple>"
+        lore:
+          - "<!italic><gray>The ultimate weapon</gray>"
+          - "<!italic><gray>for survival</gray>"
+        unbreakable: true
+        enchantments:
+          sharpness: 2
+          fire_aspect: 1
+        item-flags:
+          - HIDE_ATTRIBUTES
+          - HIDE_UNBREAKABLE
+
+      diamond:
+        material: DIAMOND
+        min-amount: 2
+        max-amount: 3
+        chance: 10.0
+        
+      enchanted_book_sharpness:
+        material: ENCHANTED_BOOK
+        min-amount: 1
+        max-amount: 1
+        chance: 8.0
+        stored-enchants:
+          sharpness: 3
+          
+      enchanted_book_protection:
+        material: ENCHANTED_BOOK
+        min-amount: 1
+        max-amount: 1
+        chance: 8.0
+        stored-enchants:
+          protection: 3
+          
+      enchanted_book_power:
+        material: ENCHANTED_BOOK
+        min-amount: 1
+        max-amount: 1
+        chance: 8.0
+        stored-enchants:
+          power: 3
+        
+      ender_pearl:
+        material: ENDER_PEARL
+        min-amount: 1
+        max-amount: 2
+        chance: 8.0
+        name: "<!italic><light_purple>Ender Pearl</light_purple>"
+        
+      notch_apple:
+        material: ENCHANTED_GOLDEN_APPLE
+        min-amount: 1
+        max-amount: 1
+        chance: 3.0
+        name: "<!italic><gold>Notch Apple</gold>"
+        lore:
+          - "<!italic><gray>The most powerful</gray>"
+          - "<!italic><gray>healing item</gray>"
+        
+      splash_healing:
+        material: SPLASH_POTION
+        min-amount: 1
+        max-amount: 1
+        chance: 8.0
+        name: "<!italic><green>Healing Potion</green>"
+        potion-type: HEALING
+            
+      # Example Nexo item (if Nexo plugin is installed)
+      nexo_sword:
+        nexo-item: "legendary_sword"
+        min-amount: 1
+        max-amount: 1
+        chance: 5.0
+        
+      nexo_bow:
+        nexo-item: "explosive_bow"
+        min-amount: 1
+        max-amount: 1
+        chance: 5.0
+        
+      custom_helmet:
+        material: DIAMOND_HELMET
+        min-amount: 1
+        max-amount: 1
+        chance: 5.0
+        name: "<!italic><light_purple>Champion's Helmet</light_purple>"
+        lore:
+          - "<!italic><gray>A legendary helmet worn by</gray>"
+          - "<!italic><gray>champions of the Survival Games</gray>"
+        unbreakable: true
+        enchantments:
+          protection: 2
+          respiration: 1
+        item-flags:
+          - HIDE_ATTRIBUTES
+          - HIDE_UNBREAKABLE
+        attributes:
+          ARMOR: 4.0
+          MAX_HEALTH: 2.0
+        custom-model-data: 1001
+        persistent-data:
+          item-type: "champion_gear"
+          tier: "legendary" 
