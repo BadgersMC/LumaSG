@@ -3,6 +3,7 @@
 A modern Minecraft Survival Games (Hunger Games) plugin built exclusively for Paper servers, inspired by classic SG servers like MCSG. This plugin is designed to take full advantage of Paper's advanced APIs and features for optimal performance and functionality.
 
 >**⚠ Warning**: This plugin is currently a WIP. Some features may be unfinished or completely non functional.
+
 > **Note**: This plugin is Paper-only and does not support Spigot or CraftBukkit. We recommend using Paper as it offers significant performance improvements and modern APIs that allow us to provide a better experience.
 
 ## Features
