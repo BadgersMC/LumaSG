@@ -801,6 +801,23 @@ public class Game {
     }
     
     /**
+     * Clears all ground items in the arena world.
+     */
+    private void clearGroundItems() {
+        org.bukkit.World arenaWorld = arena.getWorld();
+        if (arenaWorld != null) {
+            for (org.bukkit.entity.Entity entity : arenaWorld.getEntities()) {
+                if (entity instanceof org.bukkit.entity.Item) {
+                    entity.remove();
+                }
+            }
+            logger.info("Cleared all ground items in arena world: " + arenaWorld.getName());
+        } else {
+            logger.warn("Could not clear ground items - arena world is null");
+        }
+    }
+    
+    /**
      * Ends the game and returns players to their original locations.
      */
     public void endGame(Object o) {
@@ -812,6 +829,9 @@ public class Game {
         isShuttingDown = true;
         state = GameState.FINISHED;
         scoreboardManager.setCurrentGameState(state);
+        
+        // Clear all ground items in the arena world
+        clearGroundItems();
         
         // Disable PvP immediately
         pvpEnabled = false;
