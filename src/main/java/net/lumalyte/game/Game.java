@@ -716,24 +716,47 @@ public class Game {
      * Checks if the game should end (e.g., only one player left).
      */
     private void checkGameEnd() {
-        if (state != GameState.ACTIVE && state != GameState.DEATHMATCH) {
-            logger.debug("Game end check skipped - game not in ACTIVE or DEATHMATCH state (current state: " + state + ")");
+        // Allow game end checks in more states, especially for solo testing
+        if (state == GameState.FINISHED || isShuttingDown) {
+            logger.debug("Game end check skipped - game already finished or shutting down");
             return;
         }
         
         int playerCount = playerManager.getPlayerCount();
-        logger.debug("Checking game end conditions - Active players: " + playerCount);
-        
+        logger.debug("Checking game end conditions - Active players: " + playerCount + ", Game state: " + state);
+
         // Pre-cache player skins when 3 players remain for faster winner celebration
-        if (playerCount == 3) {
+        if (playerCount == 3 && (state == GameState.ACTIVE || state == GameState.DEATHMATCH)) {
             logger.debug("3 players remaining - pre-caching skins for winner celebration");
             celebrationManager.preCachePlayerSkins();
         }
-        
-        // End game if there's only one player left
+
+        // End game immediately if there's only one player left (regardless of game state)
+        // This handles solo testing and prevents timer showing zero for extended periods
         if (playerCount <= 1) {
-            logger.debug("Ending game - only " + playerCount + " player(s) remaining");
+            logger.debug("Ending game immediately - only " + playerCount + " player(s) remaining (state: " + state + ")");
             endGame(null);
+            return;
+        }
+        
+        // In WAITING state, check if we have enough players to continue
+        if (state == GameState.WAITING) {
+            int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
+            if (playerCount < minPlayers) {
+                logger.debug("Not enough players to start game - " + playerCount + "/" + minPlayers);
+                // Don't end the game, just wait for more players
+                return;
+            }
+        }
+        
+        // In COUNTDOWN state, if we drop below minimum players, cancel countdown
+        if (state == GameState.COUNTDOWN) {
+            int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
+            if (playerCount < minPlayers) {
+                logger.debug("Cancelling countdown - not enough players: " + playerCount + "/" + minPlayers);
+                cancelCountdown();
+                return;
+            }
         }
     }
     

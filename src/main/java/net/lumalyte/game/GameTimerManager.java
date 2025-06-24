@@ -44,6 +44,9 @@ public class GameTimerManager {
     /** Timestamp when the game started (for duration tracking) */
     private long startTime;
     
+    /** Flag to indicate if the game has ended early (prevents timer from continuing) */
+    private boolean gameEndedEarly = false;
+    
     /** Title display timing configuration for countdown messages */
     private static final Title.Times TITLE_TIMES = Title.Times.times(
         Duration.ofMillis(500),  // Fade in time
@@ -208,6 +211,11 @@ public class GameTimerManager {
      * Gets the remaining time in seconds.
      */
     public int getTimeRemaining() {
+        // If game ended early, return 0 to stop timer display
+        if (gameEndedEarly) {
+            return 0;
+        }
+        
         // Use the same gameTime that was loaded in constructor to ensure consistency
         long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
         int remaining = Math.max(0, gameTime - (int)elapsedTime);
@@ -222,6 +230,14 @@ public class GameTimerManager {
      */
     public void resetStartTime() {
         this.startTime = System.currentTimeMillis();
+    }
+    
+    /**
+     * Marks the game as ended early (stops timer display).
+     */
+    public void markGameEndedEarly() {
+        this.gameEndedEarly = true;
+        logger.debug("Game marked as ended early - timer display will stop");
     }
     
     /**
@@ -240,6 +256,7 @@ public class GameTimerManager {
      * Cleans up all scheduled tasks.
      */
     public void cleanup() {
+        markGameEndedEarly(); // Stop timer display immediately
         cancelAllTasks();
     }
     
