@@ -16,8 +16,10 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -41,6 +43,26 @@ public class GameCelebrationManager {
     
     // Reusable HTTP client with proper resource management
     private final @NotNull OkHttpClient httpClient;
+    
+    // Skin caching to reduce API calls and improve performance
+    private final @NotNull Map<UUID, CachedSkinData> skinCache = new ConcurrentHashMap<>();
+    
+    /**
+     * Cached skin data with timestamp for expiration.
+     */
+    private static class CachedSkinData {
+        final BufferedImage image;
+        final Instant cachedAt;
+        
+        CachedSkinData(BufferedImage image) {
+            this.image = image;
+            this.cachedAt = Instant.now();
+        }
+        
+        boolean isExpired(int cacheMinutes) {
+            return Instant.now().isAfter(cachedAt.plus(Duration.ofMinutes(cacheMinutes)));
+        }
+    }
     
     public GameCelebrationManager(@NotNull LumaSG plugin, @NotNull GamePlayerManager playerManager) {
         this.plugin = plugin;
@@ -295,134 +317,38 @@ public class GameCelebrationManager {
     
     /**
      * Shows the winner's face as pixel art in chat.
-     * Uses the configured skin API to fetch and display the winner's face.
+     * Uses cached skin data or fetches from API with fallback support.
      */
     private void showWinnerPixelArt(@NotNull Player winner) {
-        // Get pixel art configuration
-        String apiUrl = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.api-url", 
-            "https://crafatar.com/avatars/<uuid>?size=8&overlay")
-            .replace("<uuid>", winner.getUniqueId().toString());
         int size = plugin.getConfig().getInt("rewards.winner-announcement.pixel-art.size", 8);
-        String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "█");
+        String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "██");
         
-        logger.info("Attempting to fetch pixel art for " + winner.getName() + " from: " + apiUrl);
+        logger.info("Attempting to show pixel art for " + winner.getName());
+        
+        // Try to get cached skin first
+        BufferedImage cachedImage = getCachedSkin(winner.getUniqueId());
+        if (cachedImage != null) {
+            logger.debug("Using cached skin for " + winner.getName());
+            displayPixelArt(winner, cachedImage, character, size);
+            return;
+        }
         
         // Submit async task to fetch and display pixel art
         BukkitTask pixelArtTask = plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            BufferedImage image = null;
-            BufferedImage scaledImage = null;
-            Response response = null;
+            BufferedImage image = fetchPlayerSkin(winner.getUniqueId(), true);
             
-            try {
-                // Create request with user agent
-                Request request = new Request.Builder()
-                    .url(apiUrl)
-                    .addHeader("User-Agent", "LumaSG-Plugin")
-                    .build();
-                
-                logger.debug("Sending request to fetch skin image...");
-                
-                // Execute request
-                response = httpClient.newCall(request).execute();
-                logger.debug("Received response: " + response.code() + " " + response.message());
-                
-                if (!response.isSuccessful()) {
-                    logger.warn("Failed to fetch skin image: " + response.code() + " " + response.message());
-                    // Try fallback
-                    tryFallbackPixelArt(winner, character, size);
-                    return;
+            if (image != null) {
+                // Cache the image for future use
+                if (plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.cache-enabled", true)) {
+                    skinCache.put(winner.getUniqueId(), new CachedSkinData(image));
                 }
                 
-                // Read the image
-                image = ImageIO.read(response.body().byteStream());
-                if (image == null) {
-                    logger.warn("Failed to read image from response");
-                    tryFallbackPixelArt(winner, character, size);
-                    return;
-                }
-                
-                logger.debug("Successfully read image: " + image.getWidth() + "x" + image.getHeight());
-                
-                // Scale image to desired size if needed
-                if (image.getWidth() != size || image.getHeight() != size) {
-                    logger.debug("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + size + "x" + size);
-                    scaledImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-                    java.awt.Graphics2D g2d = scaledImage.createGraphics();
-                    try {
-                        g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                        g2d.drawImage(image, 0, 0, size, size, null);
-                    } finally {
-                        g2d.dispose(); // Properly dispose of graphics context
-                    }
-                    
-                    // Use scaled image and dispose original
-                    image.flush();
-                    image = scaledImage;
-                    scaledImage = null; // Prevent double disposal
-                }
-                
-                // Convert image to components
-                Component[] pixelArt = new Component[size];
-                for (int y = 0; y < size; y++) {
-                    Component row = Component.text("");
-                    for (int x = 0; x < size; x++) {
-                        int rgba = image.getRGB(x, y);
-                        int alpha = (rgba >> 24) & 0xFF;
-                        
-                        // Skip transparent pixels
-                        if (alpha < 128) {
-                            row = row.append(Component.text(" "));
-                            continue;
-                        }
-                        
-                        int r = (rgba >> 16) & 0xFF;
-                        int g = (rgba >> 8) & 0xFF;
-                        int b = rgba & 0xFF;
-                        
-                        // Create hex color string
-                        String hexColor = String.format("#%02x%02x%02x", r, g, b);
-                        try {
-                            net.kyori.adventure.text.format.TextColor color = net.kyori.adventure.text.format.TextColor.fromHexString(hexColor);
-                            
-                            // Add colored pixel
-                            row = row.append(Component.text(character).color(color));
-                        } catch (Exception e) {
-                            // Fallback to white if color parsing fails
-                            row = row.append(Component.text(character));
-                        }
-                    }
-                    pixelArt[y] = row;
-                }
-                
-                // Show pixel art in chat
+                // Display the pixel art
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    logger.debug("Displaying pixel art for " + winner.getName());
-                    broadcastMessage(Component.text("🎉 Winner: " + winner.getName() + " 🎉", net.kyori.adventure.text.format.NamedTextColor.GOLD));
-                    broadcastMessage(Component.text("")); // Empty line before pixel art
-                    for (Component line : pixelArt) {
-                        broadcastMessage(line);
-                    }
-                    broadcastMessage(Component.text("")); // Empty line after pixel art
+                    displayPixelArt(winner, image, character, size);
                 });
-                
-            } catch (IOException e) {
-                logger.warn("Error reading image: " + e.getMessage());
-                tryFallbackPixelArt(winner, character, size);
-            } catch (Exception e) {
-                logger.warn("Error processing pixel art: " + e.getMessage());
-                e.printStackTrace();
-                tryFallbackPixelArt(winner, character, size);
-            } finally {
-                // Properly dispose of resources
-                if (response != null) {
-                    response.close();
-                }
-                if (image != null) {
-                    image.flush();
-                }
-                if (scaledImage != null) {
-                    scaledImage.flush();
-                }
+            } else {
+                logger.warn("Failed to fetch skin for " + winner.getName() + " - skipping pixel art");
             }
         });
         
@@ -430,35 +356,205 @@ public class GameCelebrationManager {
     }
     
     /**
-     * Fallback method to show a simple text-based winner announcement if pixel art fails.
+     * Fetches a player's skin from the configured API.
      */
-    private void tryFallbackPixelArt(@NotNull Player winner, @NotNull String character, int size) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            logger.debug("Using fallback pixel art for " + winner.getName());
+    private BufferedImage fetchPlayerSkin(@NotNull UUID playerId, boolean forceRefresh) {
+        // Check cache first if not forcing refresh
+        if (!forceRefresh) {
+            BufferedImage cached = getCachedSkin(playerId);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        
+        String apiUrl = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.api-url", 
+            "https://crafatar.com/avatars/<uuid>?size=8&overlay")
+            .replace("<uuid>", playerId.toString());
+        
+        logger.info("Fetching skin for " + playerId + " from: " + apiUrl);
+        
+        // Fetch from API (no fallback needed since crafatar is reliable)
+        BufferedImage image = fetchSkinFromUrl(apiUrl, "crafatar");
+        if (image != null) {
+            return image;
+        }
+        
+        logger.warn("Failed to fetch skin for player: " + playerId);
+        return null;
+    }
+    
+    /**
+     * Fetches skin image from a specific URL.
+     */
+    private BufferedImage fetchSkinFromUrl(@NotNull String url, @NotNull String apiType) {
+        Response response = null;
+        try {
+            // Create request with user agent and timeout
+            Request request = new Request.Builder()
+                .url(url)
+                .addHeader("User-Agent", "LumaSG-Plugin/1.0")
+                .addHeader("Accept", "image/png, image/jpeg, image/*")
+                .build();
             
-            // Create a simple pattern as fallback
-            Component[] fallbackArt = new Component[size];
-            for (int y = 0; y < size; y++) {
+            logger.debug("Sending request to " + apiType + " API: " + url);
+            
+            // Execute request with timeout
+            response = httpClient.newCall(request).execute();
+            logger.debug("Received response from " + apiType + " API: " + response.code() + " " + response.message());
+            
+            if (!response.isSuccessful()) {
+                logger.debug(apiType + " API returned error: " + response.code() + " " + response.message());
+                return null;
+            }
+            
+            // Check content type
+            String contentType = response.header("Content-Type");
+            if (contentType == null || !contentType.startsWith("image/")) {
+                logger.debug("Invalid content type from " + apiType + " API: " + contentType);
+                return null;
+            }
+            
+            // Read the image
+            BufferedImage image = ImageIO.read(response.body().byteStream());
+            if (image == null) {
+                logger.debug("Failed to read image from " + apiType + " API response");
+                return null;
+            }
+            
+            logger.debug("Successfully read image from " + apiType + " API: " + image.getWidth() + "x" + image.getHeight());
+            return image;
+            
+        } catch (Exception e) {
+            logger.debug("Error fetching from " + apiType + " API: " + e.getMessage());
+            return null;
+        } finally {
+            if (response != null) {
+                response.close();
+            }
+        }
+    }
+    
+    /**
+     * Gets cached skin data if available and not expired.
+     */
+    private BufferedImage getCachedSkin(@NotNull UUID playerId) {
+        if (!plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.cache-enabled", true)) {
+            return null;
+        }
+        
+        CachedSkinData cached = skinCache.get(playerId);
+        if (cached == null) {
+            return null;
+        }
+        
+        int cacheMinutes = plugin.getConfig().getInt("rewards.winner-announcement.pixel-art.cache-duration-minutes", 30);
+        if (cached.isExpired(cacheMinutes)) {
+            skinCache.remove(playerId);
+            return null;
+        }
+        
+        return cached.image;
+    }
+    
+    /**
+     * Displays pixel art from a BufferedImage.
+     */
+    private void displayPixelArt(@NotNull Player winner, @NotNull BufferedImage image, @NotNull String character, int targetSize) {
+        try {
+            BufferedImage processedImage = image;
+            
+            // Scale image to desired size if needed
+            if (image.getWidth() != targetSize || image.getHeight() != targetSize) {
+                logger.debug("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + targetSize + "x" + targetSize);
+                processedImage = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_ARGB);
+                java.awt.Graphics2D g2d = processedImage.createGraphics();
+                try {
+                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g2d.drawImage(image, 0, 0, targetSize, targetSize, null);
+                } finally {
+                    g2d.dispose();
+                }
+            }
+            
+            // Convert image to components with consistent character usage
+            Component[] pixelArt = new Component[targetSize];
+            String pixelChar = character.isEmpty() ? "⬛" : character;
+            
+            for (int y = 0; y < targetSize; y++) {
                 Component row = Component.text("");
-                for (int x = 0; x < size; x++) {
-                    // Create a simple crown pattern
-                    if (y == 0 || y == size - 1 || x == 0 || x == size - 1) {
-                        row = row.append(Component.text("👑", net.kyori.adventure.text.format.NamedTextColor.GOLD));
-                    } else {
-                        row = row.append(Component.text("  "));
+                for (int x = 0; x < targetSize; x++) {
+                    int rgba = processedImage.getRGB(x, y);
+                    int alpha = (rgba >> 24) & 0xFF;
+                    
+                    // Handle transparent pixels with consistent character
+                    if (alpha < 128) {
+                        row = row.append(Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.BLACK));
+                        continue;
+                    }
+                    
+                    int r = (rgba >> 16) & 0xFF;
+                    int g = (rgba >> 8) & 0xFF;
+                    int b = rgba & 0xFF;
+                    
+                    // Create hex color string
+                    String hexColor = String.format("#%02x%02x%02x", r, g, b);
+                    try {
+                        net.kyori.adventure.text.format.TextColor color = net.kyori.adventure.text.format.TextColor.fromHexString(hexColor);
+                        row = row.append(Component.text(pixelChar).color(color));
+                    } catch (Exception e) {
+                        // Fallback to white if color parsing fails
+                        row = row.append(Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.WHITE));
                     }
                 }
-                fallbackArt[y] = row;
+                pixelArt[y] = row;
             }
             
-            broadcastMessage(Component.text("🎉 Winner: " + winner.getName() + " 🎉", net.kyori.adventure.text.format.NamedTextColor.GOLD));
-            broadcastMessage(Component.text("")); // Empty line before art
-            for (Component line : fallbackArt) {
+            // Show pixel art in chat with winner message positioned to the right
+            logger.debug("Displaying pixel art for " + winner.getName());
+            broadcastMessage(Component.text("")); // Empty line before pixel art
+            
+            // Calculate middle rows for message placement
+            int middleRow = targetSize / 2;
+            int bracketTopRow = middleRow - 1;
+            int messageRow = middleRow;
+            int bracketBottomRow = middleRow + 1;
+            
+            // Create winner message components
+            Component topBracket = Component.text("   ╔══════════════════╗", net.kyori.adventure.text.format.NamedTextColor.GOLD);
+            Component winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", net.kyori.adventure.text.format.NamedTextColor.GOLD, net.kyori.adventure.text.format.TextDecoration.BOLD);
+            Component bottomBracket = Component.text("   ╚══════════════════╝", net.kyori.adventure.text.format.NamedTextColor.GOLD);
+            
+            // Display pixel art with winner message positioned to the right
+            for (int y = 0; y < targetSize; y++) {
+                Component line = pixelArt[y];
+                
+                if (y == bracketTopRow) {
+                    // Add top bracket to the right of the pixel art
+                    line = line.append(topBracket);
+                } else if (y == messageRow) {
+                    // Add winner message to the right of the pixel art
+                    line = line.append(winnerMessage);
+                } else if (y == bracketBottomRow) {
+                    // Add bottom bracket to the right of the pixel art
+                    line = line.append(bottomBracket);
+                }
+                
                 broadcastMessage(line);
             }
-            broadcastMessage(Component.text("")); // Empty line after art
-        });
+            broadcastMessage(Component.text("")); // Empty line after pixel art
+            
+            // Dispose of scaled image if we created one
+            if (processedImage != image) {
+                processedImage.flush();
+            }
+            
+        } catch (Exception e) {
+            logger.warn("Error displaying pixel art: " + e.getMessage());
+            // Skip pixel art display if there's an error
+        }
     }
+    
+
     
     /**
      * Cleans up all resources used by this celebration manager.
@@ -476,6 +572,28 @@ public class GameCelebrationManager {
         if (httpClient != null) {
             httpClient.dispatcher().executorService().shutdown();
             httpClient.connectionPool().evictAll();
+        }
+    }
+    
+    /**
+     * Pre-caches skin data for remaining players to improve winner announcement performance.
+     * Should be called when the game reaches 3 players remaining.
+     */
+    public void preCachePlayerSkins() {
+        if (!plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.pre-cache-enabled", true)) {
+            return;
+        }
+        
+        logger.debug("Pre-caching player skins for remaining players");
+        
+        for (UUID playerId : playerManager.getPlayers()) {
+            Player player = playerManager.getCachedPlayer(playerId);
+            if (player != null) {
+                // Cache skin asynchronously in background
+                plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                    fetchPlayerSkin(player.getUniqueId(), false); // Don't force refresh
+                });
+            }
         }
     }
 } 

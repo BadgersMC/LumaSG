@@ -11,8 +11,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.configuration.serialization.SerializableAs;
+
 import org.bukkit.Particle;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.entity.Player;
@@ -48,8 +47,7 @@ import java.util.Set;
  * @version 1.0
  * @since 1.0
  */
-@SerializableAs("Arena")
-public class Arena implements ConfigurationSerializable {
+public class Arena {
     
     /** The unique identifier for this arena */
     private final @NotNull String name;
@@ -291,6 +289,27 @@ public class Arena implements ConfigurationSerializable {
                 arena.spawnPoints.size() + " spawn points and " + 
                 arena.chestLocations.size() + " chest locations");
             
+            // Set the world based on loaded locations
+            World arenaWorld = null;
+            if (arena.center != null) {
+                arenaWorld = arena.center.getWorld();
+            } else if (!arena.spawnPoints.isEmpty()) {
+                arenaWorld = arena.spawnPoints.get(0).getWorld();
+            } else if (!arena.chestLocations.isEmpty()) {
+                arenaWorld = arena.chestLocations.get(0).getWorld();
+            } else if (arena.lobbySpawn != null) {
+                arenaWorld = arena.lobbySpawn.getWorld();
+            } else if (arena.spectatorSpawn != null) {
+                arenaWorld = arena.spectatorSpawn.getWorld();
+            }
+            
+            if (arenaWorld != null) {
+                arena.world = arenaWorld;
+                logger.debug("Set arena world to: " + arenaWorld.getName());
+            } else {
+                logger.warn("Could not determine world for arena: " + arenaName + " (no valid locations found)");
+            }
+            
             // Log if no chest locations are found (but don't auto-scan to prevent save conflicts)
             if (arena.chestLocations.isEmpty() && arena.center != null && arena.radius > 0) {
                 logger.warn("No chest locations found for arena " + arenaName + 
@@ -407,6 +426,9 @@ public class Arena implements ConfigurationSerializable {
         
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
+            // Log the issue for debugging - this could happen if worlds aren't loaded yet during startup
+            System.err.println("[LumaSG] Warning: Could not find world '" + worldName + "' when loading location. " +
+                "This may be due to world loading timing during server startup.");
             return null;
         }
         
@@ -563,6 +585,11 @@ public class Arena implements ConfigurationSerializable {
     public synchronized void addChestLocation(@NotNull Location location) {
         ValidationUtils.requireNonNull(location, "Location", "Arena.addChestLocation");
         chestLocations.add(location.clone());
+        
+        // Save the arena if auto-save is enabled
+        if (plugin.getConfig().getBoolean("arena.auto-save", true)) {
+            plugin.getArenaManager().saveArenas();
+        }
     }
     
     /**
@@ -577,6 +604,12 @@ public class Arena implements ConfigurationSerializable {
         }
         
         chestLocations.remove(index);
+        
+        // Save the arena if auto-save is enabled
+        if (plugin.getConfig().getBoolean("arena.auto-save", true)) {
+            plugin.getArenaManager().saveArenas();
+        }
+        
         return true;
     }
     
@@ -664,76 +697,7 @@ public class Arena implements ConfigurationSerializable {
         return playerCount >= minPlayers && playerCount <= maxPlayers;
     }
 
-    /**
-     * Serializes this arena to a Map for configuration storage.
-     * 
-     * <p>This method converts the arena's properties into a format that can be
-     * saved to configuration files and later deserialized.</p>
-     * 
-     * @return A Map containing the arena's serialized data
-     */
-    @Override
-    public @NotNull Map<String, Object> serialize() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", name);
-        map.put("maxPlayers", maxPlayers);
-        map.put("minPlayers", minPlayers);
-        
-        // Serialize spawn points as a list of locations with null safety
-        List<Location> safeSpawnPoints = new ArrayList<>();
-        for (Location location : spawnPoints) {
-            if (location != null) {
-                safeSpawnPoints.add(location);
-            }
-        }
-        map.put("spawnPoints", safeSpawnPoints);
-        
-        return map;
-    }
 
-    /**
-     * Creates an Arena instance from a ConfigurationSection.
-     * 
-     * <p>This static factory method deserializes arena data from a configuration
-     * section, typically loaded from a YAML file.</p>
-     * 
-     * @param section The configuration section containing arena data
-     * @return A new Arena instance with the loaded data
-     * @throws LumaSGException if the configuration data is invalid
-     */
-    public static @NotNull Arena deserialize(@NotNull ConfigurationSection section) {
-        ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Deserialization");
-        
-        String name = ValidationUtils.nullSafeString(section.getString("name"), "");
-        if (name.isEmpty()) {
-            throw new IllegalArgumentException("Arena name is missing or empty during Arena Deserialization");
-        }
-        
-        int maxPlayers = ValidationUtils.nullSafeInt(section.getInt("maxPlayers"), 24);
-        int minPlayers = ValidationUtils.nullSafeInt(section.getInt("minPlayers"), 2);
-        
-        // Load spawn points from configuration with null safety
-        List<Location> spawnPointsList = new ArrayList<>();
-        if (section.contains("spawnPoints")) {
-            List<?> spawnPointsRaw = section.getList("spawnPoints");
-            if (spawnPointsRaw != null) {
-                for (Object obj : spawnPointsRaw) {
-                    if (obj instanceof Location) {
-                        Location location = (Location) obj;
-                        if (location != null) {
-                            spawnPointsList.add(location);
-                        }
-                    }
-                }
-            }
-        }
-        
-        Location[] spawnPoints = spawnPointsList.toArray(new Location[0]);
-        
-        // Note: This method requires a plugin instance, but we don't have one here
-        // In a real implementation, you'd need to pass the plugin or handle this differently
-        throw new UnsupportedOperationException("Deserialization requires plugin instance - use fromConfig() instead");
-    }
 
     /**
      * Returns a string representation of this arena.

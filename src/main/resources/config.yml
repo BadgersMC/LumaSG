@@ -94,13 +94,17 @@ rewards:
     use-pixel-art: true
     title: "<gradient:gold:yellow:gold><bold>WINNER!</bold></gradient>"
     subtitle: "<gradient:#FFFF00:#FFA500:#FF4500><bold><player></bold></gradient>"
-    message: "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!"
+    message: "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow><mobcoins> Mob Coins<green>!"
     fireworks: true
+    firework-count: 20
     pixel-art:
       enabled: true
-      api-url: "https://starlightskins.lunareclipse.studio/render/pixel/<uuid>/face"
+      api-url: "https://crafatar.com/avatars/<uuid>?size=8&overlay"
       size: 8
-      character: "⬜"
+      character: "⬛"
+      cache-enabled: true
+      cache-duration-minutes: 30
+      pre-cache-enabled: true  # Pre-cache skins when 3 players remain
 
 # Messages
 messages:
@@ -126,5 +130,5 @@ statistics:
 
 # Debug Settings
 debug:
-  enabled: false  # Set to false by default for production
+  enabled: false  # Set to false by default for production. This shit will spam the console, but you wont miss a thing. Turn it on if Badger told you to.
   log-level: "INFO" 

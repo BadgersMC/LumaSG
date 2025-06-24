@@ -15,9 +15,8 @@ import java.util.logging.Logger;
  * A debug-aware logging utility that respects the plugin's debug configuration.
  * 
  * <p>This logger provides different logging levels and only outputs debug information
- * when the debug mode is enabled in the configuration. It uses Adventure text
- * components for modern formatting and provides a clean interface for logging
- * throughout the plugin.</p>
+ * when the debug mode is enabled in the configuration. It provides clean console
+ * output without color codes for better readability in server logs.</p>
  * 
  * <p>Log levels hierarchy (from least to most severe):
  * <ul>
@@ -74,6 +73,24 @@ public class DebugLogger {
     }
     
     /**
+     * Formats a log message with level and context information.
+     * 
+     * @param level The log level
+     * @param context The context (optional)
+     * @param message The message
+     * @return The formatted message
+     */
+    private String formatMessage(@NotNull String level, @Nullable String context, @NotNull String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(level).append("]");
+        if (context != null && !context.isEmpty()) {
+            sb.append(" [").append(context).append("]");
+        }
+        sb.append(" ").append(message);
+        return sb.toString();
+    }
+    
+    /**
      * Logs a debug message. Only shown when debug mode is enabled.
      * 
      * @param message The message to log
@@ -81,12 +98,7 @@ public class DebugLogger {
     public void debug(@NotNull String message) {
         updateDebugState();
         if (debugEnabled) {
-            Component component = Component.text()
-                .append(Component.text("[DEBUG] ", NamedTextColor.GRAY, TextDecoration.ITALIC))
-                .append(Component.text(message, NamedTextColor.WHITE))
-                .build();
-            
-            logger.info(MiniMessageUtils.toLegacy(component));
+            logger.info(formatMessage("DEBUG", null, message));
         }
     }
     
@@ -99,13 +111,7 @@ public class DebugLogger {
     public void debug(@NotNull String context, @NotNull String message) {
         updateDebugState();
         if (debugEnabled) {
-            Component component = Component.text()
-                .append(Component.text("[DEBUG] ", NamedTextColor.GRAY, TextDecoration.ITALIC))
-                .append(Component.text("[" + context + "] ", NamedTextColor.DARK_GRAY))
-                .append(Component.text(message, NamedTextColor.WHITE))
-                .build();
-            
-            logger.info(MiniMessageUtils.toLegacy(component));
+            logger.info(formatMessage("DEBUG", context, message));
         }
     }
     
@@ -118,12 +124,7 @@ public class DebugLogger {
     public void debug(@NotNull String message, @NotNull Throwable throwable) {
         updateDebugState();
         if (debugEnabled) {
-            Component component = Component.text()
-                .append(Component.text("[DEBUG] ", NamedTextColor.GRAY, TextDecoration.ITALIC))
-                .append(Component.text(message, NamedTextColor.WHITE))
-                .build();
-            
-            logger.log(Level.INFO, MiniMessageUtils.toLegacy(component), throwable);
+            logger.log(Level.INFO, formatMessage("DEBUG", null, message), throwable);
         }
     }
     
@@ -133,12 +134,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void info(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[INFO] ", NamedTextColor.GREEN))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.info(MiniMessageUtils.toLegacy(component));
+        logger.info(formatMessage("INFO", null, message));
     }
     
     /**
@@ -148,13 +144,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void info(@NotNull String context, @NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[INFO] ", NamedTextColor.GREEN))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.info(MiniMessageUtils.toLegacy(component));
+        logger.info(formatMessage("INFO", context, message));
     }
     
     /**
@@ -163,12 +153,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void warn(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[WARN] ", NamedTextColor.YELLOW))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.warning(MiniMessageUtils.toLegacy(component));
+        logger.warning(formatMessage("WARN", null, message));
     }
     
     /**
@@ -178,13 +163,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void warn(@NotNull String context, @NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[WARN] ", NamedTextColor.YELLOW))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.warning(MiniMessageUtils.toLegacy(component));
+        logger.warning(formatMessage("WARN", context, message));
     }
     
     /**
@@ -194,12 +173,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void warn(@NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[WARN] ", NamedTextColor.YELLOW))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.WARNING, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.WARNING, formatMessage("WARN", null, message), throwable);
     }
     
     /**
@@ -210,13 +184,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void warn(@NotNull String context, @NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[WARN] ", NamedTextColor.YELLOW))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.WARNING, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.WARNING, formatMessage("WARN", context, message), throwable);
     }
     
     /**
@@ -225,12 +193,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void error(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[ERROR] ", NamedTextColor.RED))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.severe(MiniMessageUtils.toLegacy(component));
+        logger.severe(formatMessage("ERROR", null, message));
     }
     
     /**
@@ -240,13 +203,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void error(@NotNull String context, @NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[ERROR] ", NamedTextColor.RED))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.severe(MiniMessageUtils.toLegacy(component));
+        logger.severe(formatMessage("ERROR", context, message));
     }
     
     /**
@@ -256,12 +213,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void error(@NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[ERROR] ", NamedTextColor.RED))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.SEVERE, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.SEVERE, formatMessage("ERROR", null, message), throwable);
     }
     
     /**
@@ -272,13 +224,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void error(@NotNull String context, @NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[ERROR] ", NamedTextColor.RED))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.SEVERE, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.SEVERE, formatMessage("ERROR", context, message), throwable);
     }
     
     /**
@@ -287,12 +233,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void severe(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[SEVERE] ", NamedTextColor.DARK_RED, TextDecoration.BOLD))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.severe(MiniMessageUtils.toLegacy(component));
+        logger.severe(formatMessage("SEVERE", null, message));
     }
     
     /**
@@ -302,13 +243,7 @@ public class DebugLogger {
      * @param message The message to log
      */
     public void severe(@NotNull String context, @NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[SEVERE] ", NamedTextColor.DARK_RED, TextDecoration.BOLD))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.severe(MiniMessageUtils.toLegacy(component));
+        logger.severe(formatMessage("SEVERE", context, message));
     }
     
     /**
@@ -318,12 +253,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void severe(@NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[SEVERE] ", NamedTextColor.DARK_RED, TextDecoration.BOLD))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.SEVERE, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.SEVERE, formatMessage("SEVERE", null, message), throwable);
     }
     
     /**
@@ -334,13 +264,7 @@ public class DebugLogger {
      * @param throwable The exception to log
      */
     public void severe(@NotNull String context, @NotNull String message, @NotNull Throwable throwable) {
-        Component component = Component.text()
-            .append(Component.text("[SEVERE] ", NamedTextColor.DARK_RED, TextDecoration.BOLD))
-            .append(Component.text("[" + context + "] ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.log(Level.SEVERE, MiniMessageUtils.toLegacy(component), throwable);
+        logger.log(Level.SEVERE, formatMessage("SEVERE", context, message), throwable);
     }
     
     /**
@@ -349,12 +273,7 @@ public class DebugLogger {
      * @param message The startup message to log
      */
     public void startup(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[STARTUP] ", NamedTextColor.AQUA, TextDecoration.BOLD))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.info(MiniMessageUtils.toLegacy(component));
+        logger.info(formatMessage("STARTUP", null, message));
     }
     
     /**
@@ -363,12 +282,7 @@ public class DebugLogger {
      * @param message The shutdown message to log
      */
     public void shutdown(@NotNull String message) {
-        Component component = Component.text()
-            .append(Component.text("[SHUTDOWN] ", NamedTextColor.GOLD, TextDecoration.BOLD))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        logger.info(MiniMessageUtils.toLegacy(component));
+        logger.info(formatMessage("SHUTDOWN", null, message));
     }
     
     /**

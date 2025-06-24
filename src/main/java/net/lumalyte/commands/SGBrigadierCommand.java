@@ -6,7 +6,9 @@ import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
 import net.lumalyte.game.Game;
+import net.lumalyte.game.GameCelebrationManager;
 import net.lumalyte.game.GameManager;
+import net.lumalyte.game.GamePlayerManager;
 import net.lumalyte.game.GameState;
 import net.lumalyte.gui.MainMenu;
 import net.kyori.adventure.text.Component;
@@ -15,12 +17,15 @@ import net.lumalyte.util.DebugLogger;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -97,8 +102,14 @@ public class SGBrigadierCommand extends Command {
             case "wand" -> handleWandCommand(context);
             case "create" -> handleCreateCommand(context);
             case "arena" -> {
-                if (args.length > 1 && args[1].equalsIgnoreCase("select")) {
-                    yield handleArenaSelectCommand(context);
+                if (args.length > 1) {
+                    if (args[1].equalsIgnoreCase("select")) {
+                        // Handle /sg arena select <arena>
+                        yield handleArenaSelectCommand(context);
+                    } else {
+                        // Handle /sg arena <arena> (direct selection)
+                        yield handleArenaDirectSelectCommand(context);
+                    }
                 }
                 yield handleHelpCommand(context);
             }
@@ -109,6 +120,7 @@ public class SGBrigadierCommand extends Command {
                 yield handleHelpCommand(context);
             }
             case "menu" -> handleMenuCommand(context);
+            case "test" -> handleTestCommand(context);
             case "help" -> handleHelpCommand(context);
             default -> handleHelpCommand(context);
         };
@@ -127,7 +139,7 @@ public class SGBrigadierCommand extends Command {
             
             if (sender.hasPermission("lumasg.admin")) {
                 commands = new ArrayList<>(commands);
-                commands.addAll(Arrays.asList("reload", "wand", "create", "arena", "scan"));
+                commands.addAll(Arrays.asList("reload", "wand", "create", "arena", "scan", "test"));
             }
             
             for (String command : commands) {
@@ -139,22 +151,31 @@ public class SGBrigadierCommand extends Command {
             String subcommand = args[0].toLowerCase();
             String partial = args[1].toLowerCase();
             
-            if (subcommand.equals("join") || subcommand.equals("start") || 
-                (subcommand.equals("arena") && args.length == 2) ||
-                (subcommand.equals("scan") && args.length == 2)) {
-                
+            if (subcommand.equals("join") || subcommand.equals("start")) {
+                // Tab complete arena names for join and start commands
                 for (Arena arena : arenaManager.getArenas()) {
                     if (arena.getName().toLowerCase().startsWith(partial)) {
                         completions.add(arena.getName());
                     }
                 }
             } else if (subcommand.equals("arena")) {
+                // Tab complete "select" for arena command, and also arena names for direct selection
                 if ("select".startsWith(partial)) {
                     completions.add("select");
+                }
+                // Also allow direct arena selection: /sg arena <arena_name>
+                for (Arena arena : arenaManager.getArenas()) {
+                    if (arena.getName().toLowerCase().startsWith(partial)) {
+                        completions.add(arena.getName());
+                    }
                 }
             } else if (subcommand.equals("scan")) {
                 if ("chests".startsWith(partial)) {
                     completions.add("chests");
+                }
+            } else if (subcommand.equals("test")) {
+                if ("celebration".startsWith(partial)) {
+                    completions.add("celebration");
                 }
             }
         } else if (args.length == 3) {
@@ -196,11 +217,27 @@ public class SGBrigadierCommand extends Command {
             
             // Parse arguments into a map for easy access
             if (args.length > 1) {
-                this.arguments.put("arena", args[1]);
-            }
-            if (args.length > 2) {
-                this.arguments.put("name", args[1]);
-                this.arguments.put("radius", args[2]);
+                String subcommand = args[0].toLowerCase();
+                
+                if (subcommand.equals("arena")) {
+                    if (args.length > 2 && args[1].equalsIgnoreCase("select")) {
+                        // /sg arena select <arena>
+                        this.arguments.put("arena", args[2]);
+                    } else if (args.length > 1) {
+                        // /sg arena <arena> (direct selection)
+                        this.arguments.put("direct_arena", args[1]);
+                    }
+                } else if (subcommand.equals("create") && args.length > 2) {
+                    // /sg create <name> <radius>
+                    this.arguments.put("name", args[1]);
+                    this.arguments.put("radius", args[2]);
+                } else if (subcommand.equals("scan") && args.length > 2 && args[1].equalsIgnoreCase("chests")) {
+                    // /sg scan chests <arena>
+                    this.arguments.put("arena", args[2]);
+                } else {
+                    // Default: /sg <subcommand> <arena>
+                    this.arguments.put("arena", args[1]);
+                }
             }
         }
         
@@ -560,6 +597,32 @@ public class SGBrigadierCommand extends Command {
     }
     
     /**
+     * Handles the direct arena selection command (/sg arena <arena>).
+     */
+    private int handleArenaDirectSelectCommand(CommandContext<CommandSender> context) {
+        CommandSender sender = context.getSource();
+        String arenaName = getString(context, "direct_arena");
+        
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("This command can only be used by players.")
+                .color(NamedTextColor.RED));
+            return 0;
+        }
+        
+        // Find arena by name
+        Arena arena = arenaManager.getArena(arenaName);
+        if (arena == null) {
+            player.sendMessage(Component.text("Arena not found: " + arenaName)
+                .color(NamedTextColor.RED));
+            return 0;
+        }
+        
+        // Select arena
+        plugin.getAdminWandListener().setSelectedArena(player, arena);
+        return 1;
+    }
+    
+    /**
      * Handles the scan chests command.
      */
     private int handleScanChestsCommand(CommandContext<CommandSender> context) {
@@ -605,6 +668,128 @@ public class SGBrigadierCommand extends Command {
     }
     
     /**
+     * Handles the test command for testing various features.
+     */
+    private int handleTestCommand(CommandContext<CommandSender> context) {
+        CommandSender sender = context.getSource();
+        String testType = getString(context, "arena"); // Reuse arena argument parsing for test type
+        
+        if (!sender.hasPermission("lumasg.admin")) {
+            sender.sendMessage(Component.text("You don't have permission to use test commands.")
+                .color(NamedTextColor.RED));
+            return 0;
+        }
+        
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("This command can only be used by players.")
+                .color(NamedTextColor.RED));
+            return 0;
+        }
+        
+        if (testType == null || testType.isEmpty()) {
+            player.sendMessage(Component.text("Usage: /sg test <celebration>")
+                .color(NamedTextColor.YELLOW));
+            player.sendMessage(Component.text("Available tests:")
+                .color(NamedTextColor.GRAY));
+            player.sendMessage(Component.text("  celebration - Test the winner celebration pixel art")
+                .color(NamedTextColor.GRAY));
+            return 0;
+        }
+        
+        switch (testType.toLowerCase()) {
+            case "celebration" -> {
+                // Test the celebration manager
+                player.sendMessage(Component.text("Testing winner celebration with your player...")
+                    .color(NamedTextColor.YELLOW));
+                
+                // Create a minimal test celebration manager that doesn't depend on full game infrastructure
+                testWinnerCelebration(player);
+                
+                player.sendMessage(Component.text("Winner celebration test triggered! Check chat for pixel art.")
+                    .color(NamedTextColor.GREEN));
+                
+                return 1;
+            }
+            default -> {
+                player.sendMessage(Component.text("Unknown test type: " + testType)
+                    .color(NamedTextColor.RED));
+                player.sendMessage(Component.text("Available tests: celebration")
+                    .color(NamedTextColor.GRAY));
+                return 0;
+            }
+        }
+    }
+    
+    /**
+     * Test the winner celebration functionality without needing a full game.
+     */
+    private void testWinnerCelebration(Player player) {
+        // Create a simple test celebration that bypasses the complex GamePlayerManager
+        GameCelebrationManager celebrationManager = new GameCelebrationManager(plugin, new TestGamePlayerManager(player));
+        celebrationManager.celebrateWinner(player);
+    }
+    
+    /**
+     * Simplified test implementation of GamePlayerManager for testing celebrations.
+     */
+    private class TestGamePlayerManager extends GamePlayerManager {
+        private final Player testPlayer;
+        private final Arena testArena;
+        
+        public TestGamePlayerManager(Player testPlayer) {
+            super(plugin, createTestArena(testPlayer), UUID.randomUUID());
+            this.testPlayer = testPlayer;
+            this.testArena = createTestArena(testPlayer);
+        }
+        
+        @Override
+        public Set<UUID> getPlayers() {
+            return Set.of(testPlayer.getUniqueId());
+        }
+        
+        @Override
+        public Set<UUID> getSpectators() {
+            return Set.of(); // No spectators for test
+        }
+        
+        @Override
+        public Player getCachedPlayer(UUID playerId) {
+            if (playerId.equals(testPlayer.getUniqueId())) {
+                return testPlayer;
+            }
+            return null;
+        }
+        
+        @Override
+        public int getPlayerKills(UUID playerId) {
+            return 5; // Mock kill count for testing
+        }
+        
+        /**
+         * Creates a minimal test arena for celebration testing.
+         */
+        private static Arena createTestArena(Player testPlayer) {
+            try {
+                // Get the plugin instance properly
+                LumaSG plugin = (LumaSG) testPlayer.getServer().getPluginManager().getPlugin("LumaSG");
+                if (plugin == null) {
+                    throw new IllegalStateException("LumaSG plugin not found");
+                }
+                
+                // Create a minimal arena with just the player's current location
+                Location playerLoc = testPlayer.getLocation();
+                Arena arena = new Arena("test-arena", plugin, 1, 1);
+                arena.addSpawnPoint(playerLoc);
+                return arena;
+            } catch (Exception e) {
+                // Fallback to a basic arena
+                LumaSG plugin = (LumaSG) testPlayer.getServer().getPluginManager().getPlugin("LumaSG");
+                return new Arena("test-arena", plugin);
+            }
+        }
+    }
+
+    /**
      * Handles the help command.
      */
     private int handleHelpCommand(CommandContext<CommandSender> context) {
@@ -649,6 +834,8 @@ public class SGBrigadierCommand extends Command {
             sender.sendMessage(Component.text(" /sg arena select <arena> - Select an arena for editing")
                 .color(NamedTextColor.YELLOW));
             sender.sendMessage(Component.text(" /sg scan chests <arena> - Scan for chests in an arena")
+                .color(NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text(" /sg test <type> - Test various features (celebration)")
                 .color(NamedTextColor.YELLOW));
         }
     }

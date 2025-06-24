@@ -48,8 +48,7 @@ public class LumaSG extends JavaPlugin {
         // Set the plugin instance for InvUI
         InvUI.getInstance().setPlugin(this);
         
-        // Register ConfigurationSerializable classes
-        ConfigurationSerialization.registerClass(Arena.class, "Arena");
+
         
         // Load configuration
         saveDefaultConfig();

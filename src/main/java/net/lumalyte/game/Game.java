@@ -262,10 +262,11 @@ public class Game {
         state = GameState.GRACE_PERIOD;
         scoreboardManager.setCurrentGameState(state);
         
-        // Ensure all players are in adventure mode
+        // Reset player stats from external plugins when the game starts
         for (UUID playerId : playerManager.getPlayers()) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null) {
+                plugin.getHookManager().resetPlayerStats(player);
                 player.setGameMode(GameMode.ADVENTURE);
             }
         }
@@ -518,6 +519,12 @@ public class Game {
         
         int playerCount = playerManager.getPlayerCount();
         logger.debug("Checking game end conditions - Active players: " + playerCount);
+        
+        // Pre-cache player skins when 3 players remain for faster winner celebration
+        if (playerCount == 3) {
+            logger.debug("3 players remaining - pre-caching skins for winner celebration");
+            celebrationManager.preCachePlayerSkins();
+        }
         
         // End game if there's only one player left
         if (playerCount <= 1) {
@@ -797,6 +804,15 @@ public class Game {
     
     public int getPlayerCount() {
         return playerManager.getPlayerCount();
+    }
+
+    /**
+     * Gets the map of player UUIDs to their assigned spawn locations.
+     * 
+     * @return An unmodifiable map of player UUIDs to their spawn locations
+     */
+    public @NotNull Map<UUID, Location> getPlayerLocations() {
+        return playerManager.getPlayerLocations();
     }
 
     public boolean isShuttingDown() {

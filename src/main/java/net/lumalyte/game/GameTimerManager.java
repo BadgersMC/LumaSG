@@ -182,17 +182,14 @@ public class GameTimerManager {
         logger.debug("Game timing: Deathmatch time: " + deathmatchTime + " seconds");
         logger.debug("Game timing: Deathmatch will start after: " + deathmatchStartTime + " seconds");
         
-        // Schedule deathmatch at the calculated time
-        BukkitTask deathmatchTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
-            onDeathmatch, 
-            deathmatchStartTime * 20L);
+        // Only schedule deathmatch start - the deathmatch will handle its own end timing
+        BukkitTask deathmatchTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // Start deathmatch
+            onDeathmatch.run();
+            // Then schedule the game end after deathmatch duration
+            scheduleDeathmatchEnd(onGameEnd);
+        }, deathmatchStartTime * 20L);
         activeTasks.put(deathmatchTask.getTaskId(), deathmatchTask);
-        
-        // Schedule game end
-        BukkitTask gameEndTask = plugin.getServer().getScheduler().runTaskLater(plugin, 
-            onGameEnd, 
-            gameTime * 20L);
-        activeTasks.put(gameEndTask.getTaskId(), gameEndTask);
     }
     
     /**
@@ -211,11 +208,11 @@ public class GameTimerManager {
      * Gets the remaining time in seconds.
      */
     public int getTimeRemaining() {
-        int totalTime = plugin.getConfig().getInt("game.game-time-minutes", 20) * 60;
+        // Use the same gameTime that was loaded in constructor to ensure consistency
         long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
-        int remaining = Math.max(0, totalTime - (int)elapsedTime);
+        int remaining = Math.max(0, gameTime - (int)elapsedTime);
         
-        logger.debug("Timer Debug - Total: " + totalTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
+        logger.debug("Timer Debug - Total: " + gameTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
         
         return remaining;
     }

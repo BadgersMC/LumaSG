@@ -121,9 +121,6 @@ public class GamePlayerManager {
                     }
                 }
                 
-                // Reset player stats from external plugins
-                plugin.getHookManager().resetPlayerStats(player);
-                
                 // Add player to game - all operations are now atomic within the lock
                 players.add(player.getUniqueId());
                 playerKills.put(player.getUniqueId(), new AtomicInteger(0));
@@ -277,22 +274,23 @@ public class GamePlayerManager {
     private void assignSpawnPoint(@NotNull Player player) {
         List<Location> spawnPoints = arena.getSpawnPoints();
         if (!spawnPoints.isEmpty()) {
-            // Find an unused spawn point
+            // Find all unused spawn points
             Set<Location> usedSpawns = new HashSet<>(playerLocations.values());
+            List<Location> availableSpawns = new ArrayList<>();
             
-            Location finalSpawnPoint = null;
             for (Location spawn : spawnPoints) {
                 if (!usedSpawns.contains(spawn)) {
-                    finalSpawnPoint = spawn;
-                    break;
+                    availableSpawns.add(spawn);
                 }
             }
             
-            // If no unused spawn found, use random available spawn
-            if (finalSpawnPoint == null) {
-                finalSpawnPoint = spawnPoints.get(new Random().nextInt(spawnPoints.size()));
-                logger.warn("No unused spawn points found for " + player.getName() + ", using random spawn point");
-            }
+            // Randomly select from available spawn points
+            // Note: availableSpawns should never be empty since addPlayer() enforces spawn point limits
+            Random random = new Random();
+            Location finalSpawnPoint = availableSpawns.get(random.nextInt(availableSpawns.size()));
+            
+            logger.debug("Randomly assigned spawn point " + (spawnPoints.indexOf(finalSpawnPoint) + 1) + 
+                " of " + spawnPoints.size() + " to " + player.getName());
             
             // Store and teleport to spawn point
             final Location spawnPoint = finalSpawnPoint;

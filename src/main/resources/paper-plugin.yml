@@ -4,7 +4,7 @@ main: net.lumalyte.LumaSG
 description: ${description}
 api-version: '1.21'
 authors: [BadgersMC]
-load: STARTUP
+load: POSTWORLD
 bootstrapper: net.lumalyte.LumaSGBootstrap
 loader: net.lumalyte.LumaSGLibraryLoader
 website: https://github.com/BadgersMC/LumaSG

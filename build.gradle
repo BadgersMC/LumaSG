@@ -64,6 +64,7 @@ tasks.withType(JavaCompile).configureEach {
         options.release = targetJavaVersion
     }
     options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xlint:deprecation']
 }
 
 processResources {

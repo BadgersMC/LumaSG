@@ -226,11 +226,17 @@ public class ChestItem {
             // Try to make it a bit more interesting with some metadata
             org.bukkit.inventory.meta.ItemMeta meta = fallback.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("§bMissing Nexo Item: " + nexoItemId);
-                meta.setLore(java.util.Arrays.asList(
-                    "§7This is a fallback item because",
-                    "§7Nexo plugin is not available.",
-                    "§7Original item ID: §e" + nexoItemId
+                meta.displayName(net.kyori.adventure.text.Component.text("Missing Nexo Item: " + nexoItemId)
+                    .color(net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                meta.lore(java.util.Arrays.asList(
+                    net.kyori.adventure.text.Component.text("This is a fallback item because")
+                        .color(net.kyori.adventure.text.format.NamedTextColor.GRAY),
+                    net.kyori.adventure.text.Component.text("Nexo plugin is not available.")
+                        .color(net.kyori.adventure.text.format.NamedTextColor.GRAY),
+                    net.kyori.adventure.text.Component.text("Original item ID: ")
+                        .color(net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                        .append(net.kyori.adventure.text.Component.text(nexoItemId)
+                            .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW))
                 ));
                 fallback.setItemMeta(meta);
             }
