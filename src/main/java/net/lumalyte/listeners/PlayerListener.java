@@ -373,64 +373,8 @@ public class PlayerListener implements Listener {
         return location.getWorld().equals(game.getArena().getWorld());
     }
     
-    @EventHandler(priority = EventPriority.NORMAL)
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        Game game = plugin.getGameManager().getGameByPlayer(player);
-        
-        // Only check movement if player is in a game
-        if (game != null) {
-            // Check if game is in WAITING or COUNTDOWN state
-            if (game.getState() == GameState.WAITING || game.getState() == GameState.COUNTDOWN) {
-                // Get the player's assigned spawn point
-                Location spawnPoint = game.getPlayerLocations().get(player.getUniqueId());
-                
-                if (spawnPoint != null) {
-                    Location from = event.getFrom();
-                    Location to = event.getTo();
-                    
-                    if (to == null) return;
-                    
-                    // Calculate horizontal distance from spawn point
-                    double deltaX = Math.abs(to.getX() - spawnPoint.getX());
-                    double deltaZ = Math.abs(to.getZ() - spawnPoint.getZ());
-                    double maxDistance = 1.5; // Allow small movement within spawn platform
-                    
-                    // Check if player moved too far horizontally from their spawn point
-                    if (deltaX > maxDistance || deltaZ > maxDistance) {
-                        // Teleport player back to spawn point with their current Y and rotation
-                        Location correctedLocation = spawnPoint.clone();
-                        correctedLocation.setY(Math.max(to.getY(), spawnPoint.getY())); // Keep them at least at spawn Y level
-                        correctedLocation.setYaw(to.getYaw()); // Preserve head rotation
-                        correctedLocation.setPitch(to.getPitch()); // Preserve head rotation
-                        
-                        // Use teleport instead of setTo for more reliable positioning
-                        player.teleport(correctedLocation);
-                        
-                        // Send a message to let them know they can't move yet
-                        if (game.getState() == GameState.WAITING) {
-                            player.sendMessage(Component.text("Stay on your spawn platform! The game hasn't started yet.", NamedTextColor.YELLOW));
-                        } else if (game.getState() == GameState.COUNTDOWN) {
-                            player.sendMessage(Component.text("Stay on your spawn platform! Game starting soon...", NamedTextColor.YELLOW));
-                        }
-                        
-                        logger.debug("Prevented " + player.getName() + " from moving off spawn platform (distance: " + 
-                            String.format("%.2f", Math.max(deltaX, deltaZ)) + ")");
-                        return;
-                    }
-                    
-                    // Also prevent falling too far below spawn point
-                    if (to.getY() < spawnPoint.getY() - 3.0) {
-                        Location correctedLocation = spawnPoint.clone();
-                        correctedLocation.setYaw(to.getYaw());
-                        correctedLocation.setPitch(to.getPitch());
-                        player.teleport(correctedLocation);
-                        logger.debug("Prevented " + player.getName() + " from falling too far below spawn platform");
-                    }
-                }
-            }
-        }
-    }
+    // Movement restriction during countdown is now handled by barrier blocks
+    // This provides a smoother experience with no client-server desync issues
     
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(@NotNull BlockPlaceEvent event) {

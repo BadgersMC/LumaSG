@@ -16,6 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Criteria;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -75,6 +76,13 @@ public class Game {
     
     // Memory management: Track async operations for cleanup
     private final @NotNull Set<CompletableFuture<?>> activeFutures = ConcurrentHashMap.newKeySet();
+    
+    // Task management: Track scheduled tasks for cleanup
+    private final @NotNull Map<Integer, BukkitTask> activeTasks = new ConcurrentHashMap<>();
+    
+    // Barrier block management for movement restriction during countdown
+    private final @NotNull Map<Location, Material> originalBlocks = new ConcurrentHashMap<>();
+    private final @NotNull Set<Location> barrierBlocks = ConcurrentHashMap.newKeySet();
     
     /**
      * Constructs a new Game instance in the specified arena.
@@ -191,6 +199,184 @@ public class Game {
     }
     
     /**
+     * Creates barrier blocks around all player spawn points to prevent movement.
+     * 
+     * <p>This method places invisible barrier blocks in a 3x3x3 box around each spawn point,
+     * effectively creating a cage that prevents players from moving during waiting and countdown phases.</p>
+     */
+    private void createSpawnBarriers() {
+        logger.debug("Creating spawn barriers to lock players at spawn points");
+        
+        for (UUID playerId : playerManager.getPlayers()) {
+            Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
+            if (spawnLoc != null && spawnLoc.getWorld() != null) {
+                createBarrierBoxAroundLocation(spawnLoc);
+            }
+        }
+        
+        logger.info("Created barrier blocks around " + playerManager.getPlayerCount() + " spawn points");
+    }
+    
+    /**
+     * Creates a 3x3x3 barrier box around the specified location.
+     * 
+     * @param center The center location for the barrier box
+     */
+    private void createBarrierBoxAroundLocation(@NotNull Location center) {
+        World world = center.getWorld();
+        if (world == null) return;
+        
+        int centerX = center.getBlockX();
+        int centerY = center.getBlockY();
+        int centerZ = center.getBlockZ();
+        
+        // Create barriers on all 4 sides, 3 blocks high
+        for (int y = 0; y < 3; y++) {
+            // North side (Z-)
+            placeBarrierBlock(world, centerX, centerY + y, centerZ - 1);
+            // South side (Z+)
+            placeBarrierBlock(world, centerX, centerY + y, centerZ + 1);
+            // East side (X+)
+            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ);
+            // West side (X-)
+            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ);
+            
+            // Corner blocks for complete enclosure
+            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ - 1); // NW
+            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ - 1); // NE
+            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ + 1); // SW
+            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ + 1); // SE
+        }
+    }
+    
+    /**
+     * Places a barrier block at the specified location, storing the original block for restoration.
+     * 
+     * @param world The world to place the block in
+     * @param x The X coordinate
+     * @param y The Y coordinate  
+     * @param z The Z coordinate
+     */
+    private void placeBarrierBlock(@NotNull World world, int x, int y, int z) {
+        Location loc = new Location(world, x, y, z);
+        Material originalMaterial = loc.getBlock().getType();
+        
+        // Only place barriers on air blocks or replace non-solid blocks
+        if (originalMaterial == Material.AIR || !originalMaterial.isSolid()) {
+            // Store original block for restoration
+            originalBlocks.put(loc, originalMaterial);
+            barrierBlocks.add(loc);
+            
+            // Place barrier block (invisible to players)
+            loc.getBlock().setType(Material.BARRIER);
+            
+            logger.debug("Placed barrier block at (" + x + ", " + y + ", " + z + "), replacing " + originalMaterial);
+        }
+    }
+    
+    /**
+     * Removes all barrier blocks and restores original blocks.
+     * 
+     * <p>This method is called when the grace period starts, allowing players to move freely.</p>
+     */
+    private void removeSpawnBarriers() {
+        logger.debug("Removing spawn barriers - grace period starting");
+        
+        for (Location loc : barrierBlocks) {
+            if (loc.getWorld() != null) {
+                Material originalMaterial = originalBlocks.getOrDefault(loc, Material.AIR);
+                loc.getBlock().setType(originalMaterial);
+                logger.debug("Restored block at " + loc + " to " + originalMaterial);
+            }
+        }
+        
+        // Clear tracking collections
+        originalBlocks.clear();
+        barrierBlocks.clear();
+        
+        logger.info("Removed all spawn barriers - players can now move freely");
+    }
+
+    /**
+     * Removes barrier blocks around a specific spawn location and restores the original blocks.
+     * This is used when a player leaves the game to clean up their specific spawn point.
+     * 
+     * @param center The center location (spawn point) to remove barriers around
+     */
+    private void removeBarriersAroundLocation(@NotNull Location center) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        
+        logger.debug("Removing barriers around location: " + center);
+        
+        // Remove barriers in a 3x3x3 box around the spawn point
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                for (int y = 0; y <= 2; y++) { // 3 blocks high
+                    Location barrierLoc = center.clone().add(x, y, z);
+                    
+                    // Only remove if it's actually a barrier block we placed
+                    if (barrierBlocks.contains(barrierLoc)) {
+                        // Get the original block material
+                        Material originalMaterial = originalBlocks.get(barrierLoc);
+                        if (originalMaterial != null) {
+                            // Restore the original block
+                            world.getBlockAt(barrierLoc).setType(originalMaterial);
+                            originalBlocks.remove(barrierLoc);
+                        } else {
+                            // Default to air if no original block was stored
+                            world.getBlockAt(barrierLoc).setType(Material.AIR);
+                        }
+                        
+                        barrierBlocks.remove(barrierLoc);
+                    }
+                }
+            }
+        }
+        
+        logger.debug("Removed barriers around spawn point");
+    }
+
+    /**
+     * Starts periodic enforcement of spawn point restrictions during WAITING and COUNTDOWN states.
+     * This runs every 2 seconds to check if players have somehow escaped their spawn points.
+     */
+    private void startSpawnPointEnforcement() {
+        // Only run enforcement during WAITING and COUNTDOWN states
+        BukkitTask enforcementTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            // Stop enforcement if game has progressed past countdown
+            if (state != GameState.WAITING && state != GameState.COUNTDOWN) {
+                return;
+            }
+            
+            // Check each player's position
+            for (UUID playerId : playerManager.getPlayers()) {
+                Player player = playerManager.getCachedPlayer(playerId);
+                Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
+                
+                if (player != null && spawnLoc != null) {
+                    Location playerLoc = player.getLocation();
+                    
+                    // Check if player is more than 1.5 blocks away from their spawn point
+                    if (playerLoc.distance(spawnLoc) > 1.5) {
+                        // Teleport them back to their spawn point
+                        player.teleport(spawnLoc);
+                        logger.debug("Teleported " + player.getName() + " back to spawn point - was " + 
+                                   String.format("%.2f", playerLoc.distance(spawnLoc)) + " blocks away");
+                    }
+                }
+            }
+        }, 40L, 40L); // Run every 2 seconds (40 ticks)
+        
+        // Track the task for cleanup
+        activeTasks.put(enforcementTask.getTaskId(), enforcementTask);
+        
+        logger.debug("Started spawn point enforcement task");
+    }
+    
+    /**
      * Starts the countdown using the default duration from configuration.
      * 
      * <p>This method initiates the countdown phase, transitioning the game from
@@ -220,6 +406,10 @@ public class Game {
                 // Now start the actual countdown using timer manager
                 state = GameState.COUNTDOWN;
                 scoreboardManager.setCurrentGameState(state);
+                
+                // Barriers are already in place from when players joined
+                // No need to create them again during countdown
+                
                 timerManager.startCountdown(this::startGame);
             });
         });
@@ -238,6 +428,18 @@ public class Game {
 
             // Set up world settings and borders
             worldManager.setupWorld();
+            
+            // Remove spawn barriers if countdown was cancelled, then recreate them for WAITING state
+            removeSpawnBarriers();
+            
+            // Recreate barriers for all players since we're back in WAITING state
+            // This ensures players remain locked at their spawn points
+            for (UUID playerId : playerManager.getPlayers()) {
+                Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
+                if (spawnLoc != null && spawnLoc.getWorld() != null) {
+                    createBarrierBoxAroundLocation(spawnLoc);
+                }
+            }
             
             timerManager.cancelCountdown();
             
@@ -434,6 +636,9 @@ public class Game {
     private void startGracePeriod() {
         isGracePeriod = true;
         pvpEnabled = false;
+        
+        // Remove spawn barriers to allow players to move
+        removeSpawnBarriers();
         
         // Start grace period using timer manager
         timerManager.startGracePeriod(this::endGracePeriod);
@@ -644,8 +849,17 @@ public class Game {
         // Remove player from scoreboard first
         scoreboardManager.removePlayerFromScoreboard(player);
         
+        // Get player's spawn location before removing them (for barrier cleanup)
+        Location playerSpawnLoc = playerManager.getPlayerLocations().get(player.getUniqueId());
+        
         // Delegate to player manager
         playerManager.removePlayer(player, isDisconnect, isShuttingDown);
+        
+        // Clean up barriers around the player's spawn point if they were in WAITING or COUNTDOWN
+        if (playerSpawnLoc != null && (state == GameState.WAITING || state == GameState.COUNTDOWN)) {
+            removeBarriersAroundLocation(playerSpawnLoc);
+            logger.debug("Cleaned up barriers for " + player.getName() + " at " + playerSpawnLoc);
+        }
         
         // Only broadcast leave message and check game end if game isn't ending
         if (!isShuttingDown) {
@@ -688,6 +902,17 @@ public class Game {
             return; // Player couldn't be added (arena full, etc.)
         }
         
+        // Create barrier cage around the new player's spawn point immediately
+        // This prevents them from moving off their spawn platform
+        Location spawnLoc = playerManager.getPlayerLocations().get(player.getUniqueId());
+        if (spawnLoc != null && spawnLoc.getWorld() != null) {
+            createBarrierBoxAroundLocation(spawnLoc);
+            
+            // Ensure player is exactly at their spawn point (prevent any exploitation)
+            player.teleport(spawnLoc);
+            logger.debug("Locked " + player.getName() + " at spawn point with barriers: " + spawnLoc);
+        }
+        
         // Broadcast join message
         broadcastMessage(Component.text()
             .append(player.displayName())
@@ -710,6 +935,11 @@ public class Game {
         
         // Add player to the nameplate-hiding team if game is active
         scoreboardManager.addPlayerToTeam(player);
+        
+        // Start periodic spawn point enforcement if this is the first player
+        if (playerManager.getPlayerCount() == 1) {
+            startSpawnPointEnforcement();
+        }
     }
 
     /**
@@ -836,6 +1066,17 @@ public class Game {
             }
         }
         activeFutures.clear();
+        
+        // Cancel all active BukkitTask operations
+        for (BukkitTask task : activeTasks.values()) {
+            if (!task.isCancelled()) {
+                task.cancel();
+            }
+        }
+        activeTasks.clear();
+        
+        // Remove any remaining barrier blocks
+        removeSpawnBarriers();
         
         // Delegate cleanup to managers
         worldManager.cleanup();

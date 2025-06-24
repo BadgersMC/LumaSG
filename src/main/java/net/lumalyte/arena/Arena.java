@@ -837,7 +837,10 @@ public class Arena {
         // Create a repeating task to spawn particles
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (location.getWorld() != null) {
-                Location particleLoc = location.clone().add(0.5, 0, 0.5);
+                // Use the spawn point location directly since it's already centered
+                // The spawn point is created at clickedBlock.getLocation().add(0.5, 1, 0.5)
+                // so we don't need to add any more offset
+                Location particleLoc = location.clone();
                 
                 // Only show particles to admins
                 for (Player player : Bukkit.getOnlinePlayers()) {
