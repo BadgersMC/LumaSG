@@ -1,12 +1,12 @@
 package net.lumalyte.hooks;
 
+import com.nexomc.nexo.api.NexoItems;
 import net.lumalyte.LumaSG;
 import net.lumalyte.util.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-import java.lang.reflect.Method;
 import java.util.Optional;
 
 /**
@@ -17,7 +17,6 @@ public class NexoHook implements PluginHook {
     private static final String PLUGIN_NAME = "Nexo";
     private Plugin nexoPlugin;
     private boolean available = false;
-    private Method getItemMethod;
     
     private final LumaSG plugin;
     
@@ -53,30 +52,22 @@ public class NexoHook implements PluginHook {
             return false;
         }
         
+        // Test if we can access the Nexo API by attempting to use it
         try {
-            // Try to access the Nexo API class using reflection in a safer way
-            Class<?> nexoAPIClass = null;
-            try {
-                // Try to get the class from the plugin's classloader first
-                nexoAPIClass = nexoPlugin.getClass().getClassLoader().loadClass("com.nexo.api.NexoAPI");
-            } catch (ClassNotFoundException e) {
-                // If that fails, try the standard class loading approach
-                try {
-                    nexoAPIClass = Class.forName("com.nexo.api.NexoAPI");
-                } catch (ClassNotFoundException ex) {
-                    logger.warn("Nexo API class not found. Nexo item support will be disabled.");
-                    return false;
-                }
-            }
-            
-            // Get the getItem method
-            getItemMethod = nexoAPIClass.getMethod("getItem", String.class);
-            
+            // Try to get a non-existent item - this will throw a normal ItemNotFoundException
+            // but will validate that we can access the API
+            NexoItems.itemFromId("test_api_access");
             available = true;
             logger.info("Successfully hooked into Nexo!");
             return true;
-        } catch (NoSuchMethodException e) {
-            logger.warn("Failed to hook into Nexo API. Nexo item support will be disabled.", e);
+        } catch (IllegalArgumentException e) {
+            // Expected exception for non-existent item - API is working
+            available = true;
+            logger.info("Successfully hooked into Nexo!");
+            return true;
+        } catch (Exception e) {
+            // Any other exception means we can't access the API
+            logger.warn("Failed to access Nexo API. Nexo item support will be disabled.", e);
             return false;
         }
     }
@@ -93,15 +84,11 @@ public class NexoHook implements PluginHook {
         }
         
         try {
-            Object result = getItemMethod.invoke(null, itemId);
-            if (result instanceof ItemStack) {
-                return Optional.of((ItemStack) result);
-            }
+            return Optional.ofNullable(NexoItems.itemFromId(itemId).build());
         } catch (Exception e) {
             logger.warn("Failed to get Nexo item: " + itemId, e);
+            return Optional.empty();
         }
-        
-        return Optional.empty();
     }
 
     @Override
@@ -113,6 +100,5 @@ public class NexoHook implements PluginHook {
     public void disable() {
         available = false;
         nexoPlugin = null;
-        getItemMethod = null;
     }
 } 

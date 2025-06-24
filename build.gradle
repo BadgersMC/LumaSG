@@ -31,8 +31,8 @@ repositories {
         url = 'https://jitpack.io'
     }
     maven {
-        name = 'aurelium'
-        url = 'https://repo.aurelium.dev/releases'
+        name = 'nexo'
+        url = 'https://repo.nexomc.com/releases'
     }
 }
 
@@ -45,6 +45,7 @@ dependencies {
     
     compileOnly 'com.mojang:brigadier:1.0.18'
     compileOnly 'com.github.PlaceholderAPI:PlaceholderAPI:2.11.2'
+    compileOnly 'com.nexomc:nexo:1.8.0'
 
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
 }
