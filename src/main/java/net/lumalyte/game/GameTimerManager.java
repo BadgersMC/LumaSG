@@ -6,11 +6,14 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
 import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.MiniMessageUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +50,9 @@ public class GameTimerManager {
     /** Flag to indicate if the game has ended early (prevents timer from continuing) */
     private boolean gameEndedEarly = false;
     
+    /** Current game state for proper timer display */
+    private @NotNull GameState currentGameState = GameState.WAITING;
+    
     /** Title display timing configuration for countdown messages */
     private static final Title.Times TITLE_TIMES = Title.Times.times(
         Duration.ofMillis(500),  // Fade in time
@@ -66,6 +72,14 @@ public class GameTimerManager {
         this.deathmatchTime = plugin.getConfig().getInt("game.deathmatch-time-minutes", 5) * 60;
         
         this.startTime = System.currentTimeMillis();
+    }
+    
+    /**
+     * Sets the current game state for proper timer display.
+     */
+    public void setCurrentGameState(@NotNull GameState state) {
+        this.currentGameState = state;
+        logger.debug("Timer manager game state updated to: " + state);
     }
     
     /**
@@ -185,6 +199,9 @@ public class GameTimerManager {
         logger.debug("Game timing: Deathmatch time: " + deathmatchTime + " seconds");
         logger.debug("Game timing: Deathmatch will start after: " + deathmatchStartTime + " seconds");
         
+        // Schedule deathmatch reminders
+        scheduleDeathmatchReminders(deathmatchStartTime);
+        
         // Only schedule deathmatch start - the deathmatch will handle its own end timing
         BukkitTask deathmatchTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             // Start deathmatch
@@ -193,6 +210,118 @@ public class GameTimerManager {
             scheduleDeathmatchEnd(onGameEnd);
         }, deathmatchStartTime * 20L);
         activeTasks.put(deathmatchTask.getTaskId(), deathmatchTask);
+    }
+    
+    /**
+     * Schedules deathmatch reminder messages.
+     */
+    private void scheduleDeathmatchReminders(int deathmatchStartTime) {
+        // Check if deathmatch reminders are enabled
+        if (!plugin.getConfig().getBoolean("messages.deathmatch-reminders.enabled", true)) {
+            logger.debug("Deathmatch reminders are disabled in config");
+            return;
+        }
+        
+        // Get reminder times from config
+        List<Integer> reminderTimes = plugin.getConfig().getIntegerList("messages.deathmatch-reminders.reminder-times");
+        if (reminderTimes.isEmpty()) {
+            // Fallback to default times if config is empty
+            reminderTimes = List.of(300, 180, 120, 60, 30, 10);
+            logger.debug("Using default deathmatch reminder times");
+        }
+        
+        for (int reminderTime : reminderTimes) {
+            // Calculate when to send the reminder (game start + deathmatch start time - reminder time)
+            int reminderDelay = deathmatchStartTime - reminderTime;
+            
+            // Only schedule reminders that are in the future
+            if (reminderDelay > 0) {
+                BukkitTask reminderTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    sendDeathmatchReminder(reminderTime);
+                }, reminderDelay * 20L);
+                
+                activeTasks.put(reminderTask.getTaskId(), reminderTask);
+                logger.debug("Scheduled deathmatch reminder for " + reminderTime + " seconds before deathmatch (delay: " + reminderDelay + "s)");
+            }
+        }
+    }
+    
+    /**
+     * Sends a deathmatch reminder message to all players.
+     */
+    private void sendDeathmatchReminder(int secondsUntilDeathmatch) {
+        String timeText;
+        String timeColorTag;
+        
+        if (secondsUntilDeathmatch >= 60) {
+            int minutes = secondsUntilDeathmatch / 60;
+            timeText = minutes + " minute" + (minutes > 1 ? "s" : "");
+            timeColorTag = secondsUntilDeathmatch >= 180 ? "<yellow>" : "<gold>";
+        } else {
+            timeText = secondsUntilDeathmatch + " second" + (secondsUntilDeathmatch > 1 ? "s" : "");
+            timeColorTag = secondsUntilDeathmatch >= 30 ? "<gold>" : "<red>";
+        }
+        
+        // Get message template from config
+        String messageTemplate = plugin.getConfig().getString("messages.deathmatch-reminders.message", 
+            "⚔ <red><bold>DEATHMATCH</bold></red> <gray>starting in <time_color><bold><time></bold></time_color><gray>! Prepare for battle!");
+        
+        // Create placeholders for the message
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("time", timeText);
+        placeholders.put("time_color", timeColorTag);
+        
+        // Parse the message with placeholders
+        Component message;
+        try {
+            String processedMessage = messageTemplate.replace("<time_color>", timeColorTag).replace("</time_color>", "</" + timeColorTag.substring(1));
+            message = MiniMessageUtils.parseMessage(processedMessage, placeholders);
+        } catch (Exception e) {
+            logger.warn("Failed to parse deathmatch reminder message, using fallback", e);
+            // Fallback message
+            message = Component.text()
+                .append(Component.text("⚔ ", NamedTextColor.RED, TextDecoration.BOLD))
+                .append(Component.text("DEATHMATCH", NamedTextColor.RED, TextDecoration.BOLD))
+                .append(Component.text(" starting in ", NamedTextColor.GRAY))
+                .append(Component.text(timeText, NamedTextColor.GOLD, TextDecoration.BOLD))
+                .append(Component.text("! Prepare for battle!", NamedTextColor.GRAY))
+                .build();
+        }
+        
+        // Send message to all players
+        for (UUID playerId : playerManager.getPlayers()) {
+            Player player = playerManager.getCachedPlayer(playerId);
+            if (player != null) {
+                player.sendMessage(message);
+                
+                // Play warning sounds if enabled
+                if (plugin.getConfig().getBoolean("messages.deathmatch-reminders.play-sounds", true)) {
+                    if (secondsUntilDeathmatch <= 60) {
+                        String soundName = secondsUntilDeathmatch <= 10 ? 
+                            plugin.getConfig().getString("messages.deathmatch-reminders.urgent-sound", "BLOCK_NOTE_BLOCK_PLING") :
+                            plugin.getConfig().getString("messages.deathmatch-reminders.warning-sound", "BLOCK_NOTE_BLOCK_BELL");
+                        
+                        try {
+                            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(soundName);
+                            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+                        } catch (IllegalArgumentException e) {
+                            logger.warn("Invalid sound name in config: " + soundName + ", using default");
+                            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also send to spectators
+        for (UUID spectatorId : playerManager.getSpectators()) {
+            Player spectator = playerManager.getCachedPlayer(spectatorId);
+            if (spectator != null) {
+                spectator.sendMessage(message);
+            }
+        }
+        
+        logger.debug("Sent deathmatch reminder: " + timeText + " remaining");
     }
     
     /**
@@ -216,11 +345,23 @@ public class GameTimerManager {
             return 0;
         }
         
+        // During countdown phase, return the countdown time instead of game time
+        if (currentGameState == GameState.COUNTDOWN) {
+            logger.debug("Timer Debug - Countdown: " + countdown + "s remaining");
+            return countdown;
+        }
+        
+        // During waiting phase, return 0 (no timer should be shown)
+        if (currentGameState == GameState.WAITING) {
+            return 0;
+        }
+        
+        // For all other states (GRACE_PERIOD, ACTIVE, DEATHMATCH), show game time remaining
         // Use the same gameTime that was loaded in constructor to ensure consistency
         long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
         int remaining = Math.max(0, gameTime - (int)elapsedTime);
         
-        logger.debug("Timer Debug - Total: " + gameTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
+        logger.debug("Timer Debug - State: " + currentGameState + ", Total: " + gameTime + "s, Elapsed: " + elapsedTime + "s, Remaining: " + remaining + "s");
         
         return remaining;
     }

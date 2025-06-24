@@ -120,6 +120,19 @@ messages:
   game-end: "<green>The game has ended! <gray><player> <green>is the winner!"
   countdown: "<yellow>Game starting in <gray><time> <yellow>seconds!"
   
+  # Deathmatch reminder settings
+  # Sends warning messages to players before the deathmatch phase begins
+  # This gives players advance notice to prepare for the final battle
+  deathmatch-reminders:
+    enabled: true
+    # Times (in seconds) before deathmatch to send reminders
+    reminder-times: [300, 180, 120, 60, 30, 10]  # 5min, 3min, 2min, 1min, 30s, 10s
+    message: "⚔ <red><bold>DEATHMATCH</bold></red> <gray>starting in <time_color><bold><time></bold></time_color><gray>! Prepare for battle!"
+    # Sound settings for reminders
+    play-sounds: true
+    urgent-sound: "BLOCK_NOTE_BLOCK_PLING"      # Sound for 10 seconds or less
+    warning-sound: "BLOCK_NOTE_BLOCK_BELL"      # Sound for 1 minute or less
+
 # Statistics Settings
 statistics:
   enabled: true

@@ -230,6 +230,7 @@ public class Game {
         timerManager.startCountdown(seconds, this::startGame);
         state = GameState.COUNTDOWN;
         scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
     }
     
     /**
@@ -437,14 +438,15 @@ public class Game {
                     .append(Component.text("Starting countdown...", NamedTextColor.YELLOW))
                     .build());
                 
-                // Now start the actual countdown using timer manager
-                state = GameState.COUNTDOWN;
-                scoreboardManager.setCurrentGameState(state);
-                
-                // Barriers are already in place from when players joined
-                // No need to create them again during countdown
-                
-                timerManager.startCountdown(this::startGame);
+                            // Now start the actual countdown using timer manager
+            state = GameState.COUNTDOWN;
+            scoreboardManager.setCurrentGameState(state);
+            timerManager.setCurrentGameState(state);
+            
+            // Barriers are already in place from when players joined
+            // No need to create them again during countdown
+            
+            timerManager.startCountdown(this::startGame);
             });
         });
     }
@@ -459,6 +461,7 @@ public class Game {
         if (state == GameState.COUNTDOWN) {
             state = GameState.WAITING;
             scoreboardManager.setCurrentGameState(state);
+            timerManager.setCurrentGameState(state);
 
             // Set up world settings and borders
             worldManager.setupWorld();
@@ -497,6 +500,7 @@ public class Game {
         
         state = GameState.GRACE_PERIOD;
         scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
         
         // Set player game mode when the game starts
         for (UUID playerId : playerManager.getPlayers()) {
@@ -673,6 +677,9 @@ public class Game {
         // Set game start time for accurate duration calculation
         gameStartTime = Instant.now();
         
+        // Reset timer manager start time for accurate game time tracking
+        timerManager.resetStartTime();
+        
         // Remove spawn barriers to allow players to move
         removeSpawnBarriers();
         
@@ -688,6 +695,7 @@ public class Game {
         pvpEnabled = true;
         state = GameState.ACTIVE; // Transition to ACTIVE state
         scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
         
         // Start periodic game end checking to catch solo scenarios and edge cases
         startPeriodicGameEndChecking();
@@ -716,6 +724,7 @@ public class Game {
         
         state = GameState.DEATHMATCH;
         scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
         
         // Set up deathmatch world border
         worldManager.setupDeathmatchBorder();
@@ -829,6 +838,7 @@ public class Game {
         isShuttingDown = true;
         state = GameState.FINISHED;
         scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
         
         // Clear all ground items in the arena world
         clearGroundItems();
