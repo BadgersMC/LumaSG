@@ -61,6 +61,15 @@ public class GamePlayerManager {
     /** Map of player UUIDs to their locations before joining the game */
     private final @NotNull Map<UUID, Location> previousLocations;
     
+    /** Map of player UUIDs to their food levels before joining the game */
+    private final @NotNull Map<UUID, Integer> playerFoodLevels;
+    
+    /** Map of player UUIDs to their saturation levels before joining the game */
+    private final @NotNull Map<UUID, Float> playerSaturationLevels;
+    
+    /** Map of player UUIDs to their active potion effects before joining the game - serialized as Base64 */
+    private final @NotNull Map<UUID, String> playerPotionEffects;
+    
     /** Set of players who disconnected during the game */
     private final @NotNull Set<UUID> disconnectedPlayers;
     
@@ -89,6 +98,9 @@ public class GamePlayerManager {
         this.playerExperienceLevels = new ConcurrentHashMap<>();
         this.playerExperiencePoints = new ConcurrentHashMap<>();
         this.previousLocations = new ConcurrentHashMap<>();
+        this.playerFoodLevels = new ConcurrentHashMap<>();
+        this.playerSaturationLevels = new ConcurrentHashMap<>();
+        this.playerPotionEffects = new ConcurrentHashMap<>();
         
         // Initialize logger
         this.logger = plugin.getDebugLogger().forContext("GamePlayerManager");
@@ -131,13 +143,32 @@ public class GamePlayerManager {
                         playerExperienceLevels.put(player.getUniqueId(), player.getLevel());
                         playerExperiencePoints.put(player.getUniqueId(), player.getExp());
                         
+                        // Store hunger, saturation, and potion effects
+                        playerFoodLevels.put(player.getUniqueId(), player.getFoodLevel());
+                        playerSaturationLevels.put(player.getUniqueId(), player.getSaturation());
+                        
+                        // Serialize and store potion effects
+                        String serializedEffects = serializePotionEffects(player.getActivePotionEffects());
+                        if (serializedEffects != null) {
+                            playerPotionEffects.put(player.getUniqueId(), serializedEffects);
+                        }
+                        
                         // Clear inventory and experience
                         player.getInventory().clear();
                         player.getInventory().setArmorContents(null);
                         player.setLevel(0);
                         player.setExp(0.0f);
                         
-                        logger.debug("Saved and cleared inventory/experience for player: " + player.getName());
+                        // Set full hunger and saturation for the game
+                        player.setFoodLevel(20);
+                        player.setSaturation(20.0f);
+                        
+                        // Remove all potion effects
+                        for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
+                            player.removePotionEffect(effect.getType());
+                        }
+                        
+                        logger.debug("Saved and cleared inventory/experience/hunger/effects for player: " + player.getName());
                     } catch (Exception e) {
                         logger.warn("Failed to save inventory for player: " + player.getName(), e);
                     }
@@ -189,6 +220,15 @@ public class GamePlayerManager {
             // Clear inventory before setting to spectator mode
             player.getInventory().clear();
             player.getInventory().setArmorContents(null);
+            
+            // Set full hunger and saturation for spectators
+            player.setFoodLevel(20);
+            player.setSaturation(20.0f);
+            
+            // Remove all potion effects for spectators
+            for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
+                player.removePotionEffect(effect.getType());
+            }
             
             player.setGameMode(GameMode.SPECTATOR);
             
@@ -279,7 +319,22 @@ public class GamePlayerManager {
                 if (level != null) player.setLevel(level);
                 if (exp != null) player.setExp(exp);
                 
-                logger.debug("Restored inventory/experience for player: " + player.getName());
+                // Restore hunger and saturation
+                Integer foodLevel = playerFoodLevels.get(player.getUniqueId());
+                Float saturation = playerSaturationLevels.get(player.getUniqueId());
+                if (foodLevel != null) player.setFoodLevel(foodLevel);
+                if (saturation != null) player.setSaturation(saturation);
+                
+                // Restore potion effects
+                String serializedEffects = playerPotionEffects.get(player.getUniqueId());
+                if (serializedEffects != null) {
+                    Collection<org.bukkit.potion.PotionEffect> effects = deserializePotionEffects(serializedEffects);
+                    for (org.bukkit.potion.PotionEffect effect : effects) {
+                        player.addPotionEffect(effect);
+                    }
+                }
+                
+                logger.debug("Restored inventory/experience/hunger/effects for player: " + player.getName());
             } catch (Exception e) {
                 logger.warn("Failed to restore inventory for player: " + player.getName(), e);
             }
@@ -411,6 +466,149 @@ public class GamePlayerManager {
     }
     
     /**
+     * Serializes a collection of potion effects to a Base64 string.
+     * 
+     * @param effects The collection of potion effects to serialize
+     * @return Base64 encoded string representing the potion effects, or null if empty
+     */
+    private @Nullable String serializePotionEffects(@NotNull Collection<org.bukkit.potion.PotionEffect> effects) {
+        if (effects.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Create a list of effect data maps
+            List<Map<String, Object>> effectData = new ArrayList<>();
+            
+            for (org.bukkit.potion.PotionEffect effect : effects) {
+                Map<String, Object> data = new HashMap<>();
+                data.put("type", effect.getType().getKey().toString());
+                data.put("duration", effect.getDuration());
+                data.put("amplifier", effect.getAmplifier());
+                data.put("ambient", effect.isAmbient());
+                data.put("particles", effect.hasParticles());
+                data.put("icon", effect.hasIcon());
+                effectData.add(data);
+            }
+            
+            // Serialize to JSON-like string and then to Base64
+            StringBuilder json = new StringBuilder();
+            json.append("[");
+            for (int i = 0; i < effectData.size(); i++) {
+                if (i > 0) json.append(",");
+                Map<String, Object> data = effectData.get(i);
+                json.append("{")
+                    .append("\"type\":\"").append(data.get("type")).append("\",")
+                    .append("\"duration\":").append(data.get("duration")).append(",")
+                    .append("\"amplifier\":").append(data.get("amplifier")).append(",")
+                    .append("\"ambient\":").append(data.get("ambient")).append(",")
+                    .append("\"particles\":").append(data.get("particles")).append(",")
+                    .append("\"icon\":").append(data.get("icon"))
+                    .append("}");
+            }
+            json.append("]");
+            
+            return java.util.Base64.getEncoder().encodeToString(json.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            logger.warn("Failed to serialize potion effects", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Deserializes potion effects from a Base64 string.
+     * 
+     * @param serialized The Base64 encoded string containing potion effect data
+     * @return A collection of potion effects, or empty collection if deserialization fails
+     */
+    private @NotNull Collection<org.bukkit.potion.PotionEffect> deserializePotionEffects(@Nullable String serialized) {
+        if (serialized == null || serialized.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        try {
+            // Decode from Base64
+            String json = new String(java.util.Base64.getDecoder().decode(serialized), java.nio.charset.StandardCharsets.UTF_8);
+            
+            // Simple JSON parsing (avoiding external dependencies)
+            List<org.bukkit.potion.PotionEffect> effects = new ArrayList<>();
+            
+            // Remove brackets and split by effect objects
+            json = json.trim();
+            if (json.startsWith("[") && json.endsWith("]")) {
+                json = json.substring(1, json.length() - 1);
+            }
+            
+            if (json.trim().isEmpty()) {
+                return effects;
+            }
+            
+            // Split by objects (looking for },{ pattern)
+            String[] effectStrings = json.split("\\},\\{");
+            
+            for (String effectStr : effectStrings) {
+                effectStr = effectStr.trim();
+                if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
+                if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
+                
+                // Parse effect properties
+                String[] properties = effectStr.split(",");
+                String type = null;
+                int duration = 0;
+                int amplifier = 0;
+                boolean ambient = false;
+                boolean particles = true;
+                boolean icon = true;
+                
+                for (String prop : properties) {
+                    String[] keyValue = prop.split(":", 2);
+                    if (keyValue.length == 2) {
+                        String key = keyValue[0].trim().replace("\"", "");
+                        String value = keyValue[1].trim().replace("\"", "");
+                        
+                        switch (key) {
+                            case "type":
+                                type = value;
+                                break;
+                            case "duration":
+                                duration = Integer.parseInt(value);
+                                break;
+                            case "amplifier":
+                                amplifier = Integer.parseInt(value);
+                                break;
+                            case "ambient":
+                                ambient = Boolean.parseBoolean(value);
+                                break;
+                            case "particles":
+                                particles = Boolean.parseBoolean(value);
+                                break;
+                            case "icon":
+                                icon = Boolean.parseBoolean(value);
+                                break;
+                        }
+                    }
+                }
+                
+                // Create potion effect
+                if (type != null) {
+                    org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(org.bukkit.NamespacedKey.fromString(type));
+                    if (effectType != null) {
+                        org.bukkit.potion.PotionEffect effect = new org.bukkit.potion.PotionEffect(
+                            effectType, duration, amplifier, ambient, particles, icon
+                        );
+                        effects.add(effect);
+                    }
+                }
+            }
+            
+            return effects;
+        } catch (Exception e) {
+            logger.warn("Failed to deserialize potion effects from: " + serialized, e);
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
      * Gets a cached player object or fetches it from Bukkit.
      */
     public @Nullable Player getCachedPlayer(@NotNull UUID playerId) {
@@ -471,6 +669,9 @@ public class GamePlayerManager {
         playerExperienceLevels.clear();
         playerExperiencePoints.clear();
         previousLocations.clear();
+        playerFoodLevels.clear();
+        playerSaturationLevels.clear();
+        playerPotionEffects.clear();
     }
     
     // Getters
@@ -530,5 +731,17 @@ public class GamePlayerManager {
     
     public @NotNull Map<UUID, Location> getPreviousLocations() {
         return Collections.unmodifiableMap(previousLocations);
+    }
+    
+    public @NotNull Map<UUID, Integer> getPlayerFoodLevels() {
+        return Collections.unmodifiableMap(playerFoodLevels);
+    }
+    
+    public @NotNull Map<UUID, Float> getPlayerSaturationLevels() {
+        return Collections.unmodifiableMap(playerSaturationLevels);
+    }
+    
+    public @NotNull Map<UUID, String> getPlayerPotionEffects() {
+        return Collections.unmodifiableMap(playerPotionEffects);
     }
 } 
