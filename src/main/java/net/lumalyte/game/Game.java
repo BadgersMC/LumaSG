@@ -652,6 +652,9 @@ public class Game {
         state = GameState.ACTIVE; // Transition to ACTIVE state
         scoreboardManager.setCurrentGameState(state);
         
+        // Start periodic game end checking to catch solo scenarios and edge cases
+        startPeriodicGameEndChecking();
+        
         Title title = Title.title(
             Component.text("Grace Period Ended!", NamedTextColor.RED, TextDecoration.BOLD),
             Component.text("PvP is now enabled!", NamedTextColor.YELLOW),
@@ -1204,5 +1207,34 @@ public class Game {
         } catch (Exception e) {
             logger.warn("Failed to record game statistics for game " + gameId, e);
         }
+    }
+
+    /**
+     * Starts periodic game end checking during active gameplay.
+     * This catches solo scenarios and other edge cases where players aren't eliminated/leaving.
+     */
+    private void startPeriodicGameEndChecking() {
+        // Check every 5 seconds during active gameplay
+        final int[] taskIdRef = new int[1];
+        BukkitTask gameEndCheckTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            try {
+                // Only check if game is still active or in deathmatch
+                if (state == GameState.ACTIVE || state == GameState.DEATHMATCH) {
+                    checkGameEnd();
+                } else {
+                    // Game is no longer active, cancel this task
+                    BukkitTask task = activeTasks.remove(taskIdRef[0]);
+                    if (task != null) {
+                        task.cancel();
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Error in periodic game end checking", e);
+            }
+        }, 100L, 100L); // Start after 5 seconds, repeat every 5 seconds
+        
+        taskIdRef[0] = gameEndCheckTask.getTaskId();
+        activeTasks.put(gameEndCheckTask.getTaskId(), gameEndCheckTask);
+        logger.debug("Started periodic game end checking (every 5 seconds)");
     }
 } 
