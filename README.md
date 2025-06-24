@@ -20,6 +20,31 @@ A modern Minecraft Survival Games (Hunger Games) plugin built exclusively for Pa
 - Admin commands for arena setup and game management
 - Modern Paper APIs for optimal performance
 
+## Third-Party Plugin Integration
+
+### AuraSkills
+
+**Important:** This plugin does not include AuraSkills integration. Instead, disable AuraSkills functionality in your SG arena worlds through AuraSkills configuration.
+
+Add your SG arena world names to the `disabled-worlds` list in your AuraSkills config:
+
+```yaml
+disabled-worlds:
+  - "sg_breeze_island"
+  - "sg_desert_temple"
+  - "your_sg_world_name"
+```
+
+This prevents skill gains, stat modifications, and abilities from working in SG games.
+
+### PlaceholderAPI
+
+The plugin includes PlaceholderAPI integration for displaying game statistics and information.
+
+### Nexo
+
+Custom items from Nexo can be configured in the chest loot tables.
+
 ## Requirements
 
 - Paper 1.21.4 or higher (Required - will not work on Spigot/CraftBukkit)
