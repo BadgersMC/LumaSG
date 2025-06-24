@@ -3,6 +3,7 @@ package net.lumalyte.game;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.InventoryUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -45,11 +46,17 @@ public class GamePlayerManager {
     /** Map of player UUIDs to their kill counts - using AtomicInteger for thread-safe increments */
     private final @NotNull Map<UUID, AtomicInteger> playerKills;
     
-    /** Map of player UUIDs to their original inventories (for restoration) */
-    private final @NotNull Map<UUID, ItemStack[]> inventories;
+    /** Map of player UUIDs to their original inventories (for restoration) - serialized as Base64 */
+    private final @NotNull Map<UUID, String> inventories;
     
-    /** Map of player UUIDs to their original armor contents (for restoration) */
-    private final @NotNull Map<UUID, ItemStack[]> armorContents;
+    /** Map of player UUIDs to their original armor contents (for restoration) - serialized as Base64 */
+    private final @NotNull Map<UUID, String> armorContents;
+    
+    /** Map of player UUIDs to their experience levels before joining the game */
+    private final @NotNull Map<UUID, Integer> playerExperienceLevels;
+    
+    /** Map of player UUIDs to their experience points before joining the game */
+    private final @NotNull Map<UUID, Float> playerExperiencePoints;
     
     /** Map of player UUIDs to their locations before joining the game */
     private final @NotNull Map<UUID, Location> previousLocations;
@@ -79,6 +86,8 @@ public class GamePlayerManager {
         // Initialize inventory tracking with thread-safe maps
         this.inventories = new ConcurrentHashMap<>();
         this.armorContents = new ConcurrentHashMap<>();
+        this.playerExperienceLevels = new ConcurrentHashMap<>();
+        this.playerExperiencePoints = new ConcurrentHashMap<>();
         this.previousLocations = new ConcurrentHashMap<>();
         
         // Initialize logger
@@ -109,15 +118,28 @@ public class GamePlayerManager {
                 previousLocations.put(player.getUniqueId(), player.getLocation());
                 playerGameModes.put(player.getUniqueId(), player.getGameMode());
                 
-                // Store inventory and exp
+                // Store inventory and experience
                 if (plugin.getConfig().getBoolean("game.clear-inventory", true)) {
                     try {
-                        inventories.put(player.getUniqueId(), player.getInventory().getContents());
-                        armorContents.put(player.getUniqueId(), player.getInventory().getArmorContents());
+                        // Serialize and store inventory
+                        String serializedInventory = InventoryUtils.itemStackArrayToBase64(player.getInventory().getContents());
+                        String serializedArmor = InventoryUtils.itemStackArrayToBase64(player.getInventory().getArmorContents());
+                        inventories.put(player.getUniqueId(), serializedInventory);
+                        armorContents.put(player.getUniqueId(), serializedArmor);
+                        
+                        // Store experience
+                        playerExperienceLevels.put(player.getUniqueId(), player.getLevel());
+                        playerExperiencePoints.put(player.getUniqueId(), player.getExp());
+                        
+                        // Clear inventory and experience
                         player.getInventory().clear();
                         player.getInventory().setArmorContents(null);
+                        player.setLevel(0);
+                        player.setExp(0.0f);
+                        
+                        logger.debug("Saved and cleared inventory/experience for player: " + player.getName());
                     } catch (Exception e) {
-                        logger.warn("Failed to save inventory for player: " + player.getName());
+                        logger.warn("Failed to save inventory for player: " + player.getName(), e);
                     }
                 }
                 
@@ -239,12 +261,27 @@ public class GamePlayerManager {
         // Restore original inventory if it was saved
         if (plugin.getConfig().getBoolean("game.restore-inventory", true)) {
             try {
-                ItemStack[] inv = inventories.get(player.getUniqueId());
-                ItemStack[] armor = armorContents.get(player.getUniqueId());
-                if (inv != null) player.getInventory().setContents(inv);
-                if (armor != null) player.getInventory().setArmorContents(armor);
+                String serializedInv = inventories.get(player.getUniqueId());
+                String serializedArmor = armorContents.get(player.getUniqueId());
+                
+                if (serializedInv != null) {
+                    ItemStack[] inv = InventoryUtils.itemStackArrayFromBase64(serializedInv);
+                    player.getInventory().setContents(inv);
+                }
+                if (serializedArmor != null) {
+                    ItemStack[] armor = InventoryUtils.itemStackArrayFromBase64(serializedArmor);
+                    player.getInventory().setArmorContents(armor);
+                }
+                
+                // Restore experience
+                Integer level = playerExperienceLevels.get(player.getUniqueId());
+                Float exp = playerExperiencePoints.get(player.getUniqueId());
+                if (level != null) player.setLevel(level);
+                if (exp != null) player.setExp(exp);
+                
+                logger.debug("Restored inventory/experience for player: " + player.getName());
             } catch (Exception e) {
-                logger.warn("Failed to restore inventory for player: " + player.getName());
+                logger.warn("Failed to restore inventory for player: " + player.getName(), e);
             }
         }
         
@@ -254,8 +291,7 @@ public class GamePlayerManager {
             player.setGameMode(previousMode);
         }
         
-        // Restore player stats from external plugins
-        plugin.getHookManager().restorePlayerStats(player);
+        // Player stats restoration is now handled by individual plugin configs (e.g., AuraSkills world disabling)
         
         // Teleport to configured location
         if (plugin.getConfig().getBoolean("lobby.teleport-on-leave", true)) {
@@ -394,9 +430,32 @@ public class GamePlayerManager {
     }
     
     /**
-     * Cleans up all player data.
+     * Cleans up all player data and sends all players back to lobby.
      */
     public void cleanup() {
+        // Restore and teleport all remaining players and spectators
+        Set<UUID> allPlayers = new HashSet<>();
+        allPlayers.addAll(players);
+        allPlayers.addAll(spectators);
+        
+        for (UUID playerId : allPlayers) {
+            Player player = getCachedPlayer(playerId);
+            if (player != null && player.isOnline()) {
+                try {
+                    restorePlayer(player);
+                    logger.debug("Cleaned up and restored player: " + player.getName());
+                } catch (Exception e) {
+                    logger.warn("Failed to cleanup player " + player.getName(), e);
+                    // Fallback: at least try to teleport them to lobby
+                    try {
+                        teleportToLobby(player);
+                    } catch (Exception ex) {
+                        logger.severe("Failed to teleport player " + player.getName() + " to lobby during cleanup", ex);
+                    }
+                }
+            }
+        }
+        
         // Clear player cache
         playerCache.clear();
         
@@ -409,6 +468,8 @@ public class GamePlayerManager {
         disconnectedPlayers.clear();
         inventories.clear();
         armorContents.clear();
+        playerExperienceLevels.clear();
+        playerExperiencePoints.clear();
         previousLocations.clear();
     }
     
@@ -451,12 +512,20 @@ public class GamePlayerManager {
         return Collections.unmodifiableMap(playerGameModes);
     }
     
-    public @NotNull Map<UUID, ItemStack[]> getInventories() {
+    public @NotNull Map<UUID, String> getSerializedInventories() {
         return Collections.unmodifiableMap(inventories);
     }
     
-    public @NotNull Map<UUID, ItemStack[]> getArmorContents() {
+    public @NotNull Map<UUID, String> getSerializedArmorContents() {
         return Collections.unmodifiableMap(armorContents);
+    }
+    
+    public @NotNull Map<UUID, Integer> getPlayerExperienceLevels() {
+        return Collections.unmodifiableMap(playerExperienceLevels);
+    }
+    
+    public @NotNull Map<UUID, Float> getPlayerExperiencePoints() {
+        return Collections.unmodifiableMap(playerExperiencePoints);
     }
     
     public @NotNull Map<UUID, Location> getPreviousLocations() {

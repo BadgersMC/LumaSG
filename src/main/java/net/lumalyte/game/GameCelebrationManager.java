@@ -280,6 +280,10 @@ public class GameCelebrationManager {
                 org.bukkit.entity.Firework firework = fireworkLoc.getWorld().spawn(fireworkLoc, org.bukkit.entity.Firework.class);
                 org.bukkit.inventory.meta.FireworkMeta meta = firework.getFireworkMeta();
                 
+                // Make firework non-damaging by setting metadata
+                firework.setPersistent(false); // Don't persist across server restarts
+                firework.setMetadata("celebration_firework", new org.bukkit.metadata.FixedMetadataValue(plugin, true));
+                
                 // Random firework effect
                 org.bukkit.Color color1 = colors[random.nextInt(colors.length)];
                 org.bukkit.Color color2 = colors[random.nextInt(colors.length)];

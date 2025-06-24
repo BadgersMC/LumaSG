@@ -45,7 +45,7 @@ dependencies {
     
     compileOnly 'com.mojang:brigadier:1.0.18'
     compileOnly 'com.github.PlaceholderAPI:PlaceholderAPI:2.11.2'
-    compileOnly 'dev.aurelium:auraskills-api-bukkit:2.2.4'
+
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 

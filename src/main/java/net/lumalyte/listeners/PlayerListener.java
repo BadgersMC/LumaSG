@@ -17,6 +17,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -239,6 +240,30 @@ public class PlayerListener implements Listener {
         Player player = (Player) event.getEntity();
         
         try {
+            // Check for firework damage first
+            if (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
+                if (event instanceof EntityDamageByEntityEvent) {
+                    EntityDamageByEntityEvent entityEvent = (EntityDamageByEntityEvent) event;
+                    if (entityEvent.getDamager() instanceof org.bukkit.entity.Firework) {
+                        org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) entityEvent.getDamager();
+                        
+                        // Check if this is a celebration firework or if player is in a game
+                        if (firework.hasMetadata("celebration_firework")) {
+                            event.setCancelled(true);
+                            logger.debug("Prevented celebration firework damage to player " + player.getName());
+                            return;
+                        }
+                        
+                        Game game = gameManager.getGameByPlayer(player);
+                        if (game != null) {
+                            event.setCancelled(true);
+                            logger.debug("Prevented firework damage to player " + player.getName() + " in game");
+                            return;
+                        }
+                    }
+                }
+            }
+            
             Game game = gameManager.getGameByPlayer(player);
             if (game != null) {
                 // Player is in a game, check damage rules
@@ -398,5 +423,46 @@ public class PlayerListener implements Listener {
         
         // Track the placed block
         game.trackPlacedBlock(event.getBlock().getLocation());
+    }
+    
+    /**
+     * Handles entity explosion events to prevent firework damage during celebrations.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onEntityExplode(@NotNull EntityExplodeEvent event) {
+        try {
+            // Check if this is a firework explosion
+            if (event.getEntity() instanceof org.bukkit.entity.Firework) {
+                org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) event.getEntity();
+                
+                // Always prevent block damage from celebration fireworks
+                if (firework.hasMetadata("celebration_firework")) {
+                    event.blockList().clear();
+                    logger.debug("Prevented celebration firework block damage");
+                    return;
+                }
+                
+                // Check if any players in the area are in a game
+                boolean inGameArea = false;
+                for (org.bukkit.entity.Entity nearby : firework.getNearbyEntities(10, 10, 10)) {
+                    if (nearby instanceof Player) {
+                        Player player = (Player) nearby;
+                        Game game = gameManager.getGameByPlayer(player);
+                        if (game != null) {
+                            inGameArea = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // If in a game area, prevent block damage from fireworks
+                if (inGameArea) {
+                    event.blockList().clear();
+                    logger.debug("Prevented firework block damage in game area");
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error handling entity explosion", e);
+        }
     }
 } 

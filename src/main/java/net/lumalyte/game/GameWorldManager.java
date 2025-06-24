@@ -6,6 +6,9 @@ import net.lumalyte.util.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
@@ -126,10 +129,57 @@ public class GameWorldManager {
     }
     
     /**
+     * Clears all item drops in the arena.
+     */
+    public void clearAllDrops() {
+        World arenaWorld = arena.getWorld();
+        if (arenaWorld == null) {
+            logger.warn("Arena world is null, cannot clear drops");
+            return;
+        }
+        
+        Location center = arena.getCenter();
+        if (center == null) {
+            center = arena.getLobbySpawn();
+        }
+        if (center == null && !arena.getSpawnPoints().isEmpty()) {
+            center = arena.getSpawnPoints().get(0);
+        }
+        
+        if (center == null) {
+            logger.warn("No center location found for arena, clearing all drops in world");
+            // Clear all drops in the world if no center is found
+            for (Entity entity : arenaWorld.getEntities()) {
+                if (entity instanceof Item) {
+                    entity.remove();
+                }
+            }
+            return;
+        }
+        
+        // Clear drops within a reasonable radius of the arena center
+        double radius = 300.0; // 300 block radius should cover most arenas
+        int dropsCleared = 0;
+        
+        for (Entity entity : arenaWorld.getEntities()) {
+            if (entity instanceof Item) {
+                Item item = (Item) entity;
+                if (item.getLocation().distance(center) <= radius) {
+                    item.remove();
+                    dropsCleared++;
+                }
+            }
+        }
+        
+        logger.info("Cleared " + dropsCleared + " item drops from arena: " + arena.getName());
+    }
+    
+    /**
      * Cleans up all world-related resources.
      */
     public void cleanup() {
         removeAllPlacedBlocks();
+        clearAllDrops();
         restoreWorld();
     }
     

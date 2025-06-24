@@ -464,11 +464,10 @@ public class Game {
         state = GameState.GRACE_PERIOD;
         scoreboardManager.setCurrentGameState(state);
         
-        // Reset player stats from external plugins when the game starts
+        // Set player game mode when the game starts
         for (UUID playerId : playerManager.getPlayers()) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null) {
-                plugin.getHookManager().resetPlayerStats(player);
                 player.setGameMode(GameMode.ADVENTURE);
             }
         }

@@ -17,7 +17,6 @@ public class HookManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull Map<String, PluginHook> hooks;
     private PlaceholderAPIHook placeholderAPIHook;
-    private AuraSkillsHook auraSkillsHook;
     
     /** The debug logger instance for this hook manager */
     private final @NotNull DebugLogger.ContextualLogger logger;
@@ -60,9 +59,6 @@ public class HookManager {
         
         // Initialize PlaceholderAPI hook
         initializePlaceholderAPIHook();
-        
-        // Initialize AuraSkills hook
-        initializeAuraSkillsHook();
     }
     
     /**
@@ -109,29 +105,7 @@ public class HookManager {
         }
     }
     
-    /**
-     * Initializes the AuraSkills hook.
-     */
-    private void initializeAuraSkillsHook() {
-        try {
-            auraSkillsHook = new AuraSkillsHook(plugin);
-            if (auraSkillsHook.initialize()) {
-                if (auraSkillsHook.enable()) {
-                    hooks.put(auraSkillsHook.getPluginName(), auraSkillsHook);
-                    logger.info("Successfully enabled AuraSkills hook!");
-                } else {
-                    logger.warn("Failed to enable AuraSkills hook!");
-                    auraSkillsHook = null;
-                }
-            } else {
-                logger.info("AuraSkills plugin not found or not compatible.");
-                auraSkillsHook = null;
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to initialize AuraSkills hook", e);
-            auraSkillsHook = null;
-        }
-    }
+
     
     /**
      * Gets the Nexo hook.
@@ -143,14 +117,7 @@ public class HookManager {
         return hook instanceof NexoHook ? (NexoHook) hook : null;
     }
     
-    /**
-     * Gets the AuraSkills hook.
-     * 
-     * @return The AuraSkills hook, or null if not available
-     */
-    public @Nullable AuraSkillsHook getAuraSkillsHook() {
-        return auraSkillsHook;
-    }
+
     
     /**
      * Checks if a hook is available.
@@ -163,27 +130,5 @@ public class HookManager {
         return hook != null && hook.isAvailable();
     }
     
-    /**
-     * Resets a player's stats for the duration of a game.
-     * This will use hooks to reset any stat modifiers from other plugins.
-     * 
-     * @param player The player to reset stats for
-     */
-    public void resetPlayerStats(@NotNull Player player) {
-        if (auraSkillsHook != null && auraSkillsHook.isAvailable()) {
-            auraSkillsHook.resetPlayerStats(player);
-        }
-    }
-    
-    /**
-     * Restores a player's stats after a game.
-     * This will use hooks to restore any stat modifiers from other plugins.
-     * 
-     * @param player The player to restore stats for
-     */
-    public void restorePlayerStats(@NotNull Player player) {
-        if (auraSkillsHook != null && auraSkillsHook.isAvailable()) {
-            auraSkillsHook.restorePlayerStats(player);
-        }
-    }
+
 } 
