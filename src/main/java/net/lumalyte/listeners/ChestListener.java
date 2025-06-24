@@ -236,6 +236,9 @@ public class ChestListener implements Listener {
                 if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
                     plugin.getStatisticsManager().recordChestOpened(player.getUniqueId());
                 }
+                
+                // Also record in the game instance for per-game tracking
+                game.recordChestOpened(player.getUniqueId());
             }
         }
     }

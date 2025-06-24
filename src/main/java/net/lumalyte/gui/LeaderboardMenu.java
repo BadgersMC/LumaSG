@@ -106,6 +106,40 @@ public class LeaderboardMenu {
             }
         };
         
+        Item damageTabItem = new AbstractItem() {
+            @Override
+            public ItemProvider getItemProvider() {
+                Material material = statType == StatType.DAMAGE_DEALT ? Material.DIAMOND_AXE : Material.IRON_AXE;
+                String name = statType == StatType.DAMAGE_DEALT ? "§e§lDamage §7(Current)" : "§7Damage";
+                return new ItemBuilder(material).setDisplayName(name);
+            }
+            
+            @Override
+            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+                if (clickType.isLeftClick() && statType != StatType.DAMAGE_DEALT) {
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                    openLeaderboardTab(player, StatType.DAMAGE_DEALT);
+                }
+            }
+        };
+        
+        Item chestsTabItem = new AbstractItem() {
+            @Override
+            public ItemProvider getItemProvider() {
+                Material material = statType == StatType.CHESTS_OPENED ? Material.CHEST : Material.BARREL;
+                String name = statType == StatType.CHESTS_OPENED ? "§e§lChests §7(Current)" : "§7Chests";
+                return new ItemBuilder(material).setDisplayName(name);
+            }
+            
+            @Override
+            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+                if (clickType.isLeftClick() && statType != StatType.CHESTS_OPENED) {
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                    openLeaderboardTab(player, StatType.CHESTS_OPENED);
+                }
+            }
+        };
+        
         // Create border and back button items
         Item borderItem = new SimpleItem(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
             .setDisplayName(""));
@@ -135,7 +169,8 @@ public class LeaderboardMenu {
         // Create the GUI structure with loading items
         Gui gui = Gui.normal()
             .setStructure(
-                "# # # k # w # g #",
+                "# k # w # g # d #",
+                "# # # c # # # # #",
                 "# l l l l l l l #",
                 "# l l l l l l l #",
                 "# l l l l l l l #",
@@ -145,6 +180,8 @@ public class LeaderboardMenu {
             .addIngredient('k', killsTabItem)
             .addIngredient('w', winsTabItem)
             .addIngredient('g', gamesTabItem)
+            .addIngredient('d', damageTabItem)
+            .addIngredient('c', chestsTabItem)
             .addIngredient('l', loadingItem)
             .addIngredient('b', backButton)
             .build();
@@ -182,14 +219,14 @@ public class LeaderboardMenu {
                         .setDisplayName("§c§lError")
                         .addLoreLines("§7Failed to load leaderboard data"));
                     
-                    // Replace loading items with error item
-                    for (int slot = 10; slot <= 16; slot++) {
+                    // Replace loading items with error item (rows 3-5)
+                    for (int slot = 18; slot <= 24; slot++) {
                         gui.setItem(slot, errorItem);
                     }
-                    for (int slot = 19; slot <= 25; slot++) {
+                    for (int slot = 27; slot <= 33; slot++) {
                         gui.setItem(slot, errorItem);
                     }
-                    for (int slot = 28; slot <= 34; slot++) {
+                    for (int slot = 36; slot <= 42; slot++) {
                         gui.setItem(slot, errorItem);
                     }
                 });
@@ -202,11 +239,11 @@ public class LeaderboardMenu {
      * Updates the GUI with leaderboard data.
      */
     private void updateLeaderboardGUI(Gui gui, List<PlayerStats> leaderboard, StatType statType) {
-        // Define the slots for leaderboard items (3x7 grid)
+        // Define the slots for leaderboard items (3x7 grid in rows 3-5)
         int[] slots = {
-            10, 11, 12, 13, 14, 15, 16,  // Row 1
-            19, 20, 21, 22, 23, 24, 25,  // Row 2
-            28, 29, 30, 31, 32, 33, 34   // Row 3
+            18, 19, 20, 21, 22, 23, 24,  // Row 3
+            27, 28, 29, 30, 31, 32, 33,  // Row 4
+            36, 37, 38, 39, 40, 41, 42   // Row 5
         };
         
         // Clear existing items
@@ -263,7 +300,10 @@ public class LeaderboardMenu {
                 "§7Deaths: §c" + stats.getDeaths(),
                 "§7Games Played: §b" + stats.getGamesPlayed(),
                 "§7K/D Ratio: §f" + decimalFormat.format(stats.getKillDeathRatio()),
-                "§7Win Rate: §f" + decimalFormat.format(stats.getWinRate()) + "%"
+                "§7Win Rate: §f" + decimalFormat.format(stats.getWinRate()) + "%",
+                "",
+                "§7Damage Dealt: §6" + decimalFormat.format(stats.getTotalDamageDealt()),
+                "§7Chests Opened: §d" + stats.getChestsOpened()
             ));
     }
     

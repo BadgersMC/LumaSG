@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -83,6 +84,39 @@ public class Game {
     // Barrier block management for movement restriction during countdown
     private final @NotNull Map<Location, Material> originalBlocks = new ConcurrentHashMap<>();
     private final @NotNull Set<Location> barrierBlocks = ConcurrentHashMap.newKeySet();
+    
+    /** Map of player UUIDs to their original inventories (for restoration) - serialized as Base64 */
+    private final @NotNull Map<UUID, String> inventories = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their original armor contents (for restoration) - serialized as Base64 */
+    private final @NotNull Map<UUID, String> armorContents = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their experience levels before joining the game */
+    private final @NotNull Map<UUID, Integer> playerExperienceLevels = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their experience points before joining the game */
+    private final @NotNull Map<UUID, Float> playerExperiencePoints = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their locations before joining the game */
+    private final @NotNull Map<UUID, Location> previousLocations = new ConcurrentHashMap<>();
+    
+    /** Set of players who disconnected during the game */
+    private final @NotNull Set<UUID> disconnectedPlayers = ConcurrentHashMap.newKeySet();
+    
+    /** Ordered list of eliminated players (first eliminated = last place) */
+    private final @NotNull List<UUID> eliminationOrder = new ArrayList<>();
+    
+    /** Map of player UUIDs to their damage dealt during the game */
+    private final @NotNull Map<UUID, Double> playerDamageDealt = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their damage taken during the game */
+    private final @NotNull Map<UUID, Double> playerDamageTaken = new ConcurrentHashMap<>();
+    
+    /** Map of player UUIDs to their chests opened during the game */
+    private final @NotNull Map<UUID, Integer> playerChestsOpened = new ConcurrentHashMap<>();
+    
+    /** Game start time for accurate duration calculation */
+    private @Nullable Instant gameStartTime = null;
     
     /**
      * Constructs a new Game instance in the specified arena.
@@ -636,6 +670,9 @@ public class Game {
         isGracePeriod = true;
         pvpEnabled = false;
         
+        // Set game start time for accurate duration calculation
+        gameStartTime = Instant.now();
+        
         // Remove spawn barriers to allow players to move
         removeSpawnBarriers();
         
@@ -970,18 +1007,24 @@ public class Game {
     /**
      * Eliminates a player from the game.
      * 
+     * <p>This method handles the elimination of a player during an active game.
+     * The player is moved to spectator mode and their elimination is recorded
+     * for placement tracking and statistics.</p>
+     * 
      * @param player The player to eliminate
      */
     public void eliminatePlayer(@NotNull Player player) {
         if (playerManager.getPlayers().contains(player.getUniqueId())) {
-            // Delegate to player manager
-            playerManager.eliminatePlayer(player);
+            // Record elimination order for proper placement tracking
+            eliminationOrder.add(player.getUniqueId());
             
-            // Broadcast elimination message
-            broadcastMessage(Component.text()
-                .append(player.displayName())
-                .append(Component.text(" has been eliminated!", NamedTextColor.RED))
-                .build());
+            // Record death statistics if enabled
+            if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
+                plugin.getStatisticsManager().recordDeath(player.getUniqueId());
+            }
+            
+            // Move player to spectator
+            playerManager.eliminatePlayer(player);
             
             // Check if game should end
             checkGameEnd();
@@ -1029,6 +1072,89 @@ public class Game {
      */
     public int getPlayerKills(@NotNull UUID playerId) {
         return playerManager.getPlayerKills(playerId);
+    }
+    
+    /**
+     * Records damage dealt by a player during the game.
+     * 
+     * @param playerId The player who dealt damage
+     * @param damage The amount of damage dealt
+     */
+    public void recordDamageDealt(@NotNull UUID playerId, double damage) {
+        if (playerManager.getPlayers().contains(playerId)) {
+            playerDamageDealt.merge(playerId, damage, Double::sum);
+            
+            // Also record in statistics if enabled
+            if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
+                plugin.getConfig().getBoolean("statistics.track-damage", true)) {
+                plugin.getStatisticsManager().recordDamageDealt(playerId, damage);
+            }
+        }
+    }
+    
+    /**
+     * Records damage taken by a player during the game.
+     * 
+     * @param playerId The player who took damage
+     * @param damage The amount of damage taken
+     */
+    public void recordDamageTaken(@NotNull UUID playerId, double damage) {
+        if (playerManager.getPlayers().contains(playerId) || playerManager.getSpectators().contains(playerId)) {
+            playerDamageTaken.merge(playerId, damage, Double::sum);
+            
+            // Also record in statistics if enabled
+            if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
+                plugin.getConfig().getBoolean("statistics.track-damage", true)) {
+                plugin.getStatisticsManager().recordDamageTaken(playerId, damage);
+            }
+        }
+    }
+    
+    /**
+     * Records a chest opened by a player during the game.
+     * 
+     * @param playerId The player who opened the chest
+     */
+    public void recordChestOpened(@NotNull UUID playerId) {
+        if (playerManager.getPlayers().contains(playerId)) {
+            playerChestsOpened.merge(playerId, 1, Integer::sum);
+            
+            // Also record in statistics if enabled
+            if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
+                plugin.getConfig().getBoolean("statistics.track-chests", true)) {
+                plugin.getStatisticsManager().recordChestOpened(playerId);
+            }
+        }
+    }
+    
+    /**
+     * Gets the damage dealt by a player during this game.
+     * 
+     * @param playerId The player's UUID
+     * @return The damage dealt, or 0.0 if not tracked
+     */
+    public double getPlayerDamageDealt(@NotNull UUID playerId) {
+        return playerDamageDealt.getOrDefault(playerId, 0.0);
+    }
+    
+    /**
+     * Gets the damage taken by a player during this game.
+     * 
+     * @param playerId The player's UUID
+     * @return The damage taken, or 0.0 if not tracked
+     */
+    public double getPlayerDamageTaken(@NotNull UUID playerId) {
+        return playerDamageTaken.getOrDefault(playerId, 0.0);
+    }
+    
+    /**
+     * Gets the number of chests opened by a player during this game.
+     * 
+     * @param playerId The player's UUID
+     * @return The number of chests opened, or 0 if not tracked
+     */
+    public int getPlayerChestsOpened(@NotNull UUID playerId) {
+        return playerChestsOpened.getOrDefault(playerId, 0);
     }
     
     // Getters
@@ -1156,28 +1282,29 @@ public class Game {
      */
     private void recordGameStatistics() {
         try {
-            // Get all players (both active and spectators who were eliminated)
+            // Calculate accurate game duration
+            long gameTimeSeconds = 0;
+            if (gameStartTime != null) {
+                gameTimeSeconds = Duration.between(gameStartTime, Instant.now()).getSeconds();
+            }
+            
+            // Get all participants
             Set<UUID> allParticipants = new HashSet<>(playerManager.getPlayers());
             allParticipants.addAll(playerManager.getSpectators());
             allParticipants.addAll(playerManager.getDisconnectedPlayers());
             
-            // Calculate game duration (approximate)
-            long gameTimeSeconds = Duration.between(
-                java.time.Instant.now().minusSeconds(timerManager.getTimeRemaining()),
-                java.time.Instant.now()
-            ).getSeconds();
-            
-            // Determine placements
+            // Determine proper placements based on elimination order
             List<UUID> finalRankings = new ArrayList<>();
             
-            // Winner(s) first
+            // Winners first (remaining players)
             finalRankings.addAll(playerManager.getPlayers());
             
-            // Then spectators (eliminated players) - these would need to be ordered by elimination time
-            // For now, we'll just add them in arbitrary order
-            finalRankings.addAll(playerManager.getSpectators());
+            // Then eliminated players in reverse order (last eliminated = highest placement among eliminated)
+            List<UUID> reversedElimination = new ArrayList<>(eliminationOrder);
+            Collections.reverse(reversedElimination);
+            finalRankings.addAll(reversedElimination);
             
-            // Then disconnected players last
+            // Finally disconnected players last
             finalRankings.addAll(playerManager.getDisconnectedPlayers());
             
             // Record statistics for each player
@@ -1185,12 +1312,9 @@ public class Game {
                 UUID playerId = finalRankings.get(i);
                 int placement = i + 1;
                 int kills = playerManager.getPlayerKills(playerId);
-                
-                // For now, we don't have damage tracking in the game itself
-                // These would need to be tracked during the game if needed
-                double damageDealt = 0.0;
-                double damageTaken = 0.0;
-                int chestsOpened = 0; // This would need to be tracked per player
+                double damageDealt = getPlayerDamageDealt(playerId);
+                double damageTaken = getPlayerDamageTaken(playerId);
+                int chestsOpened = getPlayerChestsOpened(playerId);
                 
                 plugin.getStatisticsManager().recordGameResult(
                     playerId, 
@@ -1201,6 +1325,11 @@ public class Game {
                     chestsOpened, 
                     gameTimeSeconds
                 );
+                
+                logger.debug("Recorded game result for player " + playerId + 
+                    ": placement=" + placement + ", kills=" + kills + 
+                    ", damage dealt=" + damageDealt + ", damage taken=" + damageTaken + 
+                    ", chests opened=" + chestsOpened + ", game time=" + gameTimeSeconds + "s");
             }
             
             logger.debug("Recorded statistics for " + finalRankings.size() + " players in game " + gameId);

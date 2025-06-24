@@ -319,6 +319,10 @@ public class PlayerListener implements Listener {
                         double damage = event.getFinalDamage();
                         plugin.getStatisticsManager().recordDamageDealt(attacker.getUniqueId(), damage);
                         plugin.getStatisticsManager().recordDamageTaken(victim.getUniqueId(), damage);
+                        
+                        // Also record in the game instance for per-game tracking
+                        victimGame.recordDamageDealt(attacker.getUniqueId(), damage);
+                        victimGame.recordDamageTaken(victim.getUniqueId(), damage);
                     }
                 }
             }
