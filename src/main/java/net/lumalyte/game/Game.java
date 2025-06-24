@@ -513,8 +513,8 @@ public class Game {
         // Start grace period immediately - chests are already filled
         startGracePeriod();
         
-        // Schedule deathmatch and game end using timer manager
-        timerManager.scheduleDeathmatch(this::startDeathmatch, () -> endGame(null));
+        // DON'T schedule deathmatch here - it should only start after grace period ends
+        // This was causing the timer to start before players were freed from spawn barriers
         
         // Create scoreboard team for nameplate control
         scoreboardManager.createNameplateTeam();
@@ -696,6 +696,10 @@ public class Game {
         state = GameState.ACTIVE; // Transition to ACTIVE state
         scoreboardManager.setCurrentGameState(state);
         timerManager.setCurrentGameState(state);
+        
+        // NOW schedule deathmatch and game end - this ensures the timer only starts
+        // after the grace period ends and players are freed from spawn barriers
+        timerManager.scheduleDeathmatch(this::startDeathmatch, () -> endGame(null));
         
         // Start periodic game end checking to catch solo scenarios and edge cases
         startPeriodicGameEndChecking();
