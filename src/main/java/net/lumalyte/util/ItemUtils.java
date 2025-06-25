@@ -61,7 +61,7 @@ public class ItemUtils {
             applyEnchantments(section, meta, itemKey, logger, plugin);
             applyAttributes(section, meta, itemKey, logger, plugin);
             applyPotionEffects(section, meta, itemKey, logger);
-            applyPersistentData(section, meta, itemKey, logger, plugin);
+            applyPersistentData(section, meta, logger, plugin);
             
             itemStack.setItemMeta(meta);
             return itemStack;
@@ -248,13 +248,13 @@ public class ItemUtils {
         }
         
         // Add custom effects
-        applyCustomPotionEffects(section, potionMeta, itemKey, logger);
+        applyCustomPotionEffects(section, potionMeta, logger);
     }
     
     /**
      * Applies custom potion effects to a potion meta.
      */
-    private static void applyCustomPotionEffects(@NotNull ConfigurationSection section, @NotNull PotionMeta potionMeta, @NotNull String itemKey, @NotNull DebugLogger.ContextualLogger logger) {
+    private static void applyCustomPotionEffects(@NotNull ConfigurationSection section, @NotNull PotionMeta potionMeta, @NotNull DebugLogger.ContextualLogger logger) {
         if (!section.contains("custom-effects")) {
             return;
         }
@@ -307,7 +307,7 @@ public class ItemUtils {
     /**
      * Applies persistent data to the item meta.
      */
-    private static void applyPersistentData(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull String itemKey, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
+    private static void applyPersistentData(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
         if (!section.contains("persistent-data")) {
             return;
         }
