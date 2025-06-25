@@ -86,3 +86,9 @@ TODO.md
 DEPLOYMENT.md
 refactor_logging_guide.md
 # Keep README.md and SECURITY.md as they are important project documentation
+
+# Codacy Analysis Files
+.codacy/
+codacy-cli
+codacy-metrics.json
+complexity-analysis*.json

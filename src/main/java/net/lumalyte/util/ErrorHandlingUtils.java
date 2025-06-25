@@ -206,80 +206,79 @@ public final class ErrorHandlingUtils {
      * @return true if the error is recoverable, false otherwise
      */
     public static boolean isRecoverableError(@NotNull Throwable throwable) {
-        // Network-related errors are usually recoverable
-        if (throwable instanceof IOException) {
-            return true;
-        }
-        
-        // Some SQL errors are recoverable (connection issues, timeouts)
-        if (throwable instanceof SQLException) {
-            SQLException sqlException = (SQLException) throwable;
-            String sqlState = sqlException.getSQLState();
-            
-            // Connection errors (08xxx) are recoverable
-            if (sqlState != null && sqlState.startsWith("08")) {
-                return true;
-            }
-            
-            // Timeout errors are recoverable
-            if (sqlException.getMessage() != null && 
-                sqlException.getMessage().toLowerCase().contains("timeout")) {
-                return true;
-            }
-            
-            // Lock timeout errors are recoverable
-            if (sqlException.getMessage() != null && 
-                sqlException.getMessage().toLowerCase().contains("lock")) {
-                return true;
-            }
-        }
-        
-        // Runtime exceptions with specific messages that indicate temporary issues
-        if (throwable instanceof RuntimeException) {
-            String message = throwable.getMessage();
-            if (message != null) {
-                String lowerMessage = message.toLowerCase();
-                if (lowerMessage.contains("timeout") || 
-                    lowerMessage.contains("connection") ||
-                    lowerMessage.contains("temporary") ||
-                    lowerMessage.contains("busy")) {
-                    return true;
-                }
-            }
-        }
-        
-        // LumaSG exceptions with specific types
-        if (throwable instanceof LumaSGException.DatabaseException) {
-            return true; // Most database errors are recoverable
-        }
-        
-        // Configuration errors are usually not recoverable
-        if (throwable instanceof LumaSGException.ConfigurationException) {
-            return false;
-        }
-        
-        // Validation errors are not recoverable
-        if (throwable instanceof LumaSGException.ValidationException) {
-            return false;
-        }
-        
-        // IllegalArgumentException is usually not recoverable
-        if (throwable instanceof IllegalArgumentException) {
-            return false;
-        }
-        
-        // NullPointerException is usually not recoverable
-        if (throwable instanceof NullPointerException) {
-            return false;
-        }
-        
-        // InterruptedException should not be retried
-        if (throwable instanceof InterruptedException) {
-            return false;
-        }
+        // Check each error type in order of specificity
+        if (isIOError(throwable)) return true;
+        if (isSQLError(throwable)) return true;
+        if (isRuntimeError(throwable)) return true;
+        if (isLumaSGError(throwable)) return true;
+        if (isUnrecoverableError(throwable)) return false;
         
         // Default to recoverable for unknown exceptions
         return true;
+    }
+    
+    /**
+     * Checks if the error is an IO-related error.
+     */
+    private static boolean isIOError(@NotNull Throwable throwable) {
+        return throwable instanceof IOException;
+    }
+    
+    /**
+     * Checks if the error is a recoverable SQL error.
+     */
+    private static boolean isSQLError(@NotNull Throwable throwable) {
+        if (!(throwable instanceof SQLException)) return false;
+        
+        SQLException sqlException = (SQLException) throwable;
+        String sqlState = sqlException.getSQLState();
+        String message = sqlException.getMessage();
+        
+        if (message == null) return false;
+        String lowerMessage = message.toLowerCase();
+        
+        // Connection errors (08xxx) are recoverable
+        if (sqlState != null && sqlState.startsWith("08")) return true;
+        
+        // Timeout or lock errors are recoverable
+        return lowerMessage.contains("timeout") || lowerMessage.contains("lock");
+    }
+    
+    /**
+     * Checks if the error is a recoverable runtime error.
+     */
+    private static boolean isRuntimeError(@NotNull Throwable throwable) {
+        if (!(throwable instanceof RuntimeException)) return false;
+        
+        String message = throwable.getMessage();
+        if (message == null) return false;
+        
+        String lowerMessage = message.toLowerCase();
+        return lowerMessage.contains("timeout") || 
+               lowerMessage.contains("connection") ||
+               lowerMessage.contains("temporary") ||
+               lowerMessage.contains("busy");
+    }
+    
+    /**
+     * Checks if the error is a recoverable LumaSG error.
+     */
+    private static boolean isLumaSGError(@NotNull Throwable throwable) {
+        // Most database errors are recoverable
+        if (throwable instanceof LumaSGException.DatabaseException) return true;
+        
+        // Configuration and validation errors are not recoverable
+        return !(throwable instanceof LumaSGException.ConfigurationException ||
+                throwable instanceof LumaSGException.ValidationException);
+    }
+    
+    /**
+     * Checks if the error is a known unrecoverable error type.
+     */
+    private static boolean isUnrecoverableError(@NotNull Throwable throwable) {
+        return throwable instanceof IllegalArgumentException ||
+               throwable instanceof NullPointerException ||
+               throwable instanceof InterruptedException;
     }
     
     /**

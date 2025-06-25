@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 /**
  * Manages players within a game instance.
@@ -581,85 +582,97 @@ public class GamePlayerManager {
         }
         
         try {
-            // Decode from Base64
-            String json = new String(java.util.Base64.getDecoder().decode(serialized), java.nio.charset.StandardCharsets.UTF_8);
-            
-            // Simple JSON parsing (avoiding external dependencies)
-            List<org.bukkit.potion.PotionEffect> effects = new ArrayList<>();
-            
-            // Remove brackets and split by effect objects
-            json = json.trim();
-            if (json.startsWith("[") && json.endsWith("]")) {
-                json = json.substring(1, json.length() - 1);
-            }
-            
-            if (json.trim().isEmpty()) {
-                return effects;
-            }
-            
-            // Split by objects (looking for },{ pattern)
-            String[] effectStrings = json.split("\\},\\{");
-            
-            for (String effectStr : effectStrings) {
-                effectStr = effectStr.trim();
-                if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
-                if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
-                
-                // Parse effect properties
-                String[] properties = effectStr.split(",");
-                String type = null;
-                int duration = 0;
-                int amplifier = 0;
-                boolean ambient = false;
-                boolean particles = true;
-                boolean icon = true;
-                
-                for (String prop : properties) {
-                    String[] keyValue = prop.split(":", 2);
-                    if (keyValue.length == 2) {
-                        String key = keyValue[0].trim().replace("\"", "");
-                        String value = keyValue[1].trim().replace("\"", "");
-                        
-                        switch (key) {
-                            case "type":
-                                type = value;
-                                break;
-                            case "duration":
-                                duration = Integer.parseInt(value);
-                                break;
-                            case "amplifier":
-                                amplifier = Integer.parseInt(value);
-                                break;
-                            case "ambient":
-                                ambient = Boolean.parseBoolean(value);
-                                break;
-                            case "particles":
-                                particles = Boolean.parseBoolean(value);
-                                break;
-                            case "icon":
-                                icon = Boolean.parseBoolean(value);
-                                break;
-                        }
-                    }
-                }
-                
-                // Create potion effect
-                if (type != null) {
-                    org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(org.bukkit.NamespacedKey.fromString(type));
-                    if (effectType != null) {
-                        org.bukkit.potion.PotionEffect effect = new org.bukkit.potion.PotionEffect(
-                            effectType, duration, amplifier, ambient, particles, icon
-                        );
-                        effects.add(effect);
-                    }
-                }
-            }
-            
-            return effects;
+            String json = decodeBase64(serialized);
+            List<String> effectStrings = parseJsonArray(json);
+            return effectStrings.stream()
+                .map(this::parseEffectObject)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
         } catch (Exception e) {
             logger.warn("Failed to deserialize potion effects from: " + serialized, e);
             return Collections.emptyList();
         }
+    }
+    
+    /**
+     * Decodes a Base64 string to UTF-8.
+     */
+    private @NotNull String decodeBase64(@NotNull String base64) {
+        return new String(
+            java.util.Base64.getDecoder().decode(base64),
+            java.nio.charset.StandardCharsets.UTF_8
+        );
+    }
+    
+    /**
+     * Parses a JSON array string into individual effect object strings.
+     */
+    private @NotNull List<String> parseJsonArray(@NotNull String json) {
+        json = json.trim();
+        if (json.startsWith("[") && json.endsWith("]")) {
+            json = json.substring(1, json.length() - 1).trim();
+        }
+        
+        if (json.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        return Arrays.asList(json.split("\\},\\{"));
+    }
+    
+    /**
+     * Parses a single effect object string into a PotionEffect.
+     */
+    private @Nullable org.bukkit.potion.PotionEffect parseEffectObject(@NotNull String effectStr) {
+        try {
+            // Clean up object string
+            effectStr = effectStr.trim();
+            if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
+            if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
+            
+            // Parse properties into a map
+            Map<String, String> properties = parseEffectProperties(effectStr);
+            
+            // Extract and validate required type
+            String type = properties.get("type");
+            if (type == null) return null;
+            
+            org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(
+                org.bukkit.NamespacedKey.fromString(type)
+            );
+            if (effectType == null) return null;
+            
+            // Create effect with parsed properties
+            return new org.bukkit.potion.PotionEffect(
+                effectType,
+                Integer.parseInt(properties.getOrDefault("duration", "0")),
+                Integer.parseInt(properties.getOrDefault("amplifier", "0")),
+                Boolean.parseBoolean(properties.getOrDefault("ambient", "false")),
+                Boolean.parseBoolean(properties.getOrDefault("particles", "true")),
+                Boolean.parseBoolean(properties.getOrDefault("icon", "true"))
+            );
+        } catch (Exception e) {
+            logger.debug("Failed to parse effect object: " + effectStr, e);
+            return null;
+        }
+    }
+    
+    /**
+     * Parses effect properties string into a map of key-value pairs.
+     */
+    private @NotNull Map<String, String> parseEffectProperties(@NotNull String propertiesStr) {
+        Map<String, String> properties = new HashMap<>();
+        
+        for (String prop : propertiesStr.split(",")) {
+            String[] keyValue = prop.split(":", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim().replace("\"", "");
+                String value = keyValue[1].trim().replace("\"", "");
+                properties.put(key, value);
+            }
+        }
+        
+        return properties;
     }
     
     /**

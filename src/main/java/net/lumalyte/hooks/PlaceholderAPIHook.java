@@ -40,84 +40,96 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
 
     @Override
     public @Nullable String onPlaceholderRequest(Player player, @NotNull String identifier) {
-        // Player-specific placeholders
-        if (player != null) {
-            Game game = plugin.getGameManager().getGameByPlayer(player);
-            
-            // Game-specific placeholders
-            if (game != null) {
-                switch (identifier) {
-                    case "game_state":
-                        return game.getState().name();
-                    case "game_time_colored":
-                        // Get the remaining time in seconds
-                        int timeRemaining = game.getTimeRemaining();
-                        
-                        // Get the total game time from config
-                        int totalGameTime = plugin.getConfig().getInt("game.game-time-minutes", 20) * 60;
-                        
-                        // Calculate the color thresholds (divide total time into 4 segments)
-                        int greenThreshold = totalGameTime * 3 / 4;  // 75% or more remaining = green
-                        int yellowThreshold = totalGameTime / 2;     // 50% or more remaining = yellow
-                        int orangeThreshold = totalGameTime / 4;     // 25% or more remaining = orange
-                                                                     // Less than 25% = red
-                        
-                        // Format minutes and seconds
-                        int minutes = timeRemaining / 60;
-                        int seconds = timeRemaining % 60;
-                        String formattedTime = String.format("%02d:%02d", minutes, seconds);
-                        
-                        // Apply color based on remaining time
-                        if (timeRemaining >= greenThreshold) {
-                            return "§a" + formattedTime; // Green
-                        } else if (timeRemaining >= yellowThreshold) {
-                            return "§e" + formattedTime; // Yellow
-                        } else if (timeRemaining >= orangeThreshold) {
-                            return "§6" + formattedTime; // Gold/Orange
-                        } else {
-                            return "§c" + formattedTime; // Red
-                        }
-                    case "game_time_stripped":
-                        // Get the remaining time in seconds (without color)
-                        int remainingTime = game.getTimeRemaining();
-                        
-                        // Format minutes and seconds
-                        int mins = remainingTime / 60;
-                        int secs = remainingTime % 60;
-                        return String.format("%02d:%02d", mins, secs);
-                    case "game_time": // Keep the original placeholder for backward compatibility
-                        // Redirect to the colored version
-                        return onPlaceholderRequest(player, "game_time_colored");
-                    case "game_players":
-                        return String.valueOf(game.getPlayerCount());
-                    case "game_max_players":
-                        return String.valueOf(game.getArena().getSpawnPoints().size());
-                    case "game_arena":
-                        return game.getArena().getName();
-                    case "game_pvp_enabled":
-                        return String.valueOf(game.isPvpEnabled());
-                    case "game_is_grace_period":
-                        return String.valueOf(game.isGracePeriod());
-                    case "game_kills":
-                        return String.valueOf(game.getPlayerKills(player.getUniqueId()));
-                }
-            }
-            
-            // General player placeholders
-            switch (identifier) {
-                case "in_game":
-                    return String.valueOf(game != null);
-            }
-        }
+        // Handle global placeholders first (not player-specific)
+        String globalValue = handleGlobalPlaceholder(identifier);
+        if (globalValue != null) return globalValue;
         
-        // Global placeholders (not player-specific)
-        switch (identifier) {
-            case "total_games":
-                return String.valueOf(plugin.getGameManager().getActiveGameCount());
-            case "total_arenas":
-                return String.valueOf(plugin.getArenaManager().getArenas().size());
+        // Handle player-specific placeholders
+        if (player != null) {
+            // Handle general player placeholders
+            String playerValue = handlePlayerPlaceholder(player, identifier);
+            if (playerValue != null) return playerValue;
+            
+            // Handle game-specific placeholders if player is in a game
+            Game game = plugin.getGameManager().getGameByPlayer(player);
+            if (game != null) {
+                String gameValue = handleGamePlaceholder(game, player, identifier);
+                if (gameValue != null) return gameValue;
+            }
         }
         
         return null; // Placeholder not found
+    }
+    
+    /**
+     * Handles global placeholders that don't require a player context
+     */
+    private @Nullable String handleGlobalPlaceholder(@NotNull String identifier) {
+        return switch (identifier) {
+            case "total_games" -> String.valueOf(plugin.getGameManager().getActiveGameCount());
+            case "total_arenas" -> String.valueOf(plugin.getArenaManager().getArenas().size());
+            default -> null;
+        };
+    }
+    
+    /**
+     * Handles player-specific placeholders that don't require a game context
+     */
+    private @Nullable String handlePlayerPlaceholder(@NotNull Player player, @NotNull String identifier) {
+        Game game = plugin.getGameManager().getGameByPlayer(player);
+        return switch (identifier) {
+            case "in_game" -> String.valueOf(game != null);
+            default -> null;
+        };
+    }
+    
+    /**
+     * Handles game-specific placeholders
+     */
+    private @Nullable String handleGamePlaceholder(@NotNull Game game, @NotNull Player player, @NotNull String identifier) {
+        return switch (identifier) {
+            case "game_state" -> game.getState().name();
+            case "game_time_colored" -> formatGameTimeColored(game);
+            case "game_time_stripped" -> formatGameTime(game);
+            case "game_time" -> formatGameTimeColored(game); // Backward compatibility
+            case "game_players" -> String.valueOf(game.getPlayerCount());
+            case "game_max_players" -> String.valueOf(game.getArena().getSpawnPoints().size());
+            case "game_arena" -> game.getArena().getName();
+            case "game_pvp_enabled" -> String.valueOf(game.isPvpEnabled());
+            case "game_is_grace_period" -> String.valueOf(game.isGracePeriod());
+            case "game_kills" -> String.valueOf(game.getPlayerKills(player.getUniqueId()));
+            default -> null;
+        };
+    }
+    
+    /**
+     * Formats the game time with color based on remaining time
+     */
+    private @NotNull String formatGameTimeColored(@NotNull Game game) {
+        int timeRemaining = game.getTimeRemaining();
+        String formattedTime = formatGameTime(game);
+        
+        // Calculate color thresholds (divide total time into 4 segments)
+        int totalGameTime = plugin.getConfig().getInt("game.game-time-minutes", 20) * 60;
+        int greenThreshold = totalGameTime * 3 / 4;   // 75% or more remaining = green
+        int yellowThreshold = totalGameTime / 2;      // 50% or more remaining = yellow
+        int orangeThreshold = totalGameTime / 4;      // 25% or more remaining = orange
+                                                     // Less than 25% = red
+        
+        // Apply color based on remaining time
+        if (timeRemaining >= greenThreshold) return "§a" + formattedTime;      // Green
+        if (timeRemaining >= yellowThreshold) return "§e" + formattedTime;     // Yellow
+        if (timeRemaining >= orangeThreshold) return "§6" + formattedTime;     // Gold/Orange
+        return "§c" + formattedTime;                                           // Red
+    }
+    
+    /**
+     * Formats the game time without color
+     */
+    private @NotNull String formatGameTime(@NotNull Game game) {
+        int timeRemaining = game.getTimeRemaining();
+        int minutes = timeRemaining / 60;
+        int seconds = timeRemaining % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 } 
