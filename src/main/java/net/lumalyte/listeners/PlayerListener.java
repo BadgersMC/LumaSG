@@ -85,14 +85,11 @@ public class PlayerListener implements Listener {
                 plugin.getStatisticsManager().preloadPlayerStats(player);
             }
             
-            // Check if player was in a game when they disconnected
+            // Check if player was in a game when they disconnected and can rejoin
             Game game = gameManager.getGameByPlayer(player);
-            if (game != null) {
-                // Player was in a game, check if they can rejoin
-                if (game.getDisconnectedPlayers().contains(player.getUniqueId())) {
-                    // Player was disconnected during game, handle reconnection
-                    handlePlayerReconnection(player, game);
-                }
+            if (game != null && game.getDisconnectedPlayers().contains(player.getUniqueId())) {
+                // Player was disconnected during game, handle reconnection
+                handlePlayerReconnection(player, game);
             }
         } catch (Exception e) {
             logger.warn("Error handling player join for " + player.getName(), e);
@@ -383,14 +380,12 @@ public class PlayerListener implements Listener {
         
         try {
             Game game = gameManager.getGameByPlayer(player);
-            if (game != null && game.getState() != GameState.WAITING && game.getState() != GameState.FINISHED && !game.isShuttingDown()) {
-                // Player is in an active game, check teleport restrictions
-                Location to = event.getTo();
-                if (to != null && !isLocationInArena(to, game)) {
-                    // Player trying to teleport outside arena
-                    event.setCancelled(true);
-                    player.sendMessage(Component.text("You cannot leave the arena during the game!", NamedTextColor.RED));
-                }
+            Location to = event.getTo();
+            if (game != null && game.getState() != GameState.WAITING && game.getState() != GameState.FINISHED && !game.isShuttingDown() 
+                && to != null && !isLocationInArena(to, game)) {
+                // Player trying to teleport outside arena during active game
+                event.setCancelled(true);
+                player.sendMessage(Component.text("You cannot leave the arena during the game!", NamedTextColor.RED));
             }
         } catch (Exception e) {
             logger.warn("Error handling player teleport for " + player.getName(), e);

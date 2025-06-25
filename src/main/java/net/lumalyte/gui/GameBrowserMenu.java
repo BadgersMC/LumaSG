@@ -99,7 +99,7 @@ public class GameBrowserMenu {
             final Game finalGame = game;
             
             // Create item based on game status
-            ItemBuilder builder = new ItemBuilder(getArenaIcon(finalArena, finalGame));
+            ItemBuilder builder = new ItemBuilder(getArenaIcon(finalGame));
             
             // Set display name
             builder.setDisplayName("§b§l" + finalArena.getName());
@@ -191,11 +191,10 @@ public class GameBrowserMenu {
     /**
      * Gets the appropriate icon material for an arena based on its game status.
      * 
-     * @param arena The arena
      * @param game The game in the arena, or null if no game exists
      * @return The material to use for the icon
      */
-    private Material getArenaIcon(Arena arena, Game game) {
+    private Material getArenaIcon(Game game) {
         if (game == null) {
             return Material.EMERALD_BLOCK; // No game, can create
         }

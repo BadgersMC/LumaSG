@@ -212,27 +212,21 @@ public class ArenaManager {
     }
     
     /**
-     * Determines if an error is recoverable and worth retrying.
+     * Determines if an error is recoverable and should trigger a retry.
      */
     private boolean isRecoverableError(@NotNull Throwable error) {
-        // Configuration errors are typically not recoverable
-        if (error instanceof LumaSGException.ConfigurationException) {
+        String message = error.getMessage();
+        if (message == null) {
             return false;
         }
         
-        // Arena errors might be recoverable if they're related to world loading
-        String message = error.getMessage().toLowerCase();
+        // World loading errors might be temporary
         if (message.contains("world") || message.contains("location")) {
             return true;
         }
         
         // IO errors might be temporary
-        if (error instanceof java.io.IOException) {
-            return true;
-        }
-        
-        // Other errors are generally not recoverable
-        return false;
+        return error instanceof java.io.IOException;
     }
     
     /**

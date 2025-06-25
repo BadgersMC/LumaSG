@@ -18,13 +18,10 @@ public class NexoHook implements PluginHook {
     private Plugin nexoPlugin;
     private boolean available = false;
     
-    private final LumaSG plugin;
-    
     /** The debug logger instance for this nexo hook */
     private final DebugLogger.ContextualLogger logger;
     
     public NexoHook(LumaSG plugin) {
-        this.plugin = plugin;
         this.logger = plugin.getDebugLogger().forContext("NexoHook");
     }
     

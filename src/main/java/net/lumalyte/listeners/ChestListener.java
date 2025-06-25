@@ -127,7 +127,7 @@ public class ChestListener implements Listener {
             handleChestInGame(chest, player, game);
         } else {
             // Player is not in a game, check if chest is in an arena
-            handleChestOutsideGame(chest, player);
+            handleChestOutsideGame();
         }
     }
     
@@ -229,7 +229,7 @@ public class ChestListener implements Listener {
                 Game game = gameManager.getGameByPlayer(player);
                 if (game != null && game.getState() != GameState.WAITING) {
                     // Player is in an active game, handle chest interaction
-                    handleChestInventoryInteraction(event, player, game);
+                    handleChestInventoryInteraction();
                 }
             }
         } catch (Exception e) {
@@ -247,44 +247,35 @@ public class ChestListener implements Listener {
     private void handleChestInGame(@NotNull Chest chest, @NotNull Player player, @NotNull Game game) {
         Block chestBlock = chest.getBlock();
         
-        // Check if this chest is in the game arena
-        if (isChestInArena(chestBlock.getLocation(), game)) {
-            // Check if this chest has already been opened
-            if (!openedChests.contains(chestBlock)) {
-                // Fill the chest with loot
-                chestManager.fillChest(chestBlock.getLocation());
-                openedChests.add(chestBlock);
-                
-                // Record chest opened statistic if enabled
-                if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
-                    plugin.getStatisticsManager().recordChestOpened(player.getUniqueId());
-                }
-                
-                // Also record in the game instance for per-game tracking
-                game.recordChestOpened(player.getUniqueId());
+        // Check if this chest is in the game arena and hasn't been opened yet
+        if (isChestInArena(chestBlock.getLocation(), game) && !openedChests.contains(chestBlock)) {
+            // Fill the chest with loot
+            chestManager.fillChest(chestBlock.getLocation());
+            openedChests.add(chestBlock);
+            
+            // Record chest opened statistic if enabled
+            if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
+                plugin.getStatisticsManager().recordChestOpened(player.getUniqueId());
             }
+            
+            // Also record in the game instance for per-game tracking
+            game.recordChestOpened(player.getUniqueId());
         }
     }
     
     /**
      * Handles chest interactions when a player is not in a game.
-     * 
-     * @param chest The chest being opened
-     * @param player The player opening the chest
      */
-    private void handleChestOutsideGame(@NotNull Chest chest, @NotNull Player player) {
+    private void handleChestOutsideGame() {
         // For now, we don't do anything special for chests outside of games
         // This could be extended in the future for lobby chests or other features
     }
+
     
     /**
      * Handles inventory click events within chest inventories during games.
-     * 
-     * @param event The inventory click event
-     * @param player The player clicking
-     * @param game The game the player is in
      */
-    private void handleChestInventoryInteraction(@NotNull InventoryClickEvent event, @NotNull Player player, @NotNull Game game) {
+    private void handleChestInventoryInteraction() {
         // For now, we allow all chest interactions during games
         // This could be extended to add restrictions or special behaviors
     }

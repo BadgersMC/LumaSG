@@ -818,11 +818,9 @@ public class Arena {
                 for (int z = -radius; z <= radius; z++) {
                     Location loc = center.clone().add(x, y, z);
                     
-                    // Only check blocks within the spherical radius
-                    if (loc.distance(center) <= radius) {
-                        if (loc.getBlock().getType() == org.bukkit.Material.CHEST) {
-                            chestLocations.add(loc.clone());
-                        }
+                    // Only check blocks within the spherical radius and if they are chests
+                    if (loc.distance(center) <= radius && loc.getBlock().getType() == org.bukkit.Material.CHEST) {
+                        chestLocations.add(loc.clone());
                     }
                 }
             }

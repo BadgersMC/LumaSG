@@ -1156,10 +1156,8 @@ public class Game {
         if (logger.isDebugEnabled()) {
             minPlayers = 1;
         }
-        if (playerManager.getPlayerCount() >= minPlayers) {
-            if (state == GameState.WAITING) {
-                startCountdown();
-            }
+        if (playerManager.getPlayerCount() >= minPlayers && state == GameState.WAITING) {
+            startCountdown();
             // Don't restart countdown if already in progress
             // This prevents chest filling from restarting when new players join
         }

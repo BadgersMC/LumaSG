@@ -318,7 +318,6 @@ public final class ErrorHandlingUtils {
     private static class RetryContext<T> {
         private final Supplier<T> operation;
         private final int maxRetries;
-        private final long initialDelayMs;
         private final double backoffMultiplier;
         private final Logger logger;
         private final String operationName;
@@ -334,7 +333,6 @@ public final class ErrorHandlingUtils {
                 String operationName) {
             this.operation = operation;
             this.maxRetries = maxRetries;
-            this.initialDelayMs = initialDelayMs;
             this.backoffMultiplier = backoffMultiplier;
             this.logger = logger;
             this.operationName = operationName;
@@ -422,7 +420,7 @@ public final class ErrorHandlingUtils {
             }
             
             return operation.get()
-                .exceptionally(throwable -> handleError(throwable, currentAttempt, currentDelay))
+                .exceptionally(throwable -> handleError(throwable, currentAttempt))
                 .thenCompose(result -> {
                     if (result == null && currentAttempt < maxRetries) {
                         return scheduleRetry(currentAttempt, currentDelay);
@@ -431,7 +429,7 @@ public final class ErrorHandlingUtils {
                 });
         }
         
-        private T handleError(Throwable throwable, int currentAttempt, long currentDelay) {
+        private T handleError(Throwable throwable, int currentAttempt) {
             if (currentAttempt >= maxRetries) {
                 logger.log(Level.SEVERE, "All async retry attempts failed for " + operationName, throwable);
                 throw new RuntimeException("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, throwable);
@@ -490,13 +488,8 @@ class ErrorClassifier {
             }
         }
         
-        // Check for unrecoverable error types
-        if (isUnrecoverableError(throwable)) {
-            return false;
-        }
-        
-        // Default to recoverable for unknown exceptions
-        return true;
+        // Check for unrecoverable error types and return opposite
+        return !isUnrecoverableError(throwable);
     }
     
     private boolean isRecoverableSQLError(Throwable throwable) {

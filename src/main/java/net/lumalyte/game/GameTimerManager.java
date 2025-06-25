@@ -295,28 +295,26 @@ public class GameTimerManager {
                 player.sendMessage(message);
                 
                 // Play warning sounds if enabled
-                if (plugin.getConfig().getBoolean("messages.deathmatch-reminders.play-sounds", true)) {
-                    if (secondsUntilDeathmatch <= 60) {
-                        String soundName = secondsUntilDeathmatch <= 10 ? 
-                            plugin.getConfig().getString("messages.deathmatch-reminders.urgent-sound", "BLOCK_NOTE_BLOCK_PLING") :
-                            plugin.getConfig().getString("messages.deathmatch-reminders.warning-sound", "BLOCK_NOTE_BLOCK_BELL");
+                if (plugin.getConfig().getBoolean("messages.deathmatch-reminders.play-sounds", true) && secondsUntilDeathmatch <= 60) {
+                    String soundName = secondsUntilDeathmatch <= 10 ? 
+                        plugin.getConfig().getString("messages.deathmatch-reminders.urgent-sound", "BLOCK_NOTE_BLOCK_PLING") :
+                        plugin.getConfig().getString("messages.deathmatch-reminders.warning-sound", "BLOCK_NOTE_BLOCK_BELL");
+                    
+                    try {
+                        // Parse namespaced key (supports both "minecraft:sound" and "lumalyte:whistle" formats)
+                        org.bukkit.NamespacedKey soundKey = soundName.contains(":") ? 
+                            org.bukkit.NamespacedKey.fromString(soundName.toLowerCase()) :
+                            org.bukkit.NamespacedKey.minecraft(soundName.toLowerCase());
                         
-                        try {
-                            // Parse namespaced key (supports both "minecraft:sound" and "lumalyte:whistle" formats)
-                            org.bukkit.NamespacedKey soundKey = soundName.contains(":") ? 
-                                org.bukkit.NamespacedKey.fromString(soundName.toLowerCase()) :
-                                org.bukkit.NamespacedKey.minecraft(soundName.toLowerCase());
-                            
-                            org.bukkit.Sound sound = org.bukkit.Registry.SOUNDS.get(soundKey);
-                            if (sound != null) {
-                                player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
-                            } else {
-                                throw new IllegalArgumentException("Sound not found: " + soundName);
-                            }
-                        } catch (IllegalArgumentException e) {
-                            logger.warn("Invalid sound name in config: " + soundName + ", using default");
-                            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+                        org.bukkit.Sound sound = org.bukkit.Registry.SOUNDS.get(soundKey);
+                        if (sound != null) {
+                            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+                        } else {
+                            throw new IllegalArgumentException("Sound not found: " + soundName);
                         }
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Invalid sound name in config: " + soundName + ", using default");
+                        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     }
                 }
             }

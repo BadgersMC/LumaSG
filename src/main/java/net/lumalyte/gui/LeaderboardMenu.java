@@ -80,7 +80,7 @@ public class LeaderboardMenu {
         Gui gui = createBaseGui(statType);
         Window window = createWindow(player, statType, gui);
         window.open();
-        loadLeaderboardData(player, gui, statType);
+        loadLeaderboardData(gui, statType);
     }
     
     private Gui createBaseGui(StatType statType) {
@@ -138,7 +138,7 @@ public class LeaderboardMenu {
     /**
      * Loads leaderboard data asynchronously and updates the GUI.
      */
-    private void loadLeaderboardData(Player player, Gui gui, StatType statType) {
+    private void loadLeaderboardData(Gui gui, StatType statType) {
         CompletableFuture<List<PlayerStats>> future = plugin.getStatisticsManager()
             .getLeaderboard(statType, layout.getMaxEntries());
             

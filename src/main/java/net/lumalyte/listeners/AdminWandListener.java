@@ -37,7 +37,6 @@ import java.util.Set;
  */
 public class AdminWandListener implements Listener {
     
-    private final LumaSG plugin;
     private final AdminWand adminWand;
     private final ArenaManager arenaManager;
     
@@ -48,7 +47,6 @@ public class AdminWandListener implements Listener {
     private final Set<UUID> playersHoldingWand;
     
     public AdminWandListener(@NotNull LumaSG plugin) {
-        this.plugin = plugin;
         this.adminWand = new AdminWand(plugin);
         this.arenaManager = plugin.getArenaManager();
         this.logger = plugin.getDebugLogger().forContext("AdminWandListener");

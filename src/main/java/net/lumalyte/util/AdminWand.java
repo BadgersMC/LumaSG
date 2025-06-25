@@ -72,16 +72,10 @@ public class AdminWand {
      * @return true if the item is an admin wand
      */
     public boolean isWand(@NotNull ItemStack item) {
-        if (item.getType() != Material.BLAZE_ROD) {
-            return false;
-        }
-        
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) {
-            return false;
-        }
-        
-        return meta.getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE);
+        return item.getType() == Material.BLAZE_ROD && 
+               meta != null && 
+               meta.getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE);
     }
     
     /**
