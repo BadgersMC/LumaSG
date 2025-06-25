@@ -517,12 +517,12 @@ public class GamePlayerManager {
     private @Nullable org.bukkit.potion.PotionEffect parseEffectObject(@NotNull String effectStr) {
         try {
             // Clean up object string
-            effectStr = effectStr.trim();
-            if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
-            if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
+            String cleanedStr = effectStr.trim();
+            if (cleanedStr.startsWith("{")) cleanedStr = cleanedStr.substring(1);
+            if (cleanedStr.endsWith("}")) cleanedStr = cleanedStr.substring(0, cleanedStr.length() - 1);
             
             // Parse properties into a map
-            Map<String, String> properties = parseEffectProperties(effectStr);
+            Map<String, String> properties = parseEffectProperties(cleanedStr);
             
             // Extract and validate required type
             String type = properties.get("type");
@@ -736,16 +736,16 @@ public class GamePlayerManager {
      * Parses a JSON array string into individual effect object strings.
      */
     private @NotNull List<String> parseJsonArray(@NotNull String json) {
-        json = json.trim();
-        if (json.startsWith("[") && json.endsWith("]")) {
-            json = json.substring(1, json.length() - 1).trim();
+        String cleanedJson = json.trim();
+        if (cleanedJson.startsWith("[") && cleanedJson.endsWith("]")) {
+            cleanedJson = cleanedJson.substring(1, cleanedJson.length() - 1).trim();
         }
         
-        if (json.isEmpty()) {
+        if (cleanedJson.isEmpty()) {
             return Collections.emptyList();
         }
         
-        return Arrays.asList(json.split("\\},\\{"));
+        return Arrays.asList(cleanedJson.split("\\},\\{"));
     }
     
     /**

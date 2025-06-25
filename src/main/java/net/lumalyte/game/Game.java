@@ -234,24 +234,7 @@ public class Game {
         timerManager.setCurrentGameState(state);
     }
     
-    /**
-     * Creates barrier blocks around all player spawn points to prevent movement.
-     * 
-     * <p>This method places invisible barrier blocks in a 3x3x3 box around each spawn point,
-     * effectively creating a cage that prevents players from moving during waiting and countdown phases.</p>
-     */
-    private void createSpawnBarriers() {
-        logger.debug("Creating spawn barriers to lock players at spawn points");
-        
-        for (UUID playerId : playerManager.getPlayers()) {
-            Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
-            if (spawnLoc != null && spawnLoc.getWorld() != null) {
-                createBarrierBoxAroundLocation(spawnLoc);
-            }
-        }
-        
-        logger.info("Created barrier blocks around " + playerManager.getPlayerCount() + " spawn points");
-    }
+
     
     /**
      * Creates a 3x3x3 barrier box around the specified location.
@@ -1208,30 +1191,6 @@ public class Game {
     }
     
     /**
-     * Updates the scoreboard for all players in the game.
-     */
-    private void updateScoreboard() {
-        scoreboardManager.setCurrentGameState(state);
-        // Scoreboard is automatically updated by the manager
-    }
-    
-    /**
-     * Updates which players can see the scoreboard.
-     */
-    private void updateScoreboardVisibility() {
-        // Visibility is automatically handled by the scoreboard manager
-    }
-    
-    /**
-     * Forces the game scoreboard to be displayed for a specific player.
-     * 
-     * @param player The player to update the scoreboard for
-     */
-    public void forceScoreboardUpdate(@NotNull Player player) {
-        scoreboardManager.forceScoreboardUpdate(player);
-    }
-    
-    /**
      * Gets the number of kills for a specific player.
      * 
      * @param playerId The UUID of the player
@@ -1418,14 +1377,6 @@ public class Game {
     }
     
     /**
-     * Updates the player cache by removing offline players.
-     * This method is thread-safe.
-     */
-    private void updatePlayerCache() {
-        // This is now handled by the player manager
-    }
-
-    /**
      * Checks if a block type is allowed to be placed during the game.
      * 
      * @param material The material to check
@@ -1450,7 +1401,6 @@ public class Game {
     private void recordGameStatistics() {
         try {
             long gameTimeSeconds = calculateGameDuration();
-            Set<UUID> allParticipants = getAllParticipants();
             List<UUID> finalRankings = determineFinalRankings();
             
             recordPlayerStatistics(finalRankings, gameTimeSeconds);
