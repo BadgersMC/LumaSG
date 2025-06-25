@@ -61,88 +61,151 @@ public class AdminWandListener implements Listener {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         
-        if (item == null || !adminWand.isWand(item)) return;
+        if (!isValidWandInteraction(item, event.getClickedBlock())) {
+            return;
+        }
         
         // Cancel the event to prevent normal item usage
         event.setCancelled(true);
         
-        // Get the selected arena directly from the map for consistency
-        Arena selectedArena = selectedArenas.get(player.getUniqueId());
-        logger.debug("Player " + player.getName() + " interacting with wand, selected arena: " + 
-            (selectedArena != null ? selectedArena.getName() : "null"));
-            
+        Arena selectedArena = validateArenaSelection(player);
         if (selectedArena == null) {
-            logger.debug("No arena selected for player: " + player.getName() + ", selectedArenas map size: " + selectedArenas.size());
-            // Log admin wand interactions for audit purposes
-            for (Map.Entry<UUID, Arena> entry : selectedArenas.entrySet()) {
-                Player mapPlayer = Bukkit.getPlayer(entry.getKey());
-                String playerName = mapPlayer != null ? mapPlayer.getName() : "Unknown";
-                logger.debug("Map entry: " + playerName + " -> " + entry.getValue().getName());
-            }
-            
-            player.sendMessage(Component.text("Please select an arena first using /sg arena select <n>")
-                .color(NamedTextColor.RED));
             return;
         }
 
-        Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) return;
-        
-        // Handle right clicks to add spawn points
+        // Handle the interaction based on click type
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            // Add spawn point at clicked location
-            Location spawnLoc = clickedBlock.getLocation().add(0.5, 1, 0.5);
-            selectedArena.addSpawnPoint(spawnLoc);
-            
-            // Schedule a debounced save to prevent excessive disk I/O
-            arenaManager.saveArenas();
-            
-            player.sendMessage(Component.text("Added spawn point at ")
-                .color(NamedTextColor.GREEN)
-                .append(Component.text(String.format("(%.1f, %.1f, %.1f)", 
-                    spawnLoc.getX(), spawnLoc.getY(), spawnLoc.getZ()))
-                    .color(NamedTextColor.YELLOW)));
-                    
-            // Refresh spawn point visualization
-            selectedArena.hideSpawnPoints();
-            selectedArena.showSpawnPoints();
+            handleSpawnPointAddition(player, selectedArena, event.getClickedBlock());
+        } else if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
+            handleSpawnPointRemoval(player, selectedArena, event.getClickedBlock().getLocation());
         }
-        // Handle left clicks to remove spawn points
-        else if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            Location clickedLoc = clickedBlock.getLocation();
-            List<Location> spawnPoints = selectedArena.getSpawnPoints();
-            
-            // Find the closest spawn point within 1 block
-            Location removedSpawn = null;
-            int removedIndex = -1;
-            for (int i = 0; i < spawnPoints.size(); i++) {
-                Location spawnPoint = spawnPoints.get(i);
-                if (spawnPoint.getWorld() == clickedLoc.getWorld() &&
-                    Math.abs(spawnPoint.getBlockX() - clickedLoc.getBlockX()) <= 1 &&
-                    Math.abs(spawnPoint.getBlockY() - clickedLoc.getBlockY()) <= 1 &&
-                    Math.abs(spawnPoint.getBlockZ() - clickedLoc.getBlockZ()) <= 1) {
-                    removedSpawn = spawnPoint;
-                    removedIndex = i;
-                    break;
-                }
-            }
-            
-            if (removedSpawn != null && removedIndex >= 0) {
-                // Use the Arena's removeSpawnPoint method instead of directly modifying the list
-                selectedArena.removeSpawnPoint(removedIndex);
-                selectedArena.hideSpawnPoints();
-                selectedArena.showSpawnPoints();
-                
-                player.sendMessage(Component.text("Removed spawn point at ")
-                    .color(NamedTextColor.GREEN)
-                    .append(Component.text(String.format("(%.1f, %.1f, %.1f)", 
-                        removedSpawn.getX(), removedSpawn.getY(), removedSpawn.getZ()))
-                        .color(NamedTextColor.YELLOW)));
-            } else {
-                player.sendMessage(Component.text("No spawn point found near this location")
-                    .color(NamedTextColor.RED));
-            }
+    }
+    
+    /**
+     * Validates if the interaction is a valid wand interaction.
+     * @param item The item being used
+     * @param clickedBlock The block that was clicked
+     * @return true if the interaction is valid, false otherwise
+     */
+    private boolean isValidWandInteraction(@Nullable ItemStack item, @Nullable Block clickedBlock) {
+        return item != null && adminWand.isWand(item) && clickedBlock != null;
+    }
+    
+    /**
+     * Validates and retrieves the selected arena for a player.
+     * @param player The player to check
+     * @return The selected arena, or null if no arena is selected
+     */
+    private @Nullable Arena validateArenaSelection(@NotNull Player player) {
+        Arena selectedArena = selectedArenas.get(player.getUniqueId());
+        
+        if (selectedArena == null) {
+            logger.debug("No arena selected for player: " + player.getName() + ", selectedArenas map size: " + selectedArenas.size());
+            logArenaSelectionState();
+            player.sendMessage(Component.text("Please select an arena first using /sg arena select <n>")
+                .color(NamedTextColor.RED));
+            return null;
         }
+
+        logger.debug("Player " + player.getName() + " interacting with wand, selected arena: " + selectedArena.getName());
+        return selectedArena;
+    }
+    
+    /**
+     * Logs the current state of arena selections for debugging.
+     */
+    private void logArenaSelectionState() {
+        for (Map.Entry<UUID, Arena> entry : selectedArenas.entrySet()) {
+            Player mapPlayer = Bukkit.getPlayer(entry.getKey());
+            String playerName = mapPlayer != null ? mapPlayer.getName() : "Unknown";
+            logger.debug("Map entry: " + playerName + " -> " + entry.getValue().getName());
+        }
+    }
+    
+    /**
+     * Handles adding a spawn point at the clicked location.
+     * @param player The player adding the spawn point
+     * @param arena The arena to add the spawn point to
+     * @param clickedBlock The block that was clicked
+     */
+    private void handleSpawnPointAddition(@NotNull Player player, @NotNull Arena arena, @NotNull Block clickedBlock) {
+        Location spawnLoc = clickedBlock.getLocation().add(0.5, 1, 0.5);
+        arena.addSpawnPoint(spawnLoc);
+        
+        // Schedule a debounced save to prevent excessive disk I/O
+        arenaManager.saveArenas();
+        
+        sendSpawnPointMessage(player, "Added spawn point at ", spawnLoc);
+        refreshSpawnPointVisualization(arena);
+    }
+    
+    /**
+     * Handles removing a spawn point near the clicked location.
+     * @param player The player removing the spawn point
+     * @param arena The arena to remove the spawn point from
+     * @param clickedLoc The location that was clicked
+     */
+    private void handleSpawnPointRemoval(@NotNull Player player, @NotNull Arena arena, @NotNull Location clickedLoc) {
+        Location nearestSpawn = findNearestSpawnPoint(arena, clickedLoc);
+        
+        if (nearestSpawn != null) {
+            int index = arena.getSpawnPoints().indexOf(nearestSpawn);
+            arena.removeSpawnPoint(index);
+            refreshSpawnPointVisualization(arena);
+            sendSpawnPointMessage(player, "Removed spawn point at ", nearestSpawn);
+        } else {
+            player.sendMessage(Component.text("No spawn point found near this location")
+                .color(NamedTextColor.RED));
+        }
+    }
+    
+    /**
+     * Finds the nearest spawn point within 1 block of the clicked location.
+     * @param arena The arena to search in
+     * @param clickedLoc The location to search around
+     * @return The nearest spawn point, or null if none found
+     */
+    private @Nullable Location findNearestSpawnPoint(@NotNull Arena arena, @NotNull Location clickedLoc) {
+        return arena.getSpawnPoints().stream()
+            .filter(spawnPoint -> isLocationNearby(spawnPoint, clickedLoc))
+            .findFirst()
+            .orElse(null);
+    }
+    
+    /**
+     * Checks if two locations are within 1 block of each other.
+     * @param loc1 The first location
+     * @param loc2 The second location
+     * @return true if the locations are within 1 block, false otherwise
+     */
+    private boolean isLocationNearby(@NotNull Location loc1, @NotNull Location loc2) {
+        return loc1.getWorld() == loc2.getWorld() &&
+            Math.abs(loc1.getBlockX() - loc2.getBlockX()) <= 1 &&
+            Math.abs(loc1.getBlockY() - loc2.getBlockY()) <= 1 &&
+            Math.abs(loc1.getBlockZ() - loc2.getBlockZ()) <= 1;
+    }
+    
+    /**
+     * Sends a spawn point action message to a player.
+     * @param player The player to send the message to
+     * @param prefix The message prefix
+     * @param location The location to include in the message
+     */
+    private void sendSpawnPointMessage(@NotNull Player player, @NotNull String prefix, @NotNull Location location) {
+        player.sendMessage(Component.text(prefix)
+            .color(NamedTextColor.GREEN)
+            .append(Component.text(String.format("(%.1f, %.1f, %.1f)", 
+                location.getX(), location.getY(), location.getZ()))
+                .color(NamedTextColor.YELLOW)));
+    }
+    
+    /**
+     * Refreshes the spawn point visualization for an arena.
+     * @param arena The arena to refresh
+     */
+    private void refreshSpawnPointVisualization(@NotNull Arena arena) {
+        arena.hideSpawnPoints();
+        arena.showSpawnPoints();
     }
     
     @EventHandler(priority = EventPriority.NORMAL)
