@@ -343,75 +343,207 @@ public class GamePlayerManager {
     }
     
     /**
-     * Restores a player's state when they leave the game.
+     * Restores a player's state from before they joined the game.
      */
     private void restorePlayer(@NotNull Player player) {
-        // Reset player's scoreboard to server default
-        player.setScoreboard(org.bukkit.Bukkit.getScoreboardManager().getMainScoreboard());
+        UUID playerId = player.getUniqueId();
         
-        // Always clear current inventory first
-        player.getInventory().clear();
-        player.getInventory().setArmorContents(null);
-        
-        // Restore original inventory if it was saved
-        if (plugin.getConfig().getBoolean("game.restore-inventory", true)) {
-            try {
-                String serializedInv = inventories.get(player.getUniqueId());
-                String serializedArmor = armorContents.get(player.getUniqueId());
-                
-                if (serializedInv != null) {
-                    ItemStack[] inv = InventoryUtils.itemStackArrayFromBase64(serializedInv);
-                    player.getInventory().setContents(inv);
-                }
-                if (serializedArmor != null) {
-                    ItemStack[] armor = InventoryUtils.itemStackArrayFromBase64(serializedArmor);
-                    player.getInventory().setArmorContents(armor);
-                }
-                
-                // Restore experience
-                Integer level = playerExperienceLevels.get(player.getUniqueId());
-                Float exp = playerExperiencePoints.get(player.getUniqueId());
-                if (level != null) player.setLevel(level);
-                if (exp != null) player.setExp(exp);
-                
-                // Restore hunger and saturation
-                Integer foodLevel = playerFoodLevels.get(player.getUniqueId());
-                Float saturation = playerSaturationLevels.get(player.getUniqueId());
-                if (foodLevel != null) player.setFoodLevel(foodLevel);
-                if (saturation != null) player.setSaturation(saturation);
-                
-                // Restore potion effects
-                String serializedEffects = playerPotionEffects.get(player.getUniqueId());
-                if (serializedEffects != null) {
-                    Collection<org.bukkit.potion.PotionEffect> effects = deserializePotionEffects(serializedEffects);
-                    for (org.bukkit.potion.PotionEffect effect : effects) {
-                        player.addPotionEffect(effect);
-                    }
-                }
-                
-                logger.debug("Restored inventory/experience/hunger/effects for player: " + player.getName());
-            } catch (Exception e) {
-                logger.warn("Failed to restore inventory for player: " + player.getName(), e);
-            }
+        try {
+            restoreGameMode(player);
+            restoreLocation(player);
+            restoreInventoryAndExperience(player);
+            restoreHungerAndEffects(player);
+            
+            // Clear all stored data for this player
+            clearStoredPlayerData(playerId);
+            
+            logger.debug("Successfully restored player state for: " + player.getName());
+        } catch (Exception e) {
+            logger.error("Failed to restore player state for: " + player.getName(), e);
+            // Attempt basic restoration even if full restore fails
+            performBasicRestore(player);
         }
-        
-        // Restore game mode
+    }
+    
+    /**
+     * Restores the player's game mode.
+     */
+    private void restoreGameMode(@NotNull Player player) {
         GameMode previousMode = playerGameModes.get(player.getUniqueId());
         if (previousMode != null) {
             player.setGameMode(previousMode);
+        } else {
+            player.setGameMode(GameMode.SURVIVAL);
         }
-        
-        // Player stats restoration is now handled by individual plugin configs (e.g., AuraSkills world disabling)
-        
-        // Teleport to configured location
-        if (plugin.getConfig().getBoolean("lobby.teleport-on-leave", true)) {
+    }
+    
+    /**
+     * Restores the player's location.
+     */
+    private void restoreLocation(@NotNull Player player) {
+        Location previousLocation = previousLocations.get(player.getUniqueId());
+        if (previousLocation != null) {
+            player.teleport(previousLocation);
+        } else {
             teleportToLobby(player);
-        } else if (plugin.getConfig().getBoolean("game.save-location", true)) {
-            Location originalLocation = previousLocations.get(player.getUniqueId());
-            if (originalLocation != null) {
-                player.teleport(originalLocation);
+        }
+    }
+    
+    /**
+     * Restores the player's inventory and experience.
+     */
+    private void restoreInventoryAndExperience(@NotNull Player player) {
+        UUID playerId = player.getUniqueId();
+        
+        // Restore inventory contents
+        String serializedInventory = inventories.get(playerId);
+        String serializedArmor = armorContents.get(playerId);
+        
+        if (serializedInventory != null && serializedArmor != null) {
+            try {
+                ItemStack[] contents = InventoryUtils.itemStackArrayFromBase64(serializedInventory);
+                ItemStack[] armor = InventoryUtils.itemStackArrayFromBase64(serializedArmor);
+                
+                player.getInventory().setContents(contents);
+                player.getInventory().setArmorContents(armor);
+            } catch (Exception e) {
+                logger.warn("Failed to restore inventory for player: " + player.getName(), e);
+                player.getInventory().clear();
             }
         }
+        
+        // Restore experience
+        player.setLevel(playerExperienceLevels.getOrDefault(playerId, 0));
+        player.setExp(playerExperiencePoints.getOrDefault(playerId, 0.0f));
+    }
+    
+    /**
+     * Restores the player's hunger and potion effects.
+     */
+    private void restoreHungerAndEffects(@NotNull Player player) {
+        UUID playerId = player.getUniqueId();
+        
+        // Restore hunger and saturation
+        player.setFoodLevel(playerFoodLevels.getOrDefault(playerId, 20));
+        player.setSaturation(playerSaturationLevels.getOrDefault(playerId, 20.0f));
+        
+        // Restore potion effects
+        String serializedEffects = playerPotionEffects.get(playerId);
+        if (serializedEffects != null) {
+            // Remove current effects first
+            player.getActivePotionEffects().forEach(effect -> 
+                player.removePotionEffect(effect.getType()));
+            
+            // Apply stored effects
+            deserializePotionEffects(serializedEffects).forEach(effect -> 
+                player.addPotionEffect(effect));
+        }
+    }
+    
+    /**
+     * Performs a basic restore if full restoration fails.
+     */
+    private void performBasicRestore(@NotNull Player player) {
+        player.setGameMode(GameMode.SURVIVAL);
+        player.getInventory().clear();
+        player.setLevel(0);
+        player.setExp(0.0f);
+        player.setFoodLevel(20);
+        player.setSaturation(20.0f);
+        player.getActivePotionEffects().forEach(effect -> 
+            player.removePotionEffect(effect.getType()));
+        teleportToLobby(player);
+    }
+    
+    /**
+     * Clears all stored data for a player.
+     */
+    private void clearStoredPlayerData(@NotNull UUID playerId) {
+        playerLocations.remove(playerId);
+        playerGameModes.remove(playerId);
+        inventories.remove(playerId);
+        armorContents.remove(playerId);
+        playerExperienceLevels.remove(playerId);
+        playerExperiencePoints.remove(playerId);
+        previousLocations.remove(playerId);
+        playerFoodLevels.remove(playerId);
+        playerSaturationLevels.remove(playerId);
+        playerPotionEffects.remove(playerId);
+        playerCache.remove(playerId);
+    }
+    
+    /**
+     * Deserializes potion effects from a Base64 encoded string.
+     */
+    private @NotNull Collection<org.bukkit.potion.PotionEffect> deserializePotionEffects(@Nullable String serialized) {
+        if (serialized == null || serialized.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        try {
+            String jsonArray = decodeBase64(serialized);
+            return parseJsonArray(jsonArray).stream()
+                .map(this::parseEffectObject)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.warn("Failed to deserialize potion effects", e);
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Parses a single potion effect from its string representation.
+     */
+    private @Nullable org.bukkit.potion.PotionEffect parseEffectObject(@NotNull String effectStr) {
+        try {
+            Map<String, String> properties = parseEffectProperties(effectStr);
+            
+            String type = properties.get("type");
+            if (type == null) return null;
+            
+            org.bukkit.potion.PotionEffectType effectType = org.bukkit.potion.PotionEffectType.getByName(type);
+            if (effectType == null) return null;
+            
+            int duration = Integer.parseInt(properties.getOrDefault("duration", "0"));
+            int amplifier = Integer.parseInt(properties.getOrDefault("amplifier", "0"));
+            boolean ambient = Boolean.parseBoolean(properties.getOrDefault("ambient", "false"));
+            boolean particles = Boolean.parseBoolean(properties.getOrDefault("particles", "true"));
+            boolean icon = Boolean.parseBoolean(properties.getOrDefault("icon", "true"));
+            
+            return new org.bukkit.potion.PotionEffect(
+                effectType,
+                duration,
+                amplifier,
+                ambient,
+                particles,
+                icon
+            );
+        } catch (Exception e) {
+            logger.warn("Failed to parse potion effect: " + effectStr, e);
+            return null;
+        }
+    }
+    
+    /**
+     * Parses effect properties from a string representation.
+     */
+    private @NotNull Map<String, String> parseEffectProperties(@NotNull String propertiesStr) {
+        Map<String, String> properties = new HashMap<>();
+        String[] pairs = propertiesStr.split(",");
+        
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim();
+                String value = keyValue[1].trim();
+                if (!key.isEmpty() && !value.isEmpty()) {
+                    properties.put(key, value);
+                }
+            }
+        }
+        
+        return properties;
     }
     
     /**
@@ -571,30 +703,6 @@ public class GamePlayerManager {
     }
     
     /**
-     * Deserializes potion effects from a Base64 string.
-     * 
-     * @param serialized The Base64 encoded string containing potion effect data
-     * @return A collection of potion effects, or empty collection if deserialization fails
-     */
-    private @NotNull Collection<org.bukkit.potion.PotionEffect> deserializePotionEffects(@Nullable String serialized) {
-        if (serialized == null || serialized.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        try {
-            String json = decodeBase64(serialized);
-            List<String> effectStrings = parseJsonArray(json);
-            return effectStrings.stream()
-                .map(this::parseEffectObject)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        } catch (Exception e) {
-            logger.warn("Failed to deserialize potion effects from: " + serialized, e);
-            return Collections.emptyList();
-        }
-    }
-    
-    /**
      * Decodes a Base64 string to UTF-8.
      */
     private @NotNull String decodeBase64(@NotNull String base64) {
@@ -618,61 +726,6 @@ public class GamePlayerManager {
         }
         
         return Arrays.asList(json.split("\\},\\{"));
-    }
-    
-    /**
-     * Parses a single effect object string into a PotionEffect.
-     */
-    private @Nullable org.bukkit.potion.PotionEffect parseEffectObject(@NotNull String effectStr) {
-        try {
-            // Clean up object string
-            effectStr = effectStr.trim();
-            if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
-            if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
-            
-            // Parse properties into a map
-            Map<String, String> properties = parseEffectProperties(effectStr);
-            
-            // Extract and validate required type
-            String type = properties.get("type");
-            if (type == null) return null;
-            
-            org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(
-                org.bukkit.NamespacedKey.fromString(type)
-            );
-            if (effectType == null) return null;
-            
-            // Create effect with parsed properties
-            return new org.bukkit.potion.PotionEffect(
-                effectType,
-                Integer.parseInt(properties.getOrDefault("duration", "0")),
-                Integer.parseInt(properties.getOrDefault("amplifier", "0")),
-                Boolean.parseBoolean(properties.getOrDefault("ambient", "false")),
-                Boolean.parseBoolean(properties.getOrDefault("particles", "true")),
-                Boolean.parseBoolean(properties.getOrDefault("icon", "true"))
-            );
-        } catch (Exception e) {
-            logger.debug("Failed to parse effect object: " + effectStr, e);
-            return null;
-        }
-    }
-    
-    /**
-     * Parses effect properties string into a map of key-value pairs.
-     */
-    private @NotNull Map<String, String> parseEffectProperties(@NotNull String propertiesStr) {
-        Map<String, String> properties = new HashMap<>();
-        
-        for (String prop : propertiesStr.split(",")) {
-            String[] keyValue = prop.split(":", 2);
-            if (keyValue.length == 2) {
-                String key = keyValue[0].trim().replace("\"", "");
-                String value = keyValue[1].trim().replace("\"", "");
-                properties.put(key, value);
-            }
-        }
-        
-        return properties;
     }
     
     /**

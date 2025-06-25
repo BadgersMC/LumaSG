@@ -11,6 +11,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.function.Predicate;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Utility class for advanced error handling, retry mechanisms, and error classification.
@@ -43,6 +46,8 @@ public final class ErrorHandlingUtils {
      */
     public static final double DEFAULT_BACKOFF_MULTIPLIER = 2.0;
     
+    private static final ErrorClassifier ERROR_CLASSIFIER = new ErrorClassifier();
+    
     private ErrorHandlingUtils() {
         // Utility class - prevent instantiation
     }
@@ -68,47 +73,10 @@ public final class ErrorHandlingUtils {
             @NotNull Logger logger,
             @NotNull String operationName) throws LumaSGException {
         
-        Exception lastException = null;
-        long currentDelay = initialDelayMs;
-        
-        for (int attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-                if (attempt > 0) {
-                    logger.info("Retrying " + operationName + " (attempt " + (attempt + 1) + "/" + (maxRetries + 1) + ")");
-                    
-                    // Wait before retry
-                    try {
-                        Thread.sleep(currentDelay);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw LumaSGException.configError("Operation interrupted during retry: " + operationName, e);
-                    }
-                    
-                    // Exponential backoff
-                    currentDelay = (long) (currentDelay * backoffMultiplier);
-                }
-                
-                return operation.get();
-                
-            } catch (Exception e) {
-                lastException = e;
-                
-                if (attempt == maxRetries) {
-                    logger.log(Level.SEVERE, "All retry attempts failed for " + operationName, e);
-                    break;
-                }
-                
-                if (!isRecoverableError(e)) {
-                    logger.log(Level.SEVERE, "Non-recoverable error in " + operationName + ", aborting retries", e);
-                    break;
-                }
-                
-                logger.log(Level.WARNING, "Recoverable error in " + operationName + " (attempt " + (attempt + 1) + "), will retry", e);
-            }
-        }
-        
-        // All retries failed
-        throw LumaSGException.configError("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, lastException);
+        RetryContext<T> context = new RetryContext<>(
+            operation, maxRetries, initialDelayMs, backoffMultiplier, logger, operationName);
+            
+        return context.execute();
     }
     
     /**
@@ -148,55 +116,10 @@ public final class ErrorHandlingUtils {
             @NotNull Logger logger,
             @NotNull String operationName) {
         
-        return executeAsyncWithRetryInternal(operation, 0, maxRetries, initialDelayMs, backoffMultiplier, logger, operationName);
-    }
-    
-    private static <T> CompletableFuture<T> executeAsyncWithRetryInternal(
-            @NotNull Supplier<CompletableFuture<T>> operation,
-            int currentAttempt,
-            int maxRetries,
-            long currentDelay,
-            double backoffMultiplier,
-            @NotNull Logger logger,
-            @NotNull String operationName) {
-        
-        if (currentAttempt > 0) {
-            logger.info("Retrying " + operationName + " (attempt " + (currentAttempt + 1) + "/" + (maxRetries + 1) + ")");
-        }
-        
-        return operation.get()
-            .exceptionally(throwable -> {
-                if (currentAttempt >= maxRetries) {
-                    logger.log(Level.SEVERE, "All async retry attempts failed for " + operationName, throwable);
-                    throw new RuntimeException("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, throwable);
-                }
-                
-                if (!isRecoverableError(throwable)) {
-                    logger.log(Level.SEVERE, "Non-recoverable error in async " + operationName + ", aborting retries", throwable);
-                    throw new RuntimeException("Non-recoverable error: " + operationName, throwable);
-                }
-                
-                logger.log(Level.WARNING, "Recoverable error in async " + operationName + " (attempt " + (currentAttempt + 1) + "), will retry", throwable);
-                return null; // Will trigger retry
-            })
-            .thenCompose(result -> {
-                if (result == null) {
-                    // Retry needed
-                    return CompletableFuture
-                        .supplyAsync(() -> null, CompletableFuture.delayedExecutor(currentDelay, TimeUnit.MILLISECONDS))
-                        .thenCompose(v -> executeAsyncWithRetryInternal(
-                            operation, 
-                            currentAttempt + 1, 
-                            maxRetries, 
-                            (long) (currentDelay * backoffMultiplier), 
-                            backoffMultiplier, 
-                            logger, 
-                            operationName
-                        ));
-                } else {
-                    return CompletableFuture.completedFuture(result);
-                }
-            });
+        AsyncRetryContext<T> context = new AsyncRetryContext<>(
+            operation, maxRetries, initialDelayMs, backoffMultiplier, logger, operationName);
+            
+        return context.execute();
     }
     
     /**
@@ -206,79 +129,7 @@ public final class ErrorHandlingUtils {
      * @return true if the error is recoverable, false otherwise
      */
     public static boolean isRecoverableError(@NotNull Throwable throwable) {
-        // Check each error type in order of specificity
-        if (isIOError(throwable)) return true;
-        if (isSQLError(throwable)) return true;
-        if (isRuntimeError(throwable)) return true;
-        if (isLumaSGError(throwable)) return true;
-        if (isUnrecoverableError(throwable)) return false;
-        
-        // Default to recoverable for unknown exceptions
-        return true;
-    }
-    
-    /**
-     * Checks if the error is an IO-related error.
-     */
-    private static boolean isIOError(@NotNull Throwable throwable) {
-        return throwable instanceof IOException;
-    }
-    
-    /**
-     * Checks if the error is a recoverable SQL error.
-     */
-    private static boolean isSQLError(@NotNull Throwable throwable) {
-        if (!(throwable instanceof SQLException)) return false;
-        
-        SQLException sqlException = (SQLException) throwable;
-        String sqlState = sqlException.getSQLState();
-        String message = sqlException.getMessage();
-        
-        if (message == null) return false;
-        String lowerMessage = message.toLowerCase();
-        
-        // Connection errors (08xxx) are recoverable
-        if (sqlState != null && sqlState.startsWith("08")) return true;
-        
-        // Timeout or lock errors are recoverable
-        return lowerMessage.contains("timeout") || lowerMessage.contains("lock");
-    }
-    
-    /**
-     * Checks if the error is a recoverable runtime error.
-     */
-    private static boolean isRuntimeError(@NotNull Throwable throwable) {
-        if (!(throwable instanceof RuntimeException)) return false;
-        
-        String message = throwable.getMessage();
-        if (message == null) return false;
-        
-        String lowerMessage = message.toLowerCase();
-        return lowerMessage.contains("timeout") || 
-               lowerMessage.contains("connection") ||
-               lowerMessage.contains("temporary") ||
-               lowerMessage.contains("busy");
-    }
-    
-    /**
-     * Checks if the error is a recoverable LumaSG error.
-     */
-    private static boolean isLumaSGError(@NotNull Throwable throwable) {
-        // Most database errors are recoverable
-        if (throwable instanceof LumaSGException.DatabaseException) return true;
-        
-        // Configuration and validation errors are not recoverable
-        return !(throwable instanceof LumaSGException.ConfigurationException ||
-                throwable instanceof LumaSGException.ValidationException);
-    }
-    
-    /**
-     * Checks if the error is a known unrecoverable error type.
-     */
-    private static boolean isUnrecoverableError(@NotNull Throwable throwable) {
-        return throwable instanceof IllegalArgumentException ||
-               throwable instanceof NullPointerException ||
-               throwable instanceof InterruptedException;
+        return ERROR_CLASSIFIER.isRecoverable(throwable);
     }
     
     /**
@@ -296,23 +147,8 @@ public final class ErrorHandlingUtils {
                                @Nullable String context, 
                                @NotNull Throwable throwable) {
         
-        StringBuilder message = new StringBuilder();
-        message.append("Error in ").append(operation);
-        
-        if (context != null && !context.trim().isEmpty()) {
-            message.append(" (").append(context).append(")");
-        }
-        
-        message.append(": ").append(throwable.getMessage());
-        
-        // Add error classification
-        if (isRecoverableError(throwable)) {
-            message.append(" [RECOVERABLE]");
-        } else {
-            message.append(" [FATAL]");
-        }
-        
-        logger.log(level, message.toString(), throwable);
+        String message = buildErrorMessage(operation, context);
+        logger.log(level, message, throwable);
     }
     
     /**
@@ -341,6 +177,14 @@ public final class ErrorHandlingUtils {
                                @NotNull String operation, 
                                @NotNull Throwable throwable) {
         logError(logger, Level.SEVERE, operation, null, throwable);
+    }
+    
+    private static String buildErrorMessage(String operation, String context) {
+        StringBuilder message = new StringBuilder("Error in operation: ").append(operation);
+        if (context != null && !context.isEmpty()) {
+            message.append(" (").append(context).append(")");
+        }
+        return message.toString();
     }
     
     /**
@@ -466,5 +310,242 @@ public final class ErrorHandlingUtils {
         public int getFailureCount() {
             return failureCount;
         }
+    }
+    
+    /**
+     * Context class for retry operations.
+     */
+    private static class RetryContext<T> {
+        private final Supplier<T> operation;
+        private final int maxRetries;
+        private final long initialDelayMs;
+        private final double backoffMultiplier;
+        private final Logger logger;
+        private final String operationName;
+        private Exception lastException;
+        private long currentDelay;
+        
+        RetryContext(
+                Supplier<T> operation,
+                int maxRetries,
+                long initialDelayMs,
+                double backoffMultiplier,
+                Logger logger,
+                String operationName) {
+            this.operation = operation;
+            this.maxRetries = maxRetries;
+            this.initialDelayMs = initialDelayMs;
+            this.backoffMultiplier = backoffMultiplier;
+            this.logger = logger;
+            this.operationName = operationName;
+            this.currentDelay = initialDelayMs;
+        }
+        
+        T execute() throws LumaSGException {
+            for (int attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        handleRetryDelay(attempt);
+                    }
+                    return operation.get();
+                } catch (Exception e) {
+                    if (!handleError(e, attempt)) break;
+                }
+            }
+            throw LumaSGException.configError(
+                "Operation failed after " + (maxRetries + 1) + " attempts: " + operationName,
+                lastException);
+        }
+        
+        private void handleRetryDelay(int attempt) throws LumaSGException {
+            logger.info("Retrying " + operationName + " (attempt " + attempt + "/" + (maxRetries + 1) + ")");
+            try {
+                Thread.sleep(currentDelay);
+                currentDelay = (long) (currentDelay * backoffMultiplier);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw LumaSGException.configError("Operation interrupted during retry: " + operationName, e);
+            }
+        }
+        
+        private boolean handleError(Exception e, int attempt) {
+            lastException = e;
+            
+            if (attempt == maxRetries) {
+                logger.log(Level.SEVERE, "All retry attempts failed for " + operationName, e);
+                return false;
+            }
+            
+            if (!isRecoverableError(e)) {
+                logger.log(Level.SEVERE, "Non-recoverable error in " + operationName + ", aborting retries", e);
+                return false;
+            }
+            
+            logger.log(Level.WARNING, "Recoverable error in " + operationName + " (attempt " + (attempt + 1) + "), will retry", e);
+            return true;
+        }
+    }
+    
+    /**
+     * Context class for async retry operations.
+     */
+    private static class AsyncRetryContext<T> {
+        private final Supplier<CompletableFuture<T>> operation;
+        private final int maxRetries;
+        private final long initialDelayMs;
+        private final double backoffMultiplier;
+        private final Logger logger;
+        private final String operationName;
+        
+        AsyncRetryContext(
+                Supplier<CompletableFuture<T>> operation,
+                int maxRetries,
+                long initialDelayMs,
+                double backoffMultiplier,
+                Logger logger,
+                String operationName) {
+            this.operation = operation;
+            this.maxRetries = maxRetries;
+            this.initialDelayMs = initialDelayMs;
+            this.backoffMultiplier = backoffMultiplier;
+            this.logger = logger;
+            this.operationName = operationName;
+        }
+        
+        CompletableFuture<T> execute() {
+            return executeWithRetry(0, initialDelayMs);
+        }
+        
+        private CompletableFuture<T> executeWithRetry(int currentAttempt, long currentDelay) {
+            if (currentAttempt > 0) {
+                logger.info("Retrying " + operationName + " (attempt " + (currentAttempt + 1) + "/" + (maxRetries + 1) + ")");
+            }
+            
+            return operation.get()
+                .exceptionally(throwable -> handleError(throwable, currentAttempt, currentDelay))
+                .thenCompose(result -> {
+                    if (result == null && currentAttempt < maxRetries) {
+                        return scheduleRetry(currentAttempt, currentDelay);
+                    }
+                    return CompletableFuture.completedFuture(result);
+                });
+        }
+        
+        private T handleError(Throwable throwable, int currentAttempt, long currentDelay) {
+            if (currentAttempt >= maxRetries) {
+                logger.log(Level.SEVERE, "All async retry attempts failed for " + operationName, throwable);
+                throw new RuntimeException("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, throwable);
+            }
+            
+            if (!isRecoverableError(throwable)) {
+                logger.log(Level.SEVERE, "Non-recoverable error in async " + operationName + ", aborting retries", throwable);
+                throw new RuntimeException("Non-recoverable error: " + operationName, throwable);
+            }
+            
+            logger.log(Level.WARNING, "Recoverable error in async " + operationName + " (attempt " + (currentAttempt + 1) + "), will retry", throwable);
+            return null;
+        }
+        
+        private CompletableFuture<T> scheduleRetry(int currentAttempt, long currentDelay) {
+            return CompletableFuture
+                .supplyAsync(() -> null, CompletableFuture.delayedExecutor(currentDelay, TimeUnit.MILLISECONDS))
+                .thenCompose(v -> executeWithRetry(
+                    currentAttempt + 1,
+                    (long) (currentDelay * backoffMultiplier)
+                ));
+        }
+    }
+}
+
+/**
+ * Handles error classification logic.
+ */
+class ErrorClassifier {
+    private final Map<Class<? extends Throwable>, Predicate<Throwable>> errorClassifiers;
+    
+    ErrorClassifier() {
+        errorClassifiers = new HashMap<>();
+        initializeClassifiers();
+    }
+    
+    private void initializeClassifiers() {
+        // IO errors are always recoverable
+        errorClassifiers.put(IOException.class, throwable -> true);
+        
+        // SQL errors are recoverable if they're connection or timeout related
+        errorClassifiers.put(SQLException.class, this::isRecoverableSQLError);
+        
+        // Runtime errors are recoverable if they're timeout or resource related
+        errorClassifiers.put(RuntimeException.class, this::isRecoverableRuntimeError);
+        
+        // LumaSG errors are recoverable based on their type
+        errorClassifiers.put(LumaSGException.class, this::isRecoverableLumaSGError);
+    }
+    
+    boolean isRecoverable(Throwable throwable) {
+        // Check each registered error type
+        for (Map.Entry<Class<? extends Throwable>, Predicate<Throwable>> entry : errorClassifiers.entrySet()) {
+            if (entry.getKey().isInstance(throwable)) {
+                return entry.getValue().test(throwable);
+            }
+        }
+        
+        // Check for unrecoverable error types
+        if (isUnrecoverableError(throwable)) {
+            return false;
+        }
+        
+        // Default to recoverable for unknown exceptions
+        return true;
+    }
+    
+    private boolean isRecoverableSQLError(Throwable throwable) {
+        SQLException sqlException = (SQLException) throwable;
+        String sqlState = sqlException.getSQLState();
+        String message = sqlException.getMessage();
+        
+        if (message == null) return false;
+        String lowerMessage = message.toLowerCase();
+        
+        // Connection errors (08xxx) are recoverable
+        if (sqlState != null && sqlState.startsWith("08")) return true;
+        
+        // Timeout or lock errors are recoverable
+        return lowerMessage.contains("timeout") || lowerMessage.contains("lock");
+    }
+    
+    private boolean isRecoverableRuntimeError(Throwable throwable) {
+        if (throwable.getMessage() == null) return false;
+        String message = throwable.getMessage().toLowerCase();
+        
+        // Common recoverable runtime errors
+        return message.contains("timeout") ||
+               message.contains("too many connections") ||
+               message.contains("connection reset") ||
+               message.contains("temporarily unavailable");
+    }
+    
+    private boolean isRecoverableLumaSGError(Throwable throwable) {
+        // Most database errors are recoverable
+        if (throwable instanceof LumaSGException.DatabaseException) return true;
+        
+        // Game and arena errors might be recoverable depending on context
+        if (throwable instanceof LumaSGException.GameException ||
+            throwable instanceof LumaSGException.ArenaException ||
+            throwable instanceof LumaSGException.ChestException) {
+            return true;
+        }
+        
+        // Configuration, validation, and player errors are not recoverable
+        return !(throwable instanceof LumaSGException.ConfigurationException ||
+                throwable instanceof LumaSGException.ValidationException ||
+                throwable instanceof LumaSGException.PlayerException);
+    }
+    
+    private boolean isUnrecoverableError(Throwable throwable) {
+        return throwable instanceof OutOfMemoryError ||
+               throwable instanceof StackOverflowError ||
+               throwable instanceof LinkageError ||
+               throwable instanceof AssertionError;
     }
 } 

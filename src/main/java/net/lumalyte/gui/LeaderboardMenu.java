@@ -5,6 +5,7 @@ import net.lumalyte.statistics.PlayerStats;
 import net.lumalyte.statistics.StatType;
 import net.lumalyte.util.DebugLogger;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import xyz.xenondevs.invui.gui.Gui;
@@ -17,16 +18,37 @@ import xyz.xenondevs.invui.window.Window;
 
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * GUI menu for displaying player leaderboards.
  */
 public class LeaderboardMenu {
+    private static final String GUI_STRUCTURE = 
+        "# k # w # g # d #" +
+        "# # # c # # # # #" +
+        "# l l l l l l l #" +
+        "# l l l l l l l #" +
+        "# l l l l l l l #" +
+        "# # # # b # # # #";
+        
+    private static final Map<StatType, TabItemConfig> TAB_CONFIGS = new EnumMap<>(StatType.class);
+    
+    static {
+        TAB_CONFIGS.put(StatType.KILLS, new TabItemConfig(Material.DIAMOND_SWORD, Material.IRON_SWORD, "Kills"));
+        TAB_CONFIGS.put(StatType.WINS, new TabItemConfig(Material.GOLDEN_APPLE, Material.APPLE, "Wins"));
+        TAB_CONFIGS.put(StatType.GAMES_PLAYED, new TabItemConfig(Material.BOOK, Material.WRITABLE_BOOK, "Games"));
+        TAB_CONFIGS.put(StatType.DAMAGE_DEALT, new TabItemConfig(Material.DIAMOND_AXE, Material.IRON_AXE, "Damage"));
+        TAB_CONFIGS.put(StatType.CHESTS_OPENED, new TabItemConfig(Material.CHEST, Material.BARREL, "Chests"));
+    }
+    
     private final LumaSG plugin;
     private final DecimalFormat decimalFormat = new DecimalFormat("#.##");
-    
-    /** The debug logger instance for this leaderboard menu */
     private final DebugLogger.ContextualLogger logger;
+    private final LeaderboardLayout layout;
     
     /**
      * Creates a new leaderboard menu.
@@ -36,6 +58,7 @@ public class LeaderboardMenu {
     public LeaderboardMenu(LumaSG plugin) {
         this.plugin = plugin;
         this.logger = plugin.getDebugLogger().forContext("LeaderboardMenu");
+        this.layout = new LeaderboardLayout();
     }
     
     /**
@@ -54,183 +77,78 @@ public class LeaderboardMenu {
      * @param statType The statistic type to display
      */
     public void openLeaderboardTab(Player player, StatType statType) {
-        // Create tab items
-        Item killsTabItem = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                Material material = statType == StatType.KILLS ? Material.DIAMOND_SWORD : Material.IRON_SWORD;
-                String name = statType == StatType.KILLS ? "§e§lKills §7(Current)" : "§7Kills";
-                return new ItemBuilder(material).setDisplayName(name);
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.KILLS) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.KILLS);
-                }
-            }
-        };
-        
-        Item winsTabItem = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                Material material = statType == StatType.WINS ? Material.GOLDEN_APPLE : Material.APPLE;
-                String name = statType == StatType.WINS ? "§e§lWins §7(Current)" : "§7Wins";
-                return new ItemBuilder(material).setDisplayName(name);
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.WINS) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.WINS);
-                }
-            }
-        };
-        
-        Item gamesTabItem = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                Material material = statType == StatType.GAMES_PLAYED ? Material.BOOK : Material.WRITABLE_BOOK;
-                String name = statType == StatType.GAMES_PLAYED ? "§e§lGames §7(Current)" : "§7Games";
-                return new ItemBuilder(material).setDisplayName(name);
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.GAMES_PLAYED) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.GAMES_PLAYED);
-                }
-            }
-        };
-        
-        Item damageTabItem = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                Material material = statType == StatType.DAMAGE_DEALT ? Material.DIAMOND_AXE : Material.IRON_AXE;
-                String name = statType == StatType.DAMAGE_DEALT ? "§e§lDamage §7(Current)" : "§7Damage";
-                return new ItemBuilder(material).setDisplayName(name);
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.DAMAGE_DEALT) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.DAMAGE_DEALT);
-                }
-            }
-        };
-        
-        Item chestsTabItem = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                Material material = statType == StatType.CHESTS_OPENED ? Material.CHEST : Material.BARREL;
-                String name = statType == StatType.CHESTS_OPENED ? "§e§lChests §7(Current)" : "§7Chests";
-                return new ItemBuilder(material).setDisplayName(name);
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.CHESTS_OPENED) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.CHESTS_OPENED);
-                }
-            }
-        };
-        
-        // Create border and back button items
-        Item borderItem = new SimpleItem(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
-            .setDisplayName(""));
-        
-        Item backButton = new AbstractItem() {
-            @Override
-            public ItemProvider getItemProvider() {
-                return new ItemBuilder(Material.ARROW)
-                    .setDisplayName("§c§lBack")
-                    .addLoreLines("§7Click to go back to main menu");
-            }
-            
-            @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
-                if (clickType.isLeftClick() && statType != StatType.GAMES_PLAYED) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    openLeaderboardTab(player, StatType.GAMES_PLAYED);
-                }
-            }
-        };
-        
-        // Create loading item for leaderboard data
-        Item loadingItem = new SimpleItem(new ItemBuilder(Material.HOPPER)
-            .setDisplayName("§e§lLoading...")
-            .addLoreLines("§7Fetching leaderboard data..."));
-        
-        // Create the GUI structure with loading items
-        Gui gui = Gui.normal()
-            .setStructure(
-                "# k # w # g # d #",
-                "# # # c # # # # #",
-                "# l l l l l l l #",
-                "# l l l l l l l #",
-                "# l l l l l l l #",
-                "# # # # b # # # #"
-            )
-            .addIngredient('#', borderItem)
-            .addIngredient('k', killsTabItem)
-            .addIngredient('w', winsTabItem)
-            .addIngredient('g', gamesTabItem)
-            .addIngredient('d', damageTabItem)
-            .addIngredient('c', chestsTabItem)
-            .addIngredient('l', loadingItem)
-            .addIngredient('b', backButton)
+        Gui gui = createBaseGui(statType);
+        Window window = createWindow(player, statType, gui);
+        window.open();
+        loadLeaderboardData(player, gui, statType);
+    }
+    
+    private Gui createBaseGui(StatType statType) {
+        return Gui.normal()
+            .setStructure(GUI_STRUCTURE)
+            .addIngredient('#', createBorderItem())
+            .addIngredient('k', createTabItem(StatType.KILLS, statType))
+            .addIngredient('w', createTabItem(StatType.WINS, statType))
+            .addIngredient('g', createTabItem(StatType.GAMES_PLAYED, statType))
+            .addIngredient('d', createTabItem(StatType.DAMAGE_DEALT, statType))
+            .addIngredient('c', createTabItem(StatType.CHESTS_OPENED, statType))
+            .addIngredient('l', createLoadingItem())
+            .addIngredient('b', createBackButton())
             .build();
-        
-        // Create and open the window
-        Window window = Window.single()
+    }
+    
+    private Window createWindow(Player player, StatType statType, Gui gui) {
+        return Window.single()
             .setViewer(player)
             .setTitle("§8§lLumaSG §7- §f" + getStatTypeDisplayName(statType) + " Leaderboard")
             .setGui(gui)
             .build();
-        
-        window.open();
-        
-        // Load leaderboard data asynchronously
-        loadLeaderboardData(player, gui, statType);
+    }
+    
+    private Item createBorderItem() {
+        return new SimpleItem(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
+            .setDisplayName(""));
+    }
+    
+    private Item createTabItem(StatType tabType, StatType currentStatType) {
+        TabItemConfig config = TAB_CONFIGS.get(tabType);
+        return new LeaderboardTabItem(
+            tabType,
+            currentStatType,
+            config,
+            player -> openLeaderboardTab(player, tabType)
+        );
+    }
+    
+    private Item createBackButton() {
+        return new LeaderboardActionItem(
+            Material.ARROW,
+            "§c§lBack",
+            "§7Click to go back to main menu",
+            this::openMenu
+        );
+    }
+    
+    private Item createLoadingItem() {
+        return new SimpleItem(new ItemBuilder(Material.HOPPER)
+            .setDisplayName("§e§lLoading...")
+            .addLoreLines("§7Fetching leaderboard data..."));
     }
     
     /**
      * Loads leaderboard data asynchronously and updates the GUI.
      */
     private void loadLeaderboardData(Player player, Gui gui, StatType statType) {
-        plugin.getStatisticsManager().getLeaderboard(statType, 21) // 3x7 grid
-            .thenAccept(leaderboard -> {
-                // Update GUI on main thread
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    updateLeaderboardGUI(gui, leaderboard, statType);
-                });
-            })
+        CompletableFuture<List<PlayerStats>> future = plugin.getStatisticsManager()
+            .getLeaderboard(statType, layout.getMaxEntries());
+            
+        future.thenAccept(leaderboard -> 
+            plugin.getServer().getScheduler().runTask(plugin, () -> 
+                updateLeaderboardGUI(gui, leaderboard, statType)))
             .exceptionally(throwable -> {
                 logger.warn("Failed to load leaderboard data: " + throwable.getMessage());
-                
-                // Show error on main thread
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    Item errorItem = new SimpleItem(new ItemBuilder(Material.BARRIER)
-                        .setDisplayName("§c§lError")
-                        .addLoreLines("§7Failed to load leaderboard data"));
-                    
-                    // Replace loading items with error item (rows 3-5)
-                    for (int slot = 18; slot <= 24; slot++) {
-                        gui.setItem(slot, errorItem);
-                    }
-                    for (int slot = 27; slot <= 33; slot++) {
-                        gui.setItem(slot, errorItem);
-                    }
-                    for (int slot = 36; slot <= 42; slot++) {
-                        gui.setItem(slot, errorItem);
-                    }
-                });
-                
+                plugin.getServer().getScheduler().runTask(plugin, () -> 
+                    handleLoadError(gui));
                 return null;
             });
     }
@@ -239,33 +157,31 @@ public class LeaderboardMenu {
      * Updates the GUI with leaderboard data.
      */
     private void updateLeaderboardGUI(Gui gui, List<PlayerStats> leaderboard, StatType statType) {
-        // Define the slots for leaderboard items (3x7 grid in rows 3-5)
-        int[] slots = {
-            18, 19, 20, 21, 22, 23, 24,  // Row 3
-            27, 28, 29, 30, 31, 32, 33,  // Row 4
-            36, 37, 38, 39, 40, 41, 42   // Row 5
-        };
+        layout.getSlots().forEach(slot -> gui.setItem(slot, null));
         
-        // Clear existing items
-        for (int slot : slots) {
-            gui.setItem(slot, null);
-        }
-        
-        // Add leaderboard entries
-        for (int i = 0; i < Math.min(leaderboard.size(), slots.length); i++) {
+        for (int i = 0; i < Math.min(leaderboard.size(), layout.getMaxEntries()); i++) {
             PlayerStats stats = leaderboard.get(i);
-            int rank = i + 1;
-            
-            Item playerItem = createLeaderboardItem(stats, rank, statType);
-            gui.setItem(slots[i], playerItem);
+            Item playerItem = createLeaderboardItem(stats, i + 1, statType);
+            gui.setItem(layout.getSlots().get(i), playerItem);
         }
         
-        // Fill remaining slots with empty items if needed
+        fillEmptySlots(gui, leaderboard.size());
+    }
+    
+    private void handleLoadError(Gui gui) {
+        Item errorItem = new SimpleItem(new ItemBuilder(Material.BARRIER)
+            .setDisplayName("§c§lError")
+            .addLoreLines("§7Failed to load leaderboard data"));
+            
+        layout.getSlots().forEach(slot -> gui.setItem(slot, errorItem));
+    }
+    
+    private void fillEmptySlots(Gui gui, int filledSlots) {
         Item emptyItem = new SimpleItem(new ItemBuilder(Material.LIGHT_GRAY_STAINED_GLASS_PANE)
             .setDisplayName(""));
-        
-        for (int i = leaderboard.size(); i < slots.length; i++) {
-            gui.setItem(slots[i], emptyItem);
+            
+        for (int i = filledSlots; i < layout.getMaxEntries(); i++) {
+            gui.setItem(layout.getSlots().get(i), emptyItem);
         }
     }
     
@@ -273,38 +189,25 @@ public class LeaderboardMenu {
      * Creates a leaderboard item for a player.
      */
     private Item createLeaderboardItem(PlayerStats stats, int rank, StatType statType) {
-        Material material = switch (rank) {
-            case 1 -> Material.GOLDEN_HELMET;
-            case 2 -> Material.IRON_HELMET;
-            case 3 -> Material.LEATHER_HELMET;
-            default -> Material.PLAYER_HEAD;
-        };
-        
-        String rankColor = switch (rank) {
-            case 1 -> "§6";
-            case 2 -> "§7";
-            case 3 -> "§c";
-            default -> "§e";
-        };
-        
-        String statValue = getStatValueString(stats, statType);
+        Material material = getMaterialForRank(rank);
+        String displayName = String.format("§e§l#%d §f%s", rank, stats.getPlayerName());
+        String value = getStatValueString(stats, statType);
         
         return new SimpleItem(new ItemBuilder(material)
-            .setDisplayName(rankColor + "#" + rank + " §f" + stats.getPlayerName())
+            .setDisplayName(displayName)
             .addLoreLines(
-                "§7" + getStatTypeDisplayName(statType) + ": §f" + statValue,
-                "",
-                "§7Wins: §a" + stats.getWins(),
-                "§7Losses: §c" + stats.getLosses(),
-                "§7Kills: §e" + stats.getKills(),
-                "§7Deaths: §c" + stats.getDeaths(),
-                "§7Games Played: §b" + stats.getGamesPlayed(),
-                "§7K/D Ratio: §f" + decimalFormat.format(stats.getKillDeathRatio()),
-                "§7Win Rate: §f" + decimalFormat.format(stats.getWinRate()) + "%",
-                "",
-                "§7Damage Dealt: §6" + decimalFormat.format(stats.getTotalDamageDealt()),
-                "§7Chests Opened: §d" + stats.getChestsOpened()
+                "§7" + getStatTypeDisplayName(statType) + ": §e" + value,
+                "§8Last updated: §7" + stats.getLastUpdated()
             ));
+    }
+    
+    private Material getMaterialForRank(int rank) {
+        return switch (rank) {
+            case 1 -> Material.GOLDEN_HELMET;
+            case 2 -> Material.IRON_HELMET;
+            case 3 -> Material.COPPER_BLOCK;
+            default -> Material.PLAYER_HEAD;
+        };
     }
     
     /**
@@ -312,17 +215,12 @@ public class LeaderboardMenu {
      */
     private String getStatTypeDisplayName(StatType statType) {
         return switch (statType) {
-            case WINS -> "Wins";
             case KILLS -> "Kills";
+            case WINS -> "Wins";
             case GAMES_PLAYED -> "Games Played";
-            case KILL_DEATH_RATIO -> "K/D Ratio";
-            case WIN_RATE -> "Win Rate";
-            case TIME_PLAYED -> "Time Played";
-            case BEST_PLACEMENT -> "Best Placement";
-            case WIN_STREAK -> "Win Streak";
-            case TOP3_FINISHES -> "Top 3 Finishes";
             case DAMAGE_DEALT -> "Damage Dealt";
             case CHESTS_OPENED -> "Chests Opened";
+            default -> statType.name();
         };
     }
     
@@ -331,32 +229,102 @@ public class LeaderboardMenu {
      */
     private String getStatValueString(PlayerStats stats, StatType statType) {
         return switch (statType) {
-            case WINS -> String.valueOf(stats.getWins());
             case KILLS -> String.valueOf(stats.getKills());
+            case WINS -> String.valueOf(stats.getWins());
             case GAMES_PLAYED -> String.valueOf(stats.getGamesPlayed());
-            case KILL_DEATH_RATIO -> decimalFormat.format(stats.getKillDeathRatio());
-            case WIN_RATE -> decimalFormat.format(stats.getWinRate()) + "%";
-            case TIME_PLAYED -> formatTime(stats.getTotalTimePlayed());
-            case BEST_PLACEMENT -> stats.getBestPlacement() == 0 ? "N/A" : String.valueOf(stats.getBestPlacement());
-            case WIN_STREAK -> String.valueOf(stats.getBestWinStreak());
-            case TOP3_FINISHES -> String.valueOf(stats.getTop3Finishes());
             case DAMAGE_DEALT -> decimalFormat.format(stats.getTotalDamageDealt());
             case CHESTS_OPENED -> String.valueOf(stats.getChestsOpened());
+            default -> "N/A";
         };
     }
     
+    private static class LeaderboardLayout {
+        private final List<Integer> slots = List.of(
+            18, 19, 20, 21, 22, 23, 24,  // Row 3
+            27, 28, 29, 30, 31, 32, 33,  // Row 4
+            36, 37, 38, 39, 40, 41, 42   // Row 5
+        );
+        
+        public List<Integer> getSlots() {
+            return slots;
+        }
+        
+        public int getMaxEntries() {
+            return slots.size();
+        }
+    }
+    
     /**
-     * Formats time in seconds to a human-readable format.
+     * Configuration for a tab item.
      */
-    private String formatTime(long seconds) {
-        if (seconds < 60) {
-            return seconds + "s";
-        } else if (seconds < 3600) {
-            return (seconds / 60) + "m " + (seconds % 60) + "s";
-        } else {
-            long hours = seconds / 3600;
-            long minutes = (seconds % 3600) / 60;
-            return hours + "h " + minutes + "m";
+    private static class TabItemConfig {
+        final Material selectedMaterial;
+        final Material unselectedMaterial;
+        final String displayName;
+        
+        TabItemConfig(Material selectedMaterial, Material unselectedMaterial, String displayName) {
+            this.selectedMaterial = selectedMaterial;
+            this.unselectedMaterial = unselectedMaterial;
+            this.displayName = displayName;
+        }
+    }
+    
+    private static class LeaderboardTabItem extends AbstractItem {
+        private final StatType tabType;
+        private final StatType currentStatType;
+        private final TabItemConfig config;
+        private final Consumer<Player> onClick;
+        
+        LeaderboardTabItem(StatType tabType, StatType currentStatType, TabItemConfig config, Consumer<Player> onClick) {
+            this.tabType = tabType;
+            this.currentStatType = currentStatType;
+            this.config = config;
+            this.onClick = onClick;
+        }
+        
+        @Override
+        public ItemProvider getItemProvider() {
+            boolean isSelected = tabType == currentStatType;
+            Material material = isSelected ? config.selectedMaterial : config.unselectedMaterial;
+            String name = isSelected ? "§e§l" + config.displayName + " §7(Current)" : "§7" + config.displayName;
+            return new ItemBuilder(material).setDisplayName(name);
+        }
+        
+        @Override
+        public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+            if (clickType.isLeftClick() && tabType != currentStatType) {
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                onClick.accept(player);
+            }
+        }
+    }
+    
+    private static class LeaderboardActionItem extends AbstractItem {
+        private final Material material;
+        private final String displayName;
+        private final String lore;
+        private final Consumer<Player> onClick;
+        
+        LeaderboardActionItem(Material material, String displayName, String lore, Consumer<Player> onClick) {
+            this.material = material;
+            this.displayName = displayName;
+            this.lore = lore;
+            this.onClick = onClick;
+        }
+        
+        @Override
+        public ItemProvider getItemProvider() {
+            return new ItemBuilder(material)
+                .setDisplayName(displayName)
+                .addLoreLines(lore);
+        }
+        
+        @Override
+        public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+            if (clickType.isLeftClick()) {
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                onClick.accept(player);
+            }
         }
     }
 } 
