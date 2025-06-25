@@ -58,7 +58,7 @@ public class ItemUtils {
             
             // Apply all configurations to the item meta
             applyBasicProperties(section, meta, itemKey, logger);
-            applyEnchantments(section, meta, itemKey, logger, plugin);
+            applyEnchantments(section, meta, logger, plugin);
             applyAttributes(section, meta, itemKey, logger, plugin);
             applyPotionEffects(section, meta, itemKey, logger);
             applyPersistentData(section, meta, logger, plugin);
@@ -134,13 +134,13 @@ public class ItemUtils {
         }
         
         // Add item flags
-        applyItemFlags(section, meta, itemKey, logger);
+        applyItemFlags(section, meta, logger);
     }
     
     /**
      * Applies item flags to the item meta.
      */
-    private static void applyItemFlags(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull String itemKey, @NotNull DebugLogger.ContextualLogger logger) {
+    private static void applyItemFlags(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger) {
         if (!section.contains("item-flags")) {
             return;
         }
@@ -160,7 +160,7 @@ public class ItemUtils {
     /**
      * Applies enchantments to the item meta.
      */
-    private static void applyEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull String itemKey, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
+    private static void applyEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
         if (!section.contains("enchantments")) {
             return;
         }

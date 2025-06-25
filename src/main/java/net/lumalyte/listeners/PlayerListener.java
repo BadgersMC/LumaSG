@@ -307,11 +307,9 @@ public class PlayerListener implements Listener {
         if (gameState == GameState.WAITING || gameState == GameState.COUNTDOWN) {
             // No damage allowed during waiting or countdown
             event.setCancelled(true);
-        } else if (gameState == GameState.GRACE_PERIOD) {
-            // Only allow environmental damage during grace period
-            if (event instanceof EntityDamageByEntityEvent) {
-                event.setCancelled(true); // No PvP during grace period
-            }
+        } else if (gameState == GameState.GRACE_PERIOD && event instanceof EntityDamageByEntityEvent) {
+            // No PvP during grace period, only allow environmental damage
+            event.setCancelled(true);
         }
     }
     
