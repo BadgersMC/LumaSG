@@ -302,8 +302,17 @@ public class GameTimerManager {
                             plugin.getConfig().getString("messages.deathmatch-reminders.warning-sound", "BLOCK_NOTE_BLOCK_BELL");
                         
                         try {
-                            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(soundName);
-                            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+                            // Parse namespaced key (supports both "minecraft:sound" and "lumalyte:whistle" formats)
+                            org.bukkit.NamespacedKey soundKey = soundName.contains(":") ? 
+                                org.bukkit.NamespacedKey.fromString(soundName.toLowerCase()) :
+                                org.bukkit.NamespacedKey.minecraft(soundName.toLowerCase());
+                            
+                            org.bukkit.Sound sound = org.bukkit.Registry.SOUNDS.get(soundKey);
+                            if (sound != null) {
+                                player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+                            } else {
+                                throw new IllegalArgumentException("Sound not found: " + soundName);
+                            }
                         } catch (IllegalArgumentException e) {
                             logger.warn("Invalid sound name in config: " + soundName + ", using default");
                             player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
