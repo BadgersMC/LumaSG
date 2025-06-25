@@ -130,36 +130,41 @@ public class GameManager {
         // Validate arena state
         validateArenaForGameCreation(arena);
         
-        // Check if arena already has an active game
-        if (hasActiveGames(arena)) {
-            throw LumaSGException.gameError("Arena '" + arena.getName() + "' already has an active game");
+        // CRITICAL: Synchronize on arena name to prevent race conditions
+        // This ensures only one game can be created per arena at a time
+        synchronized (("arena_" + arena.getName()).intern()) {
+            // Re-check if arena already has an active game (double-checked locking pattern)
+            if (hasActiveGames(arena)) {
+                throw LumaSGException.gameError("Arena '" + arena.getName() + "' already has an active game");
+            }
+            
+            // Create the game instance
+            Game game;
+            try {
+                game = new Game(plugin, arena);
+            } catch (Exception e) {
+                throw LumaSGException.gameError("Failed to instantiate Game object for arena: " + arena.getName(), e);
+            }
+            
+            // Validate game state after creation
+            validateGameState(game);
+            
+            // Register the game IMMEDIATELY to prevent race conditions
+            String gameId = game.getGameId().toString();
+            ValidationUtils.requireNonEmpty(gameId, "Game ID", "Game Registration");
+            
+            // Check for duplicate game IDs (should be extremely rare with UUIDs)
+            if (activeGames.containsKey(gameId)) {
+                throw LumaSGException.gameError("Duplicate game ID detected: " + gameId);
+            }
+            
+            // Atomic registration - this prevents the race condition
+            activeGames.put(gameId, game);
+            allGames.add(game);
+            
+            logger.info("Successfully created and registered game: " + gameId + " in arena: " + arena.getName());
+            return game;
         }
-        
-        // Create the game instance
-        Game game;
-        try {
-            game = new Game(plugin, arena);
-        } catch (Exception e) {
-            throw LumaSGException.gameError("Failed to instantiate Game object for arena: " + arena.getName(), e);
-        }
-        
-        // Validate game state after creation
-        validateGameState(game);
-        
-        // Register the game
-        String gameId = game.getGameId().toString();
-        ValidationUtils.requireNonEmpty(gameId, "Game ID", "Game Registration");
-        
-        // Check for duplicate game IDs (should be extremely rare with UUIDs)
-        if (activeGames.containsKey(gameId)) {
-            throw LumaSGException.gameError("Duplicate game ID detected: " + gameId);
-        }
-        
-        activeGames.put(gameId, game);
-        allGames.add(game);
-        
-        logger.info("Successfully created game: " + gameId + " in arena: " + arena.getName());
-        return game;
     }
     
     /**
@@ -315,10 +320,25 @@ public class GameManager {
         try {
             ValidationUtils.requireNonNull(player, "Player", "Find Game by Player");
             
-            return activeGames.values().stream()
-                .filter(game -> game.getPlayers().contains(player))
-                .findFirst()
-                .orElse(null);
+            List<Game> playerGames = activeGames.values().stream()
+                .filter(game -> game.getPlayers().contains(player.getUniqueId()) || 
+                               game.getSpectators().contains(player.getUniqueId()))
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            
+            // Handle edge case: player in multiple games (due to race conditions)
+            if (playerGames.size() > 1) {
+                logger.warn("Player " + player.getName() + " found in " + playerGames.size() + 
+                    " games! This indicates a race condition bug. Games: " + 
+                    playerGames.stream().map(g -> g.getGameId().toString()).collect(java.util.stream.Collectors.joining(", ")));
+                
+                // Return the most recently created game (last in the list)
+                // and log this for debugging
+                Game mostRecentGame = playerGames.get(playerGames.size() - 1);
+                logger.warn("Returning most recent game for player " + player.getName() + ": " + mostRecentGame.getGameId());
+                return mostRecentGame;
+            }
+            
+            return playerGames.isEmpty() ? null : playerGames.get(0);
             
         } catch (Exception e) {
             logger.warn("Failed to find game for player: " + player.getName(), e);
@@ -495,5 +515,60 @@ public class GameManager {
      */
     public @NotNull Collection<Game> getGames() {
         return Collections.unmodifiableCollection(allGames);
+    }
+
+    /**
+     * Detects and cleans up orphaned games that may result from race conditions.
+     * This method should be called periodically to maintain system integrity.
+     * 
+     * @return The number of orphaned games that were cleaned up
+     */
+    public int cleanupOrphanedGames() {
+        int cleanedUp = 0;
+        Map<String, List<Game>> gamesByArena = new HashMap<>();
+        
+        // Group games by arena
+        for (Game game : activeGames.values()) {
+            String arenaName = game.getArena().getName();
+            gamesByArena.computeIfAbsent(arenaName, k -> new ArrayList<>()).add(game);
+        }
+        
+        // Check for multiple games in the same arena
+        for (Map.Entry<String, List<Game>> entry : gamesByArena.entrySet()) {
+            String arenaName = entry.getKey();
+            List<Game> games = entry.getValue();
+            
+            if (games.size() > 1) {
+                logger.warn("Found " + games.size() + " games in arena '" + arenaName + 
+                    "' - this indicates a race condition occurred!");
+                
+                // Keep the most recent game, remove the others
+                games.sort((g1, g2) -> g1.getGameId().toString().compareTo(g2.getGameId().toString()));
+                Game gameToKeep = games.get(games.size() - 1);
+                
+                for (int i = 0; i < games.size() - 1; i++) {
+                    Game orphanedGame = games.get(i);
+                    logger.warn("Cleaning up orphaned game: " + orphanedGame.getGameId() + 
+                        " in arena: " + arenaName);
+                    
+                    try {
+                        // Force end the orphaned game
+                        orphanedGame.endGame("System cleanup - duplicate game detected");
+                        removeGame(orphanedGame);
+                        cleanedUp++;
+                    } catch (Exception e) {
+                        logger.error("Failed to cleanup orphaned game: " + orphanedGame.getGameId(), e);
+                    }
+                }
+                
+                logger.info("Kept game: " + gameToKeep.getGameId() + " in arena: " + arenaName);
+            }
+        }
+        
+        if (cleanedUp > 0) {
+            logger.info("Cleaned up " + cleanedUp + " orphaned games");
+        }
+        
+        return cleanedUp;
     }
 } 

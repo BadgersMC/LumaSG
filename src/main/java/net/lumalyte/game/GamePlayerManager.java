@@ -214,7 +214,7 @@ public class GamePlayerManager {
     }
     
     /**
-     * Clears the player's current state for the game.
+     * Clears the player's state for the game.
      */
     private void clearPlayerState(@NotNull Player player) {
         // Clear inventory and experience
@@ -223,9 +223,10 @@ public class GamePlayerManager {
         player.setLevel(0);
         player.setExp(0.0f);
         
-        // Set full hunger and saturation for the game
+        // Set full hunger but NORMAL saturation to allow hunger depletion
         player.setFoodLevel(20);
-        player.setSaturation(20.0f);
+        // DO NOT set saturation to 20.0f - this prevents hunger from decreasing!
+        // Let saturation remain at its natural level so hunger mechanics work properly
         
         // Remove all potion effects
         for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
@@ -276,9 +277,10 @@ public class GamePlayerManager {
             player.getInventory().clear();
             player.getInventory().setArmorContents(null);
             
-            // Set full hunger and saturation for spectators
+            // Set full hunger but NORMAL saturation to allow hunger depletion
             player.setFoodLevel(20);
-            player.setSaturation(20.0f);
+            // DO NOT set saturation to 20.0f - this prevents hunger from decreasing!
+            // Let saturation remain at its natural level so hunger mechanics work properly
             
             // Remove all potion effects for spectators
             for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
@@ -349,10 +351,27 @@ public class GamePlayerManager {
         UUID playerId = player.getUniqueId();
         
         try {
+            // Reset player's scoreboard to server default
+            player.setScoreboard(org.bukkit.Bukkit.getScoreboardManager().getMainScoreboard());
+            
+            // Always clear current inventory first
+            player.getInventory().clear();
+            player.getInventory().setArmorContents(null);
+            
             restoreGameMode(player);
-            restoreLocation(player);
-            restoreInventoryAndExperience(player);
-            restoreHungerAndEffects(player);
+            
+            // Restore inventory if configured
+            if (plugin.getConfig().getBoolean("game.restore-inventory", true)) {
+                restoreInventoryAndExperience(player);
+                restoreHungerAndEffects(player);
+            }
+            
+            // Handle location restoration based on configuration
+            if (plugin.getConfig().getBoolean("lobby.teleport-on-leave", true)) {
+                teleportToLobby(player);
+            } else if (plugin.getConfig().getBoolean("game.save-location", true)) {
+                restoreLocation(player);
+            }
             
             // Clear all stored data for this player
             clearStoredPlayerData(playerId);
@@ -425,7 +444,7 @@ public class GamePlayerManager {
         
         // Restore hunger and saturation
         player.setFoodLevel(playerFoodLevels.getOrDefault(playerId, 20));
-        player.setSaturation(playerSaturationLevels.getOrDefault(playerId, 20.0f));
+        player.setSaturation(playerSaturationLevels.getOrDefault(playerId, 5.0f)); // Restore original saturation, not max
         
         // Restore potion effects
         String serializedEffects = playerPotionEffects.get(playerId);
@@ -449,7 +468,7 @@ public class GamePlayerManager {
         player.setLevel(0);
         player.setExp(0.0f);
         player.setFoodLevel(20);
-        player.setSaturation(20.0f);
+        // Don't set saturation to max - let hunger work normally
         player.getActivePotionEffects().forEach(effect -> 
             player.removePotionEffect(effect.getType()));
         teleportToLobby(player);
@@ -497,30 +516,34 @@ public class GamePlayerManager {
      */
     private @Nullable org.bukkit.potion.PotionEffect parseEffectObject(@NotNull String effectStr) {
         try {
+            // Clean up object string
+            effectStr = effectStr.trim();
+            if (effectStr.startsWith("{")) effectStr = effectStr.substring(1);
+            if (effectStr.endsWith("}")) effectStr = effectStr.substring(0, effectStr.length() - 1);
+            
+            // Parse properties into a map
             Map<String, String> properties = parseEffectProperties(effectStr);
             
+            // Extract and validate required type
             String type = properties.get("type");
             if (type == null) return null;
             
-            org.bukkit.potion.PotionEffectType effectType = org.bukkit.potion.PotionEffectType.getByName(type);
+            org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(
+                org.bukkit.NamespacedKey.fromString(type)
+            );
             if (effectType == null) return null;
             
-            int duration = Integer.parseInt(properties.getOrDefault("duration", "0"));
-            int amplifier = Integer.parseInt(properties.getOrDefault("amplifier", "0"));
-            boolean ambient = Boolean.parseBoolean(properties.getOrDefault("ambient", "false"));
-            boolean particles = Boolean.parseBoolean(properties.getOrDefault("particles", "true"));
-            boolean icon = Boolean.parseBoolean(properties.getOrDefault("icon", "true"));
-            
+            // Create effect with parsed properties
             return new org.bukkit.potion.PotionEffect(
                 effectType,
-                duration,
-                amplifier,
-                ambient,
-                particles,
-                icon
+                Integer.parseInt(properties.getOrDefault("duration", "0")),
+                Integer.parseInt(properties.getOrDefault("amplifier", "0")),
+                Boolean.parseBoolean(properties.getOrDefault("ambient", "false")),
+                Boolean.parseBoolean(properties.getOrDefault("particles", "true")),
+                Boolean.parseBoolean(properties.getOrDefault("icon", "true"))
             );
         } catch (Exception e) {
-            logger.warn("Failed to parse potion effect: " + effectStr, e);
+            logger.debug("Failed to parse effect object: " + effectStr, e);
             return null;
         }
     }
@@ -530,16 +553,13 @@ public class GamePlayerManager {
      */
     private @NotNull Map<String, String> parseEffectProperties(@NotNull String propertiesStr) {
         Map<String, String> properties = new HashMap<>();
-        String[] pairs = propertiesStr.split(",");
         
-        for (String pair : pairs) {
-            String[] keyValue = pair.split("=", 2);
+        for (String prop : propertiesStr.split(",")) {
+            String[] keyValue = prop.split(":", 2);
             if (keyValue.length == 2) {
-                String key = keyValue[0].trim();
-                String value = keyValue[1].trim();
-                if (!key.isEmpty() && !value.isEmpty()) {
-                    properties.put(key, value);
-                }
+                String key = keyValue[0].trim().replace("\"", "");
+                String value = keyValue[1].trim().replace("\"", "");
+                properties.put(key, value);
             }
         }
         

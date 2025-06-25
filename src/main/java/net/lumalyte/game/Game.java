@@ -726,8 +726,11 @@ public class Game {
      * Starts the grace period.
      */
     private void startGracePeriod() {
-        isGracePeriod = true;
+        logger.debug("Starting grace period for game: " + gameId);
+        
+        // Disable PvP during grace period
         pvpEnabled = false;
+        isGracePeriod = true;
         
         // Set game start time for accurate duration calculation
         gameStartTime = Instant.now();
@@ -735,20 +738,35 @@ public class Game {
         // Reset timer manager start time for accurate game time tracking
         timerManager.resetStartTime();
         
-        // Remove spawn barriers to allow players to move
+        // Broadcast grace period start message
+        broadcastMessage(Component.text()
+            .append(Component.text("Grace Period: ", NamedTextColor.YELLOW))
+            .append(Component.text("PvP is disabled! Gather resources and prepare for battle.", NamedTextColor.WHITE))
+            .build());
+        
+        // Remove spawn barriers so players can move freely
         removeSpawnBarriers();
         
         // Start grace period using timer manager
         timerManager.startGracePeriod(this::endGracePeriod);
+        
+        logger.debug("Grace period started");
     }
     
     /**
-     * Ends the grace period.
+     * Ends the grace period and enables PvP.
      */
     private void endGracePeriod() {
-        isGracePeriod = false;
-        pvpEnabled = true;
-        state = GameState.ACTIVE; // Transition to ACTIVE state
+        logger.debug("Ending grace period for game: " + gameId);
+        
+        // Enable PvP - use synchronized block to ensure thread safety
+        synchronized (this) {
+            pvpEnabled = true;
+            isGracePeriod = false;
+        }
+        
+        // Update game state
+        state = GameState.ACTIVE;
         scoreboardManager.setCurrentGameState(state);
         timerManager.setCurrentGameState(state);
         
@@ -759,6 +777,7 @@ public class Game {
         // Start periodic game end checking to catch solo scenarios and edge cases
         startPeriodicGameEndChecking();
         
+        // Broadcast PvP enabled message with title
         Title title = Title.title(
             Component.text("Grace Period Ended!", NamedTextColor.RED, TextDecoration.BOLD),
             Component.text("PvP is now enabled!", NamedTextColor.YELLOW),
@@ -769,8 +788,11 @@ public class Game {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null) {
                 player.showTitle(title);
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
             }
         }
+        
+        logger.debug("Grace period ended, PvP is now enabled");
     }
     
     /**
@@ -1326,7 +1348,7 @@ public class Game {
         return playerManager.getSpectators();
     }
     
-    public boolean isPvpEnabled() {
+    public synchronized boolean isPvpEnabled() {
         return pvpEnabled;
     }
     

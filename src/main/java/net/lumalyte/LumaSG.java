@@ -97,6 +97,18 @@ public class LumaSG extends JavaPlugin {
         // Register event listeners
         registerListeners();
         
+        // Start periodic cleanup task for orphaned games (every 5 minutes)
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            try {
+                int cleanedUp = gameManager.cleanupOrphanedGames();
+                if (cleanedUp > 0) {
+                    debugLogger.warn("Periodic cleanup removed " + cleanedUp + " orphaned games");
+                }
+            } catch (Exception e) {
+                debugLogger.error("Error during periodic game cleanup", e);
+            }
+        }, 6000L, 6000L); // First run after 5 minutes, then every 5 minutes
+        
         // Check for PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             debugLogger.startup("PlaceholderAPI found! Registering placeholders...");
