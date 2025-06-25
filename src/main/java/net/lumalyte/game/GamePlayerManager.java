@@ -114,85 +114,139 @@ public class GamePlayerManager {
         lock.writeLock().lock();
         try {
             // If game has started (past countdown), only allow spectators
-            if (currentState != GameState.WAITING && currentState != GameState.COUNTDOWN) {
+            if (!canJoinAsPlayer(currentState)) {
                 addSpectatorInternal(player);
                 return false;
             }
 
-            if (!players.contains(player.getUniqueId())) {
-                // Check if we have enough spawn points
-                if (players.size() >= arena.getSpawnPoints().size()) {
-                    player.sendMessage(net.kyori.adventure.text.Component.text("This arena is full! Maximum players: " + arena.getSpawnPoints().size(), net.kyori.adventure.text.format.NamedTextColor.RED));
-                    return false;
-                }
-
-                // Store player's previous state
-                previousLocations.put(player.getUniqueId(), player.getLocation());
-                playerGameModes.put(player.getUniqueId(), player.getGameMode());
-                
-                // Store inventory and experience
-                if (plugin.getConfig().getBoolean("game.clear-inventory", true)) {
-                    try {
-                        // Serialize and store inventory
-                        String serializedInventory = InventoryUtils.itemStackArrayToBase64(player.getInventory().getContents());
-                        String serializedArmor = InventoryUtils.itemStackArrayToBase64(player.getInventory().getArmorContents());
-                        inventories.put(player.getUniqueId(), serializedInventory);
-                        armorContents.put(player.getUniqueId(), serializedArmor);
-                        
-                        // Store experience
-                        playerExperienceLevels.put(player.getUniqueId(), player.getLevel());
-                        playerExperiencePoints.put(player.getUniqueId(), player.getExp());
-                        
-                        // Store hunger, saturation, and potion effects
-                        playerFoodLevels.put(player.getUniqueId(), player.getFoodLevel());
-                        playerSaturationLevels.put(player.getUniqueId(), player.getSaturation());
-                        
-                        // Serialize and store potion effects
-                        String serializedEffects = serializePotionEffects(player.getActivePotionEffects());
-                        if (serializedEffects != null) {
-                            playerPotionEffects.put(player.getUniqueId(), serializedEffects);
-                        }
-                        
-                        // Clear inventory and experience
-                        player.getInventory().clear();
-                        player.getInventory().setArmorContents(null);
-                        player.setLevel(0);
-                        player.setExp(0.0f);
-                        
-                        // Set full hunger and saturation for the game
-                        player.setFoodLevel(20);
-                        player.setSaturation(20.0f);
-                        
-                        // Remove all potion effects
-                        for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
-                            player.removePotionEffect(effect.getType());
-                        }
-                        
-                        logger.debug("Saved and cleared inventory/experience/hunger/effects for player: " + player.getName());
-                    } catch (Exception e) {
-                        logger.warn("Failed to save inventory for player: " + player.getName(), e);
-                    }
-                }
-                
-                // Add player to game - all operations are now atomic within the lock
-                players.add(player.getUniqueId());
-                playerKills.put(player.getUniqueId(), new AtomicInteger(0));
-                playerCache.put(player.getUniqueId(), player);
-                
-                // Set game mode
-                player.setGameMode(GameMode.ADVENTURE);
-                
-                // Assign spawn point if in waiting/countdown
-                if (currentState == GameState.WAITING || currentState == GameState.COUNTDOWN) {
-                    assignSpawnPoint(player);
-                }
-                
-                return true;
+            if (players.contains(player.getUniqueId())) {
+                return false;
             }
+
+            // Check if we have enough spawn points
+            if (!hasAvailableSpawnPoints()) {
+                player.sendMessage(net.kyori.adventure.text.Component.text("This arena is full! Maximum players: " + arena.getSpawnPoints().size(), net.kyori.adventure.text.format.NamedTextColor.RED));
+                return false;
+            }
+
+            // Store and prepare player for the game
+            storePlayerState(player);
+            addPlayerToGame(player, currentState);
             
-            return false;
+            return true;
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * Checks if a player can join as an active player based on the current game state.
+     */
+    private boolean canJoinAsPlayer(@NotNull GameState currentState) {
+        return currentState == GameState.WAITING || currentState == GameState.COUNTDOWN;
+    }
+    
+    /**
+     * Checks if there are available spawn points for new players.
+     */
+    private boolean hasAvailableSpawnPoints() {
+        return players.size() < arena.getSpawnPoints().size();
+    }
+    
+    /**
+     * Stores the player's current state before joining the game.
+     */
+    private void storePlayerState(@NotNull Player player) {
+        // Store player's previous state
+        previousLocations.put(player.getUniqueId(), player.getLocation());
+        playerGameModes.put(player.getUniqueId(), player.getGameMode());
+        
+        // Store inventory and experience if configured
+        if (plugin.getConfig().getBoolean("game.clear-inventory", true)) {
+            storeAndClearPlayerData(player);
+        }
+    }
+    
+    /**
+     * Stores and clears player data (inventory, experience, effects, etc.).
+     */
+    private void storeAndClearPlayerData(@NotNull Player player) {
+        try {
+            storePlayerInventoryAndExperience(player);
+            storePlayerHungerAndEffects(player);
+            clearPlayerState(player);
+            
+            logger.debug("Saved and cleared inventory/experience/hunger/effects for player: " + player.getName());
+        } catch (Exception e) {
+            logger.warn("Failed to save inventory for player: " + player.getName(), e);
+        }
+    }
+    
+    /**
+     * Stores player's inventory and experience data.
+     */
+    private void storePlayerInventoryAndExperience(@NotNull Player player) {
+        // Serialize and store inventory
+        String serializedInventory = InventoryUtils.itemStackArrayToBase64(player.getInventory().getContents());
+        String serializedArmor = InventoryUtils.itemStackArrayToBase64(player.getInventory().getArmorContents());
+        inventories.put(player.getUniqueId(), serializedInventory);
+        armorContents.put(player.getUniqueId(), serializedArmor);
+        
+        // Store experience
+        playerExperienceLevels.put(player.getUniqueId(), player.getLevel());
+        playerExperiencePoints.put(player.getUniqueId(), player.getExp());
+    }
+    
+    /**
+     * Stores player's hunger and potion effects.
+     */
+    private void storePlayerHungerAndEffects(@NotNull Player player) {
+        // Store hunger, saturation, and potion effects
+        playerFoodLevels.put(player.getUniqueId(), player.getFoodLevel());
+        playerSaturationLevels.put(player.getUniqueId(), player.getSaturation());
+        
+        // Serialize and store potion effects
+        String serializedEffects = serializePotionEffects(player.getActivePotionEffects());
+        if (serializedEffects != null) {
+            playerPotionEffects.put(player.getUniqueId(), serializedEffects);
+        }
+    }
+    
+    /**
+     * Clears the player's current state for the game.
+     */
+    private void clearPlayerState(@NotNull Player player) {
+        // Clear inventory and experience
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(null);
+        player.setLevel(0);
+        player.setExp(0.0f);
+        
+        // Set full hunger and saturation for the game
+        player.setFoodLevel(20);
+        player.setSaturation(20.0f);
+        
+        // Remove all potion effects
+        for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
+            player.removePotionEffect(effect.getType());
+        }
+    }
+    
+    /**
+     * Adds the player to the game with proper setup.
+     */
+    private void addPlayerToGame(@NotNull Player player, @NotNull GameState currentState) {
+        // Add player to game - all operations are now atomic within the lock
+        players.add(player.getUniqueId());
+        playerKills.put(player.getUniqueId(), new AtomicInteger(0));
+        playerCache.put(player.getUniqueId(), player);
+        
+        // Set game mode
+        player.setGameMode(GameMode.ADVENTURE);
+        
+        // Assign spawn point if in waiting/countdown
+        if (currentState == GameState.WAITING || currentState == GameState.COUNTDOWN) {
+            assignSpawnPoint(player);
         }
     }
     

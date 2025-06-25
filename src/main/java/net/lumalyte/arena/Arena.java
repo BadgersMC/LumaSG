@@ -204,111 +204,17 @@ public class Arena {
             DebugLogger.ContextualLogger logger = plugin.getDebugLogger().forContext("Arena-" + arenaName);
             logger.debug("Loading arena: " + arenaName);
             
-            // Get configuration values
-            int maxPlayers = section.getInt("max-players", plugin.getConfig().getInt("arena.default-max-players", 24));
-            int minPlayers = section.getInt("min-players", plugin.getConfig().getInt("arena.default-min-players", 2));
-            int radius = section.getInt("radius", plugin.getConfig().getInt("arena.default-radius", 100));
+            // Create basic arena with configured values
+            Arena arena = createBasicArena(plugin, section, arenaName);
             
-            // Create arena with the configured values
-            Arena arena = new Arena(arenaName, plugin, maxPlayers, minPlayers);
-            arena.radius = radius;
-            
-            // Load center location
-            ConfigurationSection centerSection = section.getConfigurationSection("center");
-            if (centerSection != null) {
-                arena.center = loadLocation(centerSection);
-                logger.debug("Loaded center location for arena: " + arenaName);
-            }
-            
-            // Load spawn points with null safety
-            ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
-            if (spawnSection != null && !spawnSection.getKeys(false).isEmpty()) {
-                for (String key : spawnSection.getKeys(false)) {
-                    Location location = loadLocation(spawnSection.getConfigurationSection(key));
-                    if (location != null) {
-                        arena.spawnPoints.add(location);
-                        logger.debug("Loaded spawn point " + key + " for arena: " + arenaName);
-                    }
-                }
-            } else {
-                logger.debug("No spawn points found for arena: " + arenaName);
-            }
-            
-            // Load chest locations with null safety
-            ConfigurationSection chestSection = section.getConfigurationSection("chest-locations");
-            if (chestSection != null && !chestSection.getKeys(false).isEmpty()) {
-                for (String key : chestSection.getKeys(false)) {
-                    Location location = loadLocation(chestSection.getConfigurationSection(key));
-                    if (location != null) {
-                        arena.chestLocations.add(location);
-                        logger.debug("Loaded chest location " + key + " for arena: " + arenaName);
-                    }
-                }
-            } else {
-                logger.debug("No chest locations found for arena: " + arenaName);
-            }
-            
-            // Load lobby spawn with null safety
-            ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
-            if (lobbySection != null) {
-                arena.lobbySpawn = loadLocation(lobbySection);
-                logger.debug("Loaded lobby spawn for arena: " + arenaName);
-            }
-            
-            // Load spectator spawn with null safety
-            ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
-            if (spectatorSection != null) {
-                arena.spectatorSpawn = loadLocation(spectatorSection);
-                logger.debug("Loaded spectator spawn for arena: " + arenaName);
-            }
-            
-            // Load allowed blocks
-            List<String> allowedBlocksList = section.getStringList("allowed-blocks");
-            if (!allowedBlocksList.isEmpty()) {
-                for (String materialName : allowedBlocksList) {
-                    try {
-                        Material material = Material.valueOf(materialName.toUpperCase());
-                        arena.addAllowedBlock(material);
-                        logger.debug("Loaded allowed block " + materialName + " for arena: " + arenaName);
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Invalid material name in arena config: " + materialName);
-                    }
-                }
-            } else {
-                // Add default allowed blocks if none are configured
-                arena.addAllowedBlock(Material.COBWEB);
-                arena.addAllowedBlock(Material.CRAFTING_TABLE);
-                arena.addAllowedBlock(Material.ANVIL);
-                arena.addAllowedBlock(Material.LADDER);
-                arena.addAllowedBlock(Material.TORCH);
-                arena.addAllowedBlock(Material.FURNACE);
-                logger.debug("Added default allowed blocks for arena: " + arenaName);
-            }
+            // Load all locations and configurations
+            loadArenaLocations(arena, section, logger, arenaName);
+            loadAllowedBlocks(arena, section, logger, arenaName);
+            determineArenaWorld(arena, logger, arenaName);
             
             logger.info("Successfully loaded arena " + arenaName + " with " + 
                 arena.spawnPoints.size() + " spawn points and " + 
                 arena.chestLocations.size() + " chest locations");
-            
-            // Set the world based on loaded locations
-            World arenaWorld = null;
-            if (arena.center != null) {
-                arenaWorld = arena.center.getWorld();
-            } else if (!arena.spawnPoints.isEmpty()) {
-                arenaWorld = arena.spawnPoints.get(0).getWorld();
-            } else if (!arena.chestLocations.isEmpty()) {
-                arenaWorld = arena.chestLocations.get(0).getWorld();
-            } else if (arena.lobbySpawn != null) {
-                arenaWorld = arena.lobbySpawn.getWorld();
-            } else if (arena.spectatorSpawn != null) {
-                arenaWorld = arena.spectatorSpawn.getWorld();
-            }
-            
-            if (arenaWorld != null) {
-                arena.world = arenaWorld;
-                logger.debug("Set arena world to: " + arenaWorld.getName());
-            } else {
-                logger.warn("Could not determine world for arena: " + arenaName + " (no valid locations found)");
-            }
             
             // Log if no chest locations are found (but don't auto-scan to prevent save conflicts)
             if (arena.chestLocations.isEmpty() && arena.center != null && arena.radius > 0) {
@@ -320,6 +226,161 @@ public class Arena {
         } catch (Exception e) {
             plugin.getDebugLogger().severe("Unexpected error loading arena: " + arenaName, e);
             return null;
+        }
+    }
+    
+    /**
+     * Creates a basic arena with configured values.
+     */
+    private static @NotNull Arena createBasicArena(@NotNull LumaSG plugin, @NotNull ConfigurationSection section, @NotNull String arenaName) {
+        // Get configuration values
+        int maxPlayers = section.getInt("max-players", plugin.getConfig().getInt("arena.default-max-players", 24));
+        int minPlayers = section.getInt("min-players", plugin.getConfig().getInt("arena.default-min-players", 2));
+        int radius = section.getInt("radius", plugin.getConfig().getInt("arena.default-radius", 100));
+        
+        // Create arena with the configured values
+        Arena arena = new Arena(arenaName, plugin, maxPlayers, minPlayers);
+        arena.radius = radius;
+        
+        return arena;
+    }
+    
+    /**
+     * Loads all location data for the arena.
+     */
+    private static void loadArenaLocations(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        loadCenterLocation(arena, section, logger, arenaName);
+        loadSpawnPoints(arena, section, logger, arenaName);
+        loadChestLocations(arena, section, logger, arenaName);
+        loadLobbySpawn(arena, section, logger, arenaName);
+        loadSpectatorSpawn(arena, section, logger, arenaName);
+    }
+    
+    /**
+     * Loads the center location for the arena.
+     */
+    private static void loadCenterLocation(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        ConfigurationSection centerSection = section.getConfigurationSection("center");
+        if (centerSection != null) {
+            arena.center = loadLocation(centerSection);
+            logger.debug("Loaded center location for arena: " + arenaName);
+        }
+    }
+    
+    /**
+     * Loads spawn points for the arena.
+     */
+    private static void loadSpawnPoints(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
+        if (spawnSection != null && !spawnSection.getKeys(false).isEmpty()) {
+            for (String key : spawnSection.getKeys(false)) {
+                Location location = loadLocation(spawnSection.getConfigurationSection(key));
+                if (location != null) {
+                    arena.spawnPoints.add(location);
+                    logger.debug("Loaded spawn point " + key + " for arena: " + arenaName);
+                }
+            }
+        } else {
+            logger.debug("No spawn points found for arena: " + arenaName);
+        }
+    }
+    
+    /**
+     * Loads chest locations for the arena.
+     */
+    private static void loadChestLocations(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        ConfigurationSection chestSection = section.getConfigurationSection("chest-locations");
+        if (chestSection != null && !chestSection.getKeys(false).isEmpty()) {
+            for (String key : chestSection.getKeys(false)) {
+                Location location = loadLocation(chestSection.getConfigurationSection(key));
+                if (location != null) {
+                    arena.chestLocations.add(location);
+                    logger.debug("Loaded chest location " + key + " for arena: " + arenaName);
+                }
+            }
+        } else {
+            logger.debug("No chest locations found for arena: " + arenaName);
+        }
+    }
+    
+    /**
+     * Loads lobby spawn location for the arena.
+     */
+    private static void loadLobbySpawn(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
+        if (lobbySection != null) {
+            arena.lobbySpawn = loadLocation(lobbySection);
+            logger.debug("Loaded lobby spawn for arena: " + arenaName);
+        }
+    }
+    
+    /**
+     * Loads spectator spawn location for the arena.
+     */
+    private static void loadSpectatorSpawn(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
+        if (spectatorSection != null) {
+            arena.spectatorSpawn = loadLocation(spectatorSection);
+            logger.debug("Loaded spectator spawn for arena: " + arenaName);
+        }
+    }
+    
+    /**
+     * Loads allowed blocks for the arena.
+     */
+    private static void loadAllowedBlocks(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        List<String> allowedBlocksList = section.getStringList("allowed-blocks");
+        if (!allowedBlocksList.isEmpty()) {
+            for (String materialName : allowedBlocksList) {
+                try {
+                    Material material = Material.valueOf(materialName.toUpperCase());
+                    arena.addAllowedBlock(material);
+                    logger.debug("Loaded allowed block " + materialName + " for arena: " + arenaName);
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Invalid material name in arena config: " + materialName);
+                }
+            }
+        } else {
+            addDefaultAllowedBlocks(arena, logger, arenaName);
+        }
+    }
+    
+    /**
+     * Adds default allowed blocks to the arena.
+     */
+    private static void addDefaultAllowedBlocks(@NotNull Arena arena, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        arena.addAllowedBlock(Material.COBWEB);
+        arena.addAllowedBlock(Material.CRAFTING_TABLE);
+        arena.addAllowedBlock(Material.ANVIL);
+        arena.addAllowedBlock(Material.LADDER);
+        arena.addAllowedBlock(Material.TORCH);
+        arena.addAllowedBlock(Material.FURNACE);
+        logger.debug("Added default allowed blocks for arena: " + arenaName);
+    }
+    
+    /**
+     * Determines and sets the world for the arena based on loaded locations.
+     */
+    private static void determineArenaWorld(@NotNull Arena arena, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
+        World arenaWorld = null;
+        
+        if (arena.center != null) {
+            arenaWorld = arena.center.getWorld();
+        } else if (!arena.spawnPoints.isEmpty()) {
+            arenaWorld = arena.spawnPoints.get(0).getWorld();
+        } else if (!arena.chestLocations.isEmpty()) {
+            arenaWorld = arena.chestLocations.get(0).getWorld();
+        } else if (arena.lobbySpawn != null) {
+            arenaWorld = arena.lobbySpawn.getWorld();
+        } else if (arena.spectatorSpawn != null) {
+            arenaWorld = arena.spectatorSpawn.getWorld();
+        }
+        
+        if (arenaWorld != null) {
+            arena.world = arenaWorld;
+            logger.debug("Set arena world to: " + arenaWorld.getName());
+        } else {
+            logger.warn("Could not determine world for arena: " + arenaName + " (no valid locations found)");
         }
     }
     

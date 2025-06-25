@@ -101,73 +101,139 @@ public class FishingListener implements Listener {
         Game game = plugin.getGameManager().getGameByPlayer(player);
 
         // Only handle fishing in active games
-        if (game == null || (game.getState() != GameState.ACTIVE && game.getState() != GameState.DEATHMATCH)) {
+        if (!isValidGameState(game)) {
             return;
         }
 
         // Check if fishing configuration is loaded
-        if (fishingConfig == null) {
-            // Try to reload the configuration
-            loadFishingConfig();
-            
-            if (fishingConfig == null) {
-                logger.warn("Fishing loot configuration not available");
-                return;
-            }
+        if (!ensureFishingConfigLoaded()) {
+            return;
         }
 
         // Debug logging
         logger.debug("Player " + player.getName() + " caught something while fishing in an active game");
 
         // Check if player catches a special item
+        if (!shouldGiveSpecialItem()) {
+            return; // Normal fish catch
+        }
+
+        // Process special item catch
+        processSpecialItemCatch(event, player);
+    }
+    
+    /**
+     * Checks if the game state is valid for special fishing.
+     */
+    private boolean isValidGameState(@Nullable Game game) {
+        return game != null && 
+               (game.getState() == GameState.ACTIVE || game.getState() == GameState.DEATHMATCH);
+    }
+    
+    /**
+     * Ensures the fishing configuration is loaded.
+     */
+    private boolean ensureFishingConfigLoaded() {
+        if (fishingConfig == null) {
+            // Try to reload the configuration
+            loadFishingConfig();
+            
+            if (fishingConfig == null) {
+                logger.warn("Fishing loot configuration not available");
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Determines if the player should receive a special item based on chance.
+     */
+    private boolean shouldGiveSpecialItem() {
         double specialChance = fishingConfig.getDouble("special_catch_chance", 25.0);
         double roll = random.nextDouble() * 100;
         if (roll > specialChance) {
             logger.debug("Player didn't get a special item (rolled " + roll + " > " + specialChance + ")");
-            return; // Normal fish catch
+            return false;
         }
-
+        return true;
+    }
+    
+    /**
+     * Processes the special item catch by canceling the event and giving the player a special item.
+     */
+    private void processSpecialItemCatch(@NotNull PlayerFishEvent event, @NotNull Player player) {
         // Cancel the original fish catch and prevent default item
         event.setCancelled(true);
         if (event.getCaught() != null) {
             event.getCaught().remove();
         }
 
-        // Get all possible special items
-        ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
-        if (itemsSection == null) {
-            logger.warn("No items section found in fishing.yml");
+        String selectedItem = selectRandomSpecialItem();
+        if (selectedItem == null) {
             return;
         }
 
+        createAndGiveSpecialItem(player, selectedItem);
+    }
+    
+    /**
+     * Selects a random special item based on configured weights.
+     */
+    private @Nullable String selectRandomSpecialItem() {
+        ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
+        if (itemsSection == null) {
+            logger.warn("No items section found in fishing.yml");
+            return null;
+        }
+
         // Calculate total weight of all items
-        double totalWeight = 0;
+        Map<String, Double> chances = calculateItemChances(itemsSection);
+        double totalWeight = chances.values().stream().mapToDouble(Double::doubleValue).sum();
+
+        // Select a random item based on weights
+        return selectItemByWeight(chances, totalWeight);
+    }
+    
+    /**
+     * Calculates the chances for all items in the configuration.
+     */
+    private @NotNull Map<String, Double> calculateItemChances(@NotNull ConfigurationSection itemsSection) {
         Map<String, Double> chances = new HashMap<>();
         for (String key : itemsSection.getKeys(false)) {
             double chance = itemsSection.getDouble(key + ".chance", 0);
             chances.put(key, chance);
-            totalWeight += chance;
         }
-
-        // Select a random item based on weights
+        return chances;
+    }
+    
+    /**
+     * Selects an item based on weighted random selection.
+     */
+    private @Nullable String selectItemByWeight(@NotNull Map<String, Double> chances, double totalWeight) {
         double randomValue = random.nextDouble() * totalWeight;
-        String selectedItem = null;
         double currentWeight = 0;
 
         for (Map.Entry<String, Double> entry : chances.entrySet()) {
             currentWeight += entry.getValue();
             if (randomValue <= currentWeight) {
-                selectedItem = entry.getKey();
-                break;
+                return entry.getKey();
             }
         }
-
-        if (selectedItem == null) {
-            logger.warn("Failed to select a random fishing item");
+        
+        logger.warn("Failed to select a random fishing item");
+        return null;
+    }
+    
+    /**
+     * Creates and gives the special item to the player.
+     */
+    private void createAndGiveSpecialItem(@NotNull Player player, @NotNull String selectedItem) {
+        ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
+        if (itemsSection == null) {
             return;
         }
-
-        // Get the item configuration
+        
         ConfigurationSection itemConfig = itemsSection.getConfigurationSection(selectedItem);
         if (itemConfig == null) {
             logger.warn("Invalid item config for: " + selectedItem);
@@ -175,48 +241,81 @@ public class FishingListener implements Listener {
         }
 
         try {
-            // Create the special item using ItemUtils
-            ItemStack item = ItemUtils.createItemFromConfig(plugin, itemConfig, selectedItem);
+            ItemStack item = createSpecialFishingItem(itemConfig, selectedItem);
             if (item == null) {
-                logger.warn("Failed to create item: " + selectedItem);
                 return;
             }
             
-            // Set random amount if specified
-            if (itemConfig.contains("min-amount") && itemConfig.contains("max-amount")) {
-                int minAmount = itemConfig.getInt("min-amount", 1);
-                int maxAmount = itemConfig.getInt("max-amount", 1);
-                if (maxAmount > minAmount) {
-                    item.setAmount(random.nextInt(maxAmount - minAmount + 1) + minAmount);
-                } else {
-                    item.setAmount(minAmount);
-                }
-            }
-
-            // Give the item to the player
-            Map<Integer, ItemStack> overflow = player.getInventory().addItem(item);
-            if (!overflow.isEmpty()) {
-                // Drop items that didn't fit in inventory
-                for (ItemStack drop : overflow.values()) {
-                    player.getWorld().dropItem(player.getLocation(), drop);
-                }
-            }
-
-            // Send message to player
-            Component itemName = item.getItemMeta().displayName();
-            player.sendMessage(Component.text()
-                .append(Component.text("You caught ", NamedTextColor.AQUA))
-                .append(itemName)
-                .append(Component.text("!", NamedTextColor.AQUA))
-                .build());
-
-            // Play effects
-            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-            player.spawnParticle(org.bukkit.Particle.SPLASH, player.getLocation(), 50, 0.5, 0.5, 0.5, 0.1);
-
+            giveItemToPlayer(player, item);
+            notifyPlayerOfCatch(player, item);
+            playFishingEffects(player);
+            
             logger.debug("Player " + player.getName() + " caught special item: " + selectedItem);
         } catch (Exception e) {
             logger.warn("Error creating special fishing item: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Creates the special fishing item from configuration.
+     */
+    private @Nullable ItemStack createSpecialFishingItem(@NotNull ConfigurationSection itemConfig, @NotNull String selectedItem) {
+        ItemStack item = ItemUtils.createItemFromConfig(plugin, itemConfig, selectedItem);
+        if (item == null) {
+            logger.warn("Failed to create item: " + selectedItem);
+            return null;
+        }
+        
+        // Set random amount if specified
+        setRandomItemAmount(item, itemConfig);
+        return item;
+    }
+    
+    /**
+     * Sets a random amount for the item if min/max amounts are configured.
+     */
+    private void setRandomItemAmount(@NotNull ItemStack item, @NotNull ConfigurationSection itemConfig) {
+        if (itemConfig.contains("min-amount") && itemConfig.contains("max-amount")) {
+            int minAmount = itemConfig.getInt("min-amount", 1);
+            int maxAmount = itemConfig.getInt("max-amount", 1);
+            if (maxAmount > minAmount) {
+                item.setAmount(random.nextInt(maxAmount - minAmount + 1) + minAmount);
+            } else {
+                item.setAmount(minAmount);
+            }
+        }
+    }
+    
+    /**
+     * Gives the item to the player, dropping overflow items.
+     */
+    private void giveItemToPlayer(@NotNull Player player, @NotNull ItemStack item) {
+        Map<Integer, ItemStack> overflow = player.getInventory().addItem(item);
+        if (!overflow.isEmpty()) {
+            // Drop items that didn't fit in inventory
+            for (ItemStack drop : overflow.values()) {
+                player.getWorld().dropItem(player.getLocation(), drop);
+            }
+        }
+    }
+    
+    /**
+     * Notifies the player about their special catch.
+     */
+    private void notifyPlayerOfCatch(@NotNull Player player, @NotNull ItemStack item) {
+        Component itemName = item.getItemMeta().displayName();
+        player.sendMessage(Component.text()
+            .append(Component.text("You caught ", NamedTextColor.AQUA))
+            .append(itemName)
+            .append(Component.text("!", NamedTextColor.AQUA))
+            .build());
+    }
+    
+    /**
+     * Plays sound and particle effects for the special catch.
+     */
+    private void playFishingEffects(@NotNull Player player) {
+        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+        player.spawnParticle(org.bukkit.Particle.SPLASH, player.getLocation(), 50, 0.5, 0.5, 0.5, 0.1);
     }
 } 

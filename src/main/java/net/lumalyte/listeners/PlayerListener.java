@@ -241,44 +241,80 @@ public class PlayerListener implements Listener {
         
         try {
             // Check for firework damage first
-            if (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
-                if (event instanceof EntityDamageByEntityEvent) {
-                    EntityDamageByEntityEvent entityEvent = (EntityDamageByEntityEvent) event;
-                    if (entityEvent.getDamager() instanceof org.bukkit.entity.Firework) {
-                        org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) entityEvent.getDamager();
-                        
-                        // Check if this is a celebration firework or if player is in a game
-                        if (firework.hasMetadata("celebration_firework")) {
-                            event.setCancelled(true);
-                            logger.debug("Prevented celebration firework damage to player " + player.getName());
-                            return;
-                        }
-                        
-                        Game game = gameManager.getGameByPlayer(player);
-                        if (game != null) {
-                            event.setCancelled(true);
-                            logger.debug("Prevented firework damage to player " + player.getName() + " in game");
-                            return;
-                        }
-                    }
-                }
+            if (handleFireworkDamage(event, player)) {
+                return; // Firework damage was handled
             }
             
-            Game game = gameManager.getGameByPlayer(player);
-            if (game != null) {
-                // Player is in a game, check damage rules
-                if (game.getState() == GameState.WAITING || game.getState() == GameState.COUNTDOWN) {
-                    // No damage allowed during waiting or countdown
-                    event.setCancelled(true);
-                } else if (game.getState() == GameState.GRACE_PERIOD) {
-                    // Only allow environmental damage during grace period
-                    if (event instanceof EntityDamageByEntityEvent) {
-                        event.setCancelled(true); // No PvP during grace period
-                    }
-                }
-            }
+            // Handle game-related damage rules
+            handleGameDamageRules(event, player);
         } catch (Exception e) {
             logger.warn("Error handling entity damage for " + player.getName(), e);
+        }
+    }
+    
+    /**
+     * Handles firework damage prevention.
+     * 
+     * @param event The damage event
+     * @param player The player being damaged
+     * @return true if firework damage was handled and prevented, false otherwise
+     */
+    private boolean handleFireworkDamage(@NotNull EntityDamageEvent event, @NotNull Player player) {
+        if (event.getCause() != EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
+            return false;
+        }
+        
+        if (!(event instanceof EntityDamageByEntityEvent)) {
+            return false;
+        }
+        
+        EntityDamageByEntityEvent entityEvent = (EntityDamageByEntityEvent) event;
+        if (!(entityEvent.getDamager() instanceof org.bukkit.entity.Firework)) {
+            return false;
+        }
+        
+        org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) entityEvent.getDamager();
+        
+        // Check if this is a celebration firework
+        if (firework.hasMetadata("celebration_firework")) {
+            event.setCancelled(true);
+            logger.debug("Prevented celebration firework damage to player " + player.getName());
+            return true;
+        }
+        
+        // Check if player is in a game
+        Game game = gameManager.getGameByPlayer(player);
+        if (game != null) {
+            event.setCancelled(true);
+            logger.debug("Prevented firework damage to player " + player.getName() + " in game");
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Handles damage rules based on game state.
+     * 
+     * @param event The damage event
+     * @param player The player being damaged
+     */
+    private void handleGameDamageRules(@NotNull EntityDamageEvent event, @NotNull Player player) {
+        Game game = gameManager.getGameByPlayer(player);
+        if (game == null) {
+            return; // Player not in a game
+        }
+        
+        GameState gameState = game.getState();
+        
+        if (gameState == GameState.WAITING || gameState == GameState.COUNTDOWN) {
+            // No damage allowed during waiting or countdown
+            event.setCancelled(true);
+        } else if (gameState == GameState.GRACE_PERIOD) {
+            // Only allow environmental damage during grace period
+            if (event instanceof EntityDamageByEntityEvent) {
+                event.setCancelled(true); // No PvP during grace period
+            }
         }
     }
     

@@ -19,6 +19,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Random;
@@ -88,7 +89,7 @@ public class ChestListener implements Listener {
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onChestOpen(@NotNull InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player)) {
+        if (!isPlayerEvent(event)) {
             return; // Only handle player interactions
         }
         
@@ -96,23 +97,45 @@ public class ChestListener implements Listener {
         Inventory inventory = event.getInventory();
         
         try {
-            // Check if this is a chest inventory
-            if (inventory.getHolder() instanceof Chest) {
-                Chest chest = (Chest) inventory.getHolder();
-                
-                // Check if player is in a game
-                Game game = gameManager.getGameByPlayer(player);
-                if (game != null && game.getState() != GameState.WAITING) {
-                    // Player is in an active game, check if chest needs filling
-                    handleChestInGame(chest, player, game);
-                } else {
-                    // Player is not in a game, check if chest is in an arena
-                    handleChestOutsideGame(chest, player);
-                }
-            }
+            processChestOpenEvent(player, inventory);
         } catch (Exception e) {
             logger.warn("Error handling chest open for " + player.getName(), e);
         }
+    }
+    
+    /**
+     * Checks if the event involves a player.
+     */
+    private boolean isPlayerEvent(@NotNull InventoryOpenEvent event) {
+        return event.getPlayer() instanceof Player;
+    }
+    
+    /**
+     * Processes the chest open event for the given player and inventory.
+     */
+    private void processChestOpenEvent(@NotNull Player player, @NotNull Inventory inventory) {
+        // Check if this is a chest inventory
+        if (!(inventory.getHolder() instanceof Chest)) {
+            return;
+        }
+        
+        Chest chest = (Chest) inventory.getHolder();
+        Game game = gameManager.getGameByPlayer(player);
+        
+        if (isPlayerInActiveGame(game)) {
+            // Player is in an active game, check if chest needs filling
+            handleChestInGame(chest, player, game);
+        } else {
+            // Player is not in a game, check if chest is in an arena
+            handleChestOutsideGame(chest, player);
+        }
+    }
+    
+    /**
+     * Checks if the player is in an active game (not waiting).
+     */
+    private boolean isPlayerInActiveGame(@Nullable Game game) {
+        return game != null && game.getState() != GameState.WAITING;
     }
     
     /**

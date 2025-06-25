@@ -91,7 +91,15 @@ public class SGBrigadierCommand extends Command {
         String subcommand = args[0].toLowerCase();
         CommandContext<CommandSender> context = createContext(sender, args);
         
-        int result = switch (subcommand) {
+        int result = executeSubcommand(subcommand, context, args);
+        return result == 1;
+    }
+    
+    /**
+     * Executes the appropriate subcommand based on the command input.
+     */
+    private int executeSubcommand(String subcommand, CommandContext<CommandSender> context, String[] args) {
+        return switch (subcommand) {
             case "join" -> handleJoinCommand(context);
             case "leave" -> handleLeaveCommand(context);
             case "start" -> handleStartCommand(context);
@@ -101,30 +109,39 @@ public class SGBrigadierCommand extends Command {
             case "reload" -> handleReloadCommand(context);
             case "wand" -> handleWandCommand(context);
             case "create" -> handleCreateCommand(context);
-            case "arena" -> {
-                if (args.length > 1) {
-                    if (args[1].equalsIgnoreCase("select")) {
-                        // Handle /sg arena select <arena>
-                        yield handleArenaSelectCommand(context);
-                    } else {
-                        // Handle /sg arena <arena> (direct selection)
-                        yield handleArenaDirectSelectCommand(context);
-                    }
-                }
-                yield handleHelpCommand(context);
-            }
-            case "scan" -> {
-                if (args.length > 1 && args[1].equalsIgnoreCase("chests")) {
-                    yield handleScanChestsCommand(context);
-                }
-                yield handleHelpCommand(context);
-            }
+            case "arena" -> handleArenaSubcommand(context, args);
+            case "scan" -> handleScanSubcommand(context, args);
             case "menu" -> handleMenuCommand(context);
             case "test" -> handleTestCommand(context);
             case "help" -> handleHelpCommand(context);
             default -> handleHelpCommand(context);
         };
-        return result == 1;
+    }
+    
+    /**
+     * Handles arena-related subcommands.
+     */
+    private int handleArenaSubcommand(CommandContext<CommandSender> context, String[] args) {
+        if (args.length > 1) {
+            if (args[1].equalsIgnoreCase("select")) {
+                // Handle /sg arena select <arena>
+                return handleArenaSelectCommand(context);
+            } else {
+                // Handle /sg arena <arena> (direct selection)
+                return handleArenaDirectSelectCommand(context);
+            }
+        }
+        return handleHelpCommand(context);
+    }
+    
+    /**
+     * Handles scan-related subcommands.
+     */
+    private int handleScanSubcommand(CommandContext<CommandSender> context, String[] args) {
+        if (args.length > 1 && args[1].equalsIgnoreCase("chests")) {
+            return handleScanChestsCommand(context);
+        }
+        return handleHelpCommand(context);
     }
     
     /**
@@ -134,66 +151,126 @@ public class SGBrigadierCommand extends Command {
         List<String> completions = new ArrayList<>();
         
         if (args.length == 1) {
-            String partial = args[0].toLowerCase();
-            List<String> commands = Arrays.asList("join", "leave", "start", "stop", "list", "info", "menu", "help");
-            
-            if (sender.hasPermission("lumasg.admin")) {
-                commands = new ArrayList<>(commands);
-                commands.addAll(Arrays.asList("reload", "wand", "create", "arena", "scan", "test"));
-            }
-            
-            for (String command : commands) {
-                if (command.startsWith(partial)) {
-                    completions.add(command);
-                }
-            }
+            return getFirstArgumentCompletions(sender, args[0]);
         } else if (args.length == 2) {
-            String subcommand = args[0].toLowerCase();
-            String partial = args[1].toLowerCase();
-            
-            if (subcommand.equals("join") || subcommand.equals("start")) {
-                // Tab complete arena names for join and start commands
-                for (Arena arena : arenaManager.getArenas()) {
-                    if (arena.getName().toLowerCase().startsWith(partial)) {
-                        completions.add(arena.getName());
-                    }
-                }
-            } else if (subcommand.equals("arena")) {
-                // Tab complete "select" for arena command, and also arena names for direct selection
-                if ("select".startsWith(partial)) {
-                    completions.add("select");
-                }
-                // Also allow direct arena selection: /sg arena <arena_name>
-                for (Arena arena : arenaManager.getArenas()) {
-                    if (arena.getName().toLowerCase().startsWith(partial)) {
-                        completions.add(arena.getName());
-                    }
-                }
-            } else if (subcommand.equals("scan")) {
-                if ("chests".startsWith(partial)) {
-                    completions.add("chests");
-                }
-            } else if (subcommand.equals("test")) {
-                if ("celebration".startsWith(partial)) {
-                    completions.add("celebration");
-                }
-            }
+            return getSecondArgumentCompletions(args[0], args[1]);
         } else if (args.length == 3) {
-            String subcommand = args[0].toLowerCase();
-            String action = args[1].toLowerCase();
-            String partial = args[2].toLowerCase();
-            
-            if ((subcommand.equals("arena") && action.equals("select")) ||
-                (subcommand.equals("scan") && action.equals("chests"))) {
-                
-                for (Arena arena : arenaManager.getArenas()) {
-                    if (arena.getName().toLowerCase().startsWith(partial)) {
-                        completions.add(arena.getName());
-                    }
-                }
+            return getThirdArgumentCompletions(args[0], args[1], args[2]);
+        }
+        
+        return completions;
+    }
+    
+    /**
+     * Gets tab completions for the first argument (main commands).
+     */
+    private List<String> getFirstArgumentCompletions(CommandSender sender, String partial) {
+        List<String> completions = new ArrayList<>();
+        String partialLower = partial.toLowerCase();
+        
+        List<String> commands = Arrays.asList("join", "leave", "start", "stop", "list", "info", "menu", "help");
+        
+        if (sender.hasPermission("lumasg.admin")) {
+            commands = new ArrayList<>(commands);
+            commands.addAll(Arrays.asList("reload", "wand", "create", "arena", "scan", "test"));
+        }
+        
+        for (String command : commands) {
+            if (command.startsWith(partialLower)) {
+                completions.add(command);
             }
         }
         
+        return completions;
+    }
+    
+    /**
+     * Gets tab completions for the second argument.
+     */
+    private List<String> getSecondArgumentCompletions(String subcommand, String partial) {
+        List<String> completions = new ArrayList<>();
+        String subcommandLower = subcommand.toLowerCase();
+        String partialLower = partial.toLowerCase();
+        
+        if (subcommandLower.equals("join") || subcommandLower.equals("start")) {
+            return getArenaNameCompletions(partialLower);
+        } else if (subcommandLower.equals("arena")) {
+            return getArenaSubcommandCompletions(partialLower);
+        } else if (subcommandLower.equals("scan")) {
+            return getScanSubcommandCompletions(partialLower);
+        } else if (subcommandLower.equals("test")) {
+            return getTestSubcommandCompletions(partialLower);
+        }
+        
+        return completions;
+    }
+    
+    /**
+     * Gets tab completions for the third argument.
+     */
+    private List<String> getThirdArgumentCompletions(String subcommand, String action, String partial) {
+        List<String> completions = new ArrayList<>();
+        String subcommandLower = subcommand.toLowerCase();
+        String actionLower = action.toLowerCase();
+        String partialLower = partial.toLowerCase();
+        
+        if ((subcommandLower.equals("arena") && actionLower.equals("select")) ||
+            (subcommandLower.equals("scan") && actionLower.equals("chests"))) {
+            return getArenaNameCompletions(partialLower);
+        }
+        
+        return completions;
+    }
+    
+    /**
+     * Gets arena name completions that match the partial input.
+     */
+    private List<String> getArenaNameCompletions(String partial) {
+        List<String> completions = new ArrayList<>();
+        for (Arena arena : arenaManager.getArenas()) {
+            if (arena.getName().toLowerCase().startsWith(partial)) {
+                completions.add(arena.getName());
+            }
+        }
+        return completions;
+    }
+    
+    /**
+     * Gets arena subcommand completions.
+     */
+    private List<String> getArenaSubcommandCompletions(String partial) {
+        List<String> completions = new ArrayList<>();
+        
+        // Tab complete "select" for arena command, and also arena names for direct selection
+        if ("select".startsWith(partial)) {
+            completions.add("select");
+        }
+        
+        // Also allow direct arena selection: /sg arena <arena_name>
+        completions.addAll(getArenaNameCompletions(partial));
+        
+        return completions;
+    }
+    
+    /**
+     * Gets scan subcommand completions.
+     */
+    private List<String> getScanSubcommandCompletions(String partial) {
+        List<String> completions = new ArrayList<>();
+        if ("chests".startsWith(partial)) {
+            completions.add("chests");
+        }
+        return completions;
+    }
+    
+    /**
+     * Gets test subcommand completions.
+     */
+    private List<String> getTestSubcommandCompletions(String partial) {
+        List<String> completions = new ArrayList<>();
+        if ("celebration".startsWith(partial)) {
+            completions.add("celebration");
+        }
         return completions;
     }
     

@@ -119,37 +119,73 @@ public class GameScoreboardManager {
             return;
         }
         
-        if (gameScoreboard == null || objective == null) {
-            initializeScoreboard();
-            if (gameScoreboard == null || objective == null) {
-                return;
-            }
+        if (!ensureScoreboardInitialized()) {
+            return;
         }
         
-        // Clear existing scores to prevent duplicates
+        clearExistingScores();
+        updateScoreboardContent();
+        updateScoreboardVisibility();
+    }
+    
+    /**
+     * Ensures the scoreboard is properly initialized.
+     */
+    private boolean ensureScoreboardInitialized() {
+        if (gameScoreboard == null || objective == null) {
+            initializeScoreboard();
+            return gameScoreboard != null && objective != null;
+        }
+        return true;
+    }
+    
+    /**
+     * Clears existing scores from the scoreboard.
+     */
+    private void clearExistingScores() {
         for (String entry : new HashSet<>(gameScoreboard.getEntries())) {
             gameScoreboard.resetScores(entry);
         }
-        
+    }
+    
+    /**
+     * Updates the content displayed on the scoreboard.
+     */
+    private void updateScoreboardContent() {
         // Get regular scoreboard lines from config
         List<String> lines = plugin.getConfig().getStringList("scoreboard.lines");
         
         // Process placeholders in lines
         Map<String, String> placeholders = createPlaceholders();
         
-        // Create a combined list for deathmatch
-        List<String> displayLines = new ArrayList<>(lines);
+        // Create display lines with deathmatch content if applicable
+        List<String> displayLines = createDisplayLines(lines);
+        
+        // Add scores to the scoreboard
+        addScoresToObjective(displayLines, placeholders);
+    }
+    
+    /**
+     * Creates the final list of lines to display on the scoreboard.
+     */
+    private @NotNull List<String> createDisplayLines(@NotNull List<String> baseLines) {
+        List<String> displayLines = new ArrayList<>(baseLines);
         
         // If in deathmatch, add the deathmatch lines
         if (getCurrentGameState() == GameState.DEATHMATCH) {
-            // Get deathmatch-specific lines to add
             List<String> deathmatchLines = plugin.getConfig().getStringList("scoreboard.deathmatch-lines");
             if (!deathmatchLines.isEmpty()) {
                 displayLines.addAll(deathmatchLines);
             }
         }
         
-        // Add scores
+        return displayLines;
+    }
+    
+    /**
+     * Adds processed lines as scores to the objective.
+     */
+    private void addScoresToObjective(@NotNull List<String> displayLines, @NotNull Map<String, String> placeholders) {
         int score = displayLines.size();
         for (String line : displayLines) {
             // First replace placeholders, then parse MiniMessage formatting
@@ -158,9 +194,6 @@ public class GameScoreboardManager {
             String legacyLine = MiniMessageUtils.toLegacy(processedLine);
             objective.getScore(legacyLine).setScore(score--);
         }
-        
-        // Update visibility
-        updateScoreboardVisibility();
     }
     
     /**

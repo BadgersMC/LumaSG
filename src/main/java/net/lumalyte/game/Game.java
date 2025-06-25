@@ -839,24 +839,75 @@ public class Game {
         }
         
         logger.info("Ending game: " + gameId);
-        isShuttingDown = true;
-        state = GameState.FINISHED;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        initializeGameShutdown();
         
         // Clear all ground items in the arena world
         clearGroundItems();
         
         // Disable PvP immediately
-        pvpEnabled = false;
-        isGracePeriod = false;
+        disablePvpAndGracePeriod();
         
         // Cancel all scheduled tasks using timer manager
-        timerManager.cleanup();
-        scoreboardManager.cleanup();
+        cleanupManagers();
         
         // Set all players and spectators to adventure mode for safety during celebration
-        for (UUID playerId : playerManager.getPlayers()) {
+        preparePlayersForEndGame();
+        
+        // Restore world settings using world manager
+        worldManager.restoreWorld();
+        
+        // Record game statistics if enabled
+        recordStatisticsIfEnabled();
+        
+        // CELEBRATION PHASE - Announce winner and show fireworks
+        handleCelebration();
+        
+        // Wait for celebration to finish, then teleport everyone out
+        scheduleGameCleanup();
+    }
+    
+    /**
+     * Initializes the game shutdown process by setting appropriate flags and states.
+     */
+    private void initializeGameShutdown() {
+        isShuttingDown = true;
+        state = GameState.FINISHED;
+        scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
+    }
+    
+    /**
+     * Disables PvP and grace period for the end game phase.
+     */
+    private void disablePvpAndGracePeriod() {
+        pvpEnabled = false;
+        isGracePeriod = false;
+    }
+    
+    /**
+     * Cleans up timer and scoreboard managers.
+     */
+    private void cleanupManagers() {
+        timerManager.cleanup();
+        scoreboardManager.cleanup();
+    }
+    
+    /**
+     * Prepares all players and spectators for end game by setting them to adventure mode
+     * and clearing their inventories.
+     */
+    private void preparePlayersForEndGame() {
+        preparePlayersForEndGameCleanup(playerManager.getPlayers());
+        preparePlayersForEndGameCleanup(playerManager.getSpectators());
+    }
+    
+    /**
+     * Helper method to prepare a collection of player UUIDs for end game cleanup.
+     * 
+     * @param playerIds The collection of player UUIDs to prepare
+     */
+    private void preparePlayersForEndGameCleanup(Set<UUID> playerIds) {
+        for (UUID playerId : playerIds) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null && player.isOnline()) {
                 player.setGameMode(GameMode.ADVENTURE);
@@ -866,37 +917,44 @@ public class Game {
                 player.getInventory().setArmorContents(null);
             }
         }
-        for (UUID spectatorId : playerManager.getSpectators()) {
-            Player spectator = playerManager.getCachedPlayer(spectatorId);
-            if (spectator != null && spectator.isOnline()) {
-                spectator.setGameMode(GameMode.ADVENTURE);
-                
-                // Clear inventory for spectators too
-                spectator.getInventory().clear();
-                spectator.getInventory().setArmorContents(null);
-            }
-        }
-        
-        // Restore world settings using world manager
-        worldManager.restoreWorld();
-        
-        // Record game statistics if enabled
+    }
+    
+    /**
+     * Records game statistics if statistics are enabled in the configuration.
+     */
+    private void recordStatisticsIfEnabled() {
         if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
             recordGameStatistics();
         }
-        
-        // CELEBRATION PHASE - Announce winner and show fireworks
+    }
+    
+    /**
+     * Handles the celebration phase by determining if there's a winner and triggering
+     * the appropriate celebration.
+     */
+    private void handleCelebration() {
         if (playerManager.getPlayerCount() == 1) {
-            UUID winnerId = playerManager.getPlayers().iterator().next();
-            Player winner = playerManager.getCachedPlayer(winnerId);
-            if (winner != null) {
-                celebrationManager.celebrateWinner(winner);
-            }
+            celebrateWinner();
         } else {
             celebrationManager.celebrateNoWinner();
         }
-        
-        // Wait for celebration to finish, then teleport everyone out
+    }
+    
+    /**
+     * Celebrates the game winner if one exists.
+     */
+    private void celebrateWinner() {
+        UUID winnerId = playerManager.getPlayers().iterator().next();
+        Player winner = playerManager.getCachedPlayer(winnerId);
+        if (winner != null) {
+            celebrationManager.celebrateWinner(winner);
+        }
+    }
+    
+    /**
+     * Schedules the final cleanup tasks to run after the celebration period.
+     */
+    private void scheduleGameCleanup() {
         // This gives time for fireworks and title to be seen
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             // Return all players to lobby or original locations using player manager
@@ -1316,59 +1374,118 @@ public class Game {
      */
     private void recordGameStatistics() {
         try {
-            // Calculate accurate game duration
-            long gameTimeSeconds = 0;
-            if (gameStartTime != null) {
-                gameTimeSeconds = Duration.between(gameStartTime, Instant.now()).getSeconds();
-            }
+            long gameTimeSeconds = calculateGameDuration();
+            Set<UUID> allParticipants = getAllParticipants();
+            List<UUID> finalRankings = determineFinalRankings();
             
-            // Get all participants
-            Set<UUID> allParticipants = new HashSet<>(playerManager.getPlayers());
-            allParticipants.addAll(playerManager.getSpectators());
-            allParticipants.addAll(playerManager.getDisconnectedPlayers());
-            
-            // Determine proper placements based on elimination order
-            List<UUID> finalRankings = new ArrayList<>();
-            
-            // Winners first (remaining players)
-            finalRankings.addAll(playerManager.getPlayers());
-            
-            // Then eliminated players in reverse order (last eliminated = highest placement among eliminated)
-            List<UUID> reversedElimination = new ArrayList<>(eliminationOrder);
-            Collections.reverse(reversedElimination);
-            finalRankings.addAll(reversedElimination);
-            
-            // Finally disconnected players last
-            finalRankings.addAll(playerManager.getDisconnectedPlayers());
-            
-            // Record statistics for each player
-            for (int i = 0; i < finalRankings.size(); i++) {
-                UUID playerId = finalRankings.get(i);
-                int placement = i + 1;
-                int kills = playerManager.getPlayerKills(playerId);
-                double damageDealt = getPlayerDamageDealt(playerId);
-                double damageTaken = getPlayerDamageTaken(playerId);
-                int chestsOpened = getPlayerChestsOpened(playerId);
-                
-                plugin.getStatisticsManager().recordGameResult(
-                    playerId, 
-                    placement, 
-                    kills, 
-                    damageDealt, 
-                    damageTaken, 
-                    chestsOpened, 
-                    gameTimeSeconds
-                );
-                
-                logger.debug("Recorded game result for player " + playerId + 
-                    ": placement=" + placement + ", kills=" + kills + 
-                    ", damage dealt=" + damageDealt + ", damage taken=" + damageTaken + 
-                    ", chests opened=" + chestsOpened + ", game time=" + gameTimeSeconds + "s");
-            }
+            recordPlayerStatistics(finalRankings, gameTimeSeconds);
             
             logger.debug("Recorded statistics for " + finalRankings.size() + " players in game " + gameId);
         } catch (Exception e) {
             logger.warn("Failed to record game statistics for game " + gameId, e);
+        }
+    }
+    
+    /**
+     * Calculates the total game duration in seconds.
+     */
+    private long calculateGameDuration() {
+        if (gameStartTime != null) {
+            return Duration.between(gameStartTime, Instant.now()).getSeconds();
+        }
+        return 0;
+    }
+    
+    /**
+     * Gets all participants including players, spectators, and disconnected players.
+     */
+    private @NotNull Set<UUID> getAllParticipants() {
+        Set<UUID> allParticipants = new HashSet<>(playerManager.getPlayers());
+        allParticipants.addAll(playerManager.getSpectators());
+        allParticipants.addAll(playerManager.getDisconnectedPlayers());
+        return allParticipants;
+    }
+    
+    /**
+     * Determines the final rankings based on elimination order and remaining players.
+     */
+    private @NotNull List<UUID> determineFinalRankings() {
+        List<UUID> finalRankings = new ArrayList<>();
+        
+        // Winners first (remaining players)
+        finalRankings.addAll(playerManager.getPlayers());
+        
+        // Then eliminated players in reverse order (last eliminated = highest placement among eliminated)
+        List<UUID> reversedElimination = new ArrayList<>(eliminationOrder);
+        Collections.reverse(reversedElimination);
+        finalRankings.addAll(reversedElimination);
+        
+        // Finally disconnected players last
+        finalRankings.addAll(playerManager.getDisconnectedPlayers());
+        
+        return finalRankings;
+    }
+    
+    /**
+     * Records statistics for all players based on their final rankings.
+     */
+    private void recordPlayerStatistics(@NotNull List<UUID> finalRankings, long gameTimeSeconds) {
+        for (int i = 0; i < finalRankings.size(); i++) {
+            UUID playerId = finalRankings.get(i);
+            int placement = i + 1;
+            
+            PlayerGameStats stats = collectPlayerStats(playerId);
+            recordIndividualPlayerStats(playerId, placement, stats, gameTimeSeconds);
+        }
+    }
+    
+    /**
+     * Collects all statistics for a specific player.
+     */
+    private @NotNull PlayerGameStats collectPlayerStats(@NotNull UUID playerId) {
+        int kills = playerManager.getPlayerKills(playerId);
+        double damageDealt = getPlayerDamageDealt(playerId);
+        double damageTaken = getPlayerDamageTaken(playerId);
+        int chestsOpened = getPlayerChestsOpened(playerId);
+        
+        return new PlayerGameStats(kills, damageDealt, damageTaken, chestsOpened);
+    }
+    
+    /**
+     * Records statistics for an individual player.
+     */
+    private void recordIndividualPlayerStats(@NotNull UUID playerId, int placement, 
+                                           @NotNull PlayerGameStats stats, long gameTimeSeconds) {
+        plugin.getStatisticsManager().recordGameResult(
+            playerId, 
+            placement, 
+            stats.kills, 
+            stats.damageDealt, 
+            stats.damageTaken, 
+            stats.chestsOpened, 
+            gameTimeSeconds
+        );
+        
+        logger.debug("Recorded game result for player " + playerId + 
+            ": placement=" + placement + ", kills=" + stats.kills + 
+            ", damage dealt=" + stats.damageDealt + ", damage taken=" + stats.damageTaken + 
+            ", chests opened=" + stats.chestsOpened + ", game time=" + gameTimeSeconds + "s");
+    }
+    
+    /**
+     * Helper class to hold player game statistics.
+     */
+    private static class PlayerGameStats {
+        final int kills;
+        final double damageDealt;
+        final double damageTaken;
+        final int chestsOpened;
+        
+        PlayerGameStats(int kills, double damageDealt, double damageTaken, int chestsOpened) {
+            this.kills = kills;
+            this.damageDealt = damageDealt;
+            this.damageTaken = damageTaken;
+            this.chestsOpened = chestsOpened;
         }
     }
 
