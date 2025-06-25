@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 /**
@@ -538,29 +539,9 @@ public class Game {
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
             logger.debug("Starting to fill chests in arena: " + arena.getName());
             
-            // First, scan for chests if none are registered
-            if (arena.getChestLocations().isEmpty()) {
-                logger.debug("No chest locations found, scanning arena for chests...");
-                // Run on main thread since scanning involves world operations
-                try {
-                    CompletableFuture<Integer> scanFuture = new CompletableFuture<>();
-                    activeFutures.add(scanFuture);
-                    
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        int count = arena.scanForChests();
-                        logger.debug("Found " + count + " chests in arena " + arena.getName());
-                        scanFuture.complete(count);
-                    });
-                    // Wait for scan to complete
-                    int chestsFound = scanFuture.get();
-                    activeFutures.remove(scanFuture);
-                    
-                    if (chestsFound == 0) {
-                        logger.warn("No chests found in arena " + arena.getName() + " after scanning!");
-                    }
-                } catch (Exception e) {
-                    logger.severe("Error scanning for chests", e);
-                }
+            // Ensure chests are scanned
+            if (!ensureChestsScanned()) {
+                return;
             }
             
             List<Location> chestLocations = arena.getChestLocations();
@@ -571,100 +552,174 @@ public class Game {
             
             logger.debug("Found " + chestLocations.size() + " chests to fill in arena " + arena.getName());
             
-            // Check if chest items are loaded
-            if (plugin.getChestManager().getChestItems().isEmpty()) {
-                logger.warn("No chest items loaded! Attempting to load chest items...");
-                try {
-                    CompletableFuture<Void> loadFuture = plugin.getChestManager().loadChestItems();
-                    activeFutures.add(loadFuture);
-                    loadFuture.get(); // Wait for completion
-                    activeFutures.remove(loadFuture);
-                    logger.debug("Chest items loaded successfully");
-                } catch (Exception e) {
-                    logger.severe("Failed to load chest items", e);
-                    return;
-                }
+            // Ensure chest items are loaded
+            if (!ensureChestItemsLoaded()) {
+                return;
             }
             
-            Random random = new Random();
-            String[] tiers = {"common", "uncommon", "rare"};
-            int[] weights = {70, 25, 5}; // 70% common, 25% uncommon, 5% rare
-            
-            int filledChests = 0;
-            int failedChests = 0;
-            
-            // Process chests in batches to avoid overwhelming the server
-            List<CompletableFuture<Boolean>> futures = new ArrayList<>();
-            
-            for (Location chestLoc : chestLocations) {
-                // Select a random tier based on weights
-                int totalWeight = 0;
-                for (int weight : weights) {
-                    totalWeight += weight;
-                }
-                
-                int randomValue = random.nextInt(totalWeight);
-                String selectedTier = tiers[0]; // Default to common
-                
-                int currentWeight = 0;
-                for (int i = 0; i < weights.length; i++) {
-                    currentWeight += weights[i];
-                    if (randomValue < currentWeight) {
-                        selectedTier = tiers[i];
-                        break;
-                    }
-                }
-                
-                final String tier = selectedTier;
-                logger.debug("Attempting to fill chest at " + chestLoc + " with tier: " + tier);
-                
-                // Fill the chest with items from the selected tier on the main thread
-                CompletableFuture<Boolean> chestFuture = new CompletableFuture<>();
-                activeFutures.add(chestFuture);
-                final Location finalChestLoc = chestLoc.clone();
-                
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    try {
-                        boolean success = plugin.getChestManager().fillChest(finalChestLoc, tier);
-                        if (success) {
-                            logger.debug("Successfully filled chest at " + finalChestLoc + " with tier: " + tier);
-                        } else {
-                            logger.warn("Failed to fill chest at " + finalChestLoc + " with tier: " + tier);
-                        }
-                        chestFuture.complete(success);
-                    } catch (Exception e) {
-                        logger.severe("Failed to fill chest at " + finalChestLoc + " with tier: " + tier, e);
-                        chestFuture.complete(false);
-                    }
-                });
-                
-                futures.add(chestFuture);
+            // Process chests in batches
+            int batchSize = 5; // Process 5 chests at a time
+            List<List<Location>> batches = new ArrayList<>();
+            for (int i = 0; i < chestLocations.size(); i += batchSize) {
+                batches.add(chestLocations.subList(i, Math.min(chestLocations.size(), i + batchSize)));
             }
             
-            // Wait for all chests to be filled
-            for (CompletableFuture<Boolean> chestFuture : futures) {
+            AtomicInteger filledChests = new AtomicInteger(0);
+            AtomicInteger failedChests = new AtomicInteger(0);
+            
+            // Process each batch sequentially to avoid overwhelming the server
+            for (List<Location> batch : batches) {
                 try {
-                    if (chestFuture.get()) {
-                        filledChests++;
-                    } else {
-                        failedChests++;
-                    }
-                } catch (Exception e) {
-                    logger.severe("Error filling chest", e);
-                    failedChests++;
-                } finally {
-                    activeFutures.remove(chestFuture);
+                    processBatch(batch, filledChests, failedChests);
+                    // Add a small delay between batches to reduce server load
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("Chest filling interrupted", e);
+                    break;
                 }
             }
             
             logger.debug("Chest filling completed for arena " + arena.getName() + 
-                " - Filled: " + filledChests + ", Failed: " + failedChests + ", Total: " + chestLocations.size());
+                " - Filled: " + filledChests.get() + ", Failed: " + failedChests.get() + 
+                ", Total: " + chestLocations.size());
         });
         
         activeFutures.add(future);
         future.whenComplete((result, throwable) -> activeFutures.remove(future));
         
         return future;
+    }
+    
+    /**
+     * Ensures that chests are scanned in the arena.
+     * @return true if chests are available, false if scanning failed
+     */
+    private boolean ensureChestsScanned() {
+        if (!arena.getChestLocations().isEmpty()) {
+            return true;
+        }
+        
+        logger.debug("No chest locations found, scanning arena for chests...");
+        try {
+            CompletableFuture<Integer> scanFuture = new CompletableFuture<>();
+            activeFutures.add(scanFuture);
+            
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                int count = arena.scanForChests();
+                logger.debug("Found " + count + " chests in arena " + arena.getName());
+                scanFuture.complete(count);
+            });
+            
+            int chestsFound = scanFuture.get();
+            activeFutures.remove(scanFuture);
+            
+            if (chestsFound == 0) {
+                logger.warn("No chests found in arena " + arena.getName() + " after scanning!");
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            logger.severe("Error scanning for chests", e);
+            return false;
+        }
+    }
+    
+    /**
+     * Ensures that chest items are loaded.
+     * @return true if items are loaded successfully, false otherwise
+     */
+    private boolean ensureChestItemsLoaded() {
+        if (!plugin.getChestManager().getChestItems().isEmpty()) {
+            return true;
+        }
+        
+        logger.warn("No chest items loaded! Attempting to load chest items...");
+        try {
+            CompletableFuture<Void> loadFuture = plugin.getChestManager().loadChestItems();
+            activeFutures.add(loadFuture);
+            loadFuture.get();
+            activeFutures.remove(loadFuture);
+            logger.debug("Chest items loaded successfully");
+            return true;
+        } catch (Exception e) {
+            logger.severe("Failed to load chest items", e);
+            return false;
+        }
+    }
+    
+    /**
+     * Processes a batch of chest locations.
+     * @param batch The batch of locations to process
+     * @param filledChests Counter for successfully filled chests
+     * @param failedChests Counter for failed chest fills
+     */
+    private void processBatch(List<Location> batch, AtomicInteger filledChests, AtomicInteger failedChests) {
+        List<CompletableFuture<Boolean>> batchFutures = new ArrayList<>();
+        
+        for (Location chestLoc : batch) {
+            String tier = selectChestTier();
+            logger.debug("Attempting to fill chest at " + chestLoc + " with tier: " + tier);
+            
+            CompletableFuture<Boolean> chestFuture = new CompletableFuture<>();
+            activeFutures.add(chestFuture);
+            final Location finalChestLoc = chestLoc.clone();
+            
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                try {
+                    boolean success = plugin.getChestManager().fillChest(finalChestLoc, tier);
+                    if (success) {
+                        logger.debug("Successfully filled chest at " + finalChestLoc + " with tier: " + tier);
+                    } else {
+                        logger.warn("Failed to fill chest at " + finalChestLoc + " with tier: " + tier);
+                    }
+                    chestFuture.complete(success);
+                } catch (Exception e) {
+                    logger.severe("Failed to fill chest at " + finalChestLoc + " with tier: " + tier, e);
+                    chestFuture.complete(false);
+                }
+            });
+            
+            batchFutures.add(chestFuture);
+        }
+        
+        // Wait for all chests in this batch to be filled
+        for (CompletableFuture<Boolean> chestFuture : batchFutures) {
+            try {
+                if (chestFuture.get()) {
+                    filledChests.incrementAndGet();
+                } else {
+                    failedChests.incrementAndGet();
+                }
+            } catch (Exception e) {
+                logger.severe("Error filling chest", e);
+                failedChests.incrementAndGet();
+            } finally {
+                activeFutures.remove(chestFuture);
+            }
+        }
+    }
+    
+    /**
+     * Selects a random chest tier based on predefined weights.
+     * @return The selected tier
+     */
+    private String selectChestTier() {
+        String[] tiers = {"common", "uncommon", "rare"};
+        int[] weights = {70, 25, 5}; // 70% common, 25% uncommon, 5% rare
+        
+        int totalWeight = Arrays.stream(weights).sum();
+        int randomValue = new Random().nextInt(totalWeight);
+        
+        int currentWeight = 0;
+        for (int i = 0; i < weights.length; i++) {
+            currentWeight += weights[i];
+            if (randomValue < currentWeight) {
+                return tiers[i];
+            }
+        }
+        
+        return tiers[0]; // Default to common
     }
     
     /**
