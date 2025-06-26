@@ -3,7 +3,7 @@ package net.lumalyte;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
 import net.lumalyte.chest.ChestManager;
-import net.lumalyte.commands.SGBrigadierCommand;
+import net.lumalyte.commands.SGCommand;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.gui.MenuUtils;
 import net.lumalyte.hooks.HookManager;
@@ -18,7 +18,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.InvUI;
-import org.bukkit.configuration.serialization.ConfigurationSerialization;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -169,9 +168,9 @@ public class LumaSG extends JavaPlugin {
     
     private void registerCommands() {
         // Register the SG command using Paper's command system
-        SGBrigadierCommand sgCommand = new SGBrigadierCommand(this);
-        sgCommand.register();
-        debugLogger.debug("Registered 'sg' command using Paper's command system");
+        SGCommand sgCommand = new SGCommand(this);
+        // The command will be registered via the LumaSGBootstrap class
+        debugLogger.debug("Created 'sg' command using Paper's command system");
     }
     
     private void registerListeners() {

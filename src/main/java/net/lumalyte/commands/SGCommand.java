@@ -7,6 +7,7 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
@@ -19,16 +20,10 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.Location;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import org.bukkit.plugin.java.JavaPlugin;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
-
-import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.
@@ -56,119 +51,114 @@ import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
  */
 public class SGCommand {
     
-    private final LumaSG plugin;
-    private final GameManager gameManager;
-    private final ArenaManager arenaManager;
+    private LumaSG plugin;
+    private GameManager gameManager;
+    private ArenaManager arenaManager;
     
     /** The debug logger instance for this command handler */
-    private final DebugLogger.ContextualLogger logger;
+    private DebugLogger.ContextualLogger logger;
     
     /**
      * Creates a new SG command handler.
      * 
-     * @param plugin The plugin instance
+     * @param plugin The plugin instance (can be null during bootstrap)
      */
     public SGCommand(LumaSG plugin) {
         this.plugin = plugin;
-        this.gameManager = plugin.getGameManager();
-        this.arenaManager = plugin.getArenaManager();
-        this.logger = plugin.getDebugLogger().forContext("SGCommand");
+        // We'll initialize these later when needed
+        this.gameManager = null;
+        this.arenaManager = null;
+        this.logger = null;
+    }
+    
+    /**
+     * Gets the plugin instance, initializing managers if needed.
+     * This is called lazily when needed rather than during construction.
+     */
+    private LumaSG getPlugin() {
+        if (plugin == null) {
+            plugin = JavaPlugin.getPlugin(LumaSG.class);
+            initializeManagers();
+        }
+        return plugin;
+    }
+    
+    /**
+     * Initialize managers after we have a valid plugin instance.
+     */
+    private void initializeManagers() {
+        if (gameManager == null) {
+            gameManager = getPlugin().getGameManager();
+        }
+        if (arenaManager == null) {
+            arenaManager = getPlugin().getArenaManager();
+        }
+        if (logger == null) {
+            logger = getPlugin().getDebugLogger().forContext("SGCommand");
+        }
+    }
+    
+    /**
+     * Creates the command node for registration.
+     * This follows Paper's recommended pattern of building the command tree.
+     * 
+     * @return The built command node ready for registration
+     */
+    public LiteralCommandNode<CommandSourceStack> createCommandNode() {
+        return createCommandBuilder().build();
+    }
+    
+    /**
+     * Creates the command builder for registration with dispatcher.
+     * 
+     * @return The command builder ready for registration
+     */
+    public LiteralArgumentBuilder<CommandSourceStack> createCommandBuilder() {
+        return Commands.literal("sg")
+            .requires(source -> source.getSender().hasPermission("lumasg.command.sg"))
+            .executes(this::openMenu) // Default behavior: open menu when no subcommand is provided
+            .then(Commands.literal("join")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.join"))
+                .then(Commands.argument("arena", StringArgumentType.word())
+                    .suggests(this::suggestArenas)
+                    .executes(this::joinGame)))
+            .then(Commands.literal("leave")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.leave"))
+                .executes(this::leaveGame))
+            .then(Commands.literal("start")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.start"))
+                .executes(this::startGame))
+            .then(Commands.literal("stop")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.stop"))
+                .executes(this::stopGame))
+            .then(Commands.literal("menu")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.menu"))
+                .executes(this::openMenu));
     }
     
     /**
      * Registers the command with the server's command dispatcher.
      * 
      * @param dispatcher The command dispatcher
+     * @deprecated Use createCommandNode() instead for proper Paper integration
      */
-    public void register(CommandDispatcher<CommandSender> dispatcher) {
-        // Main command
-        LiteralArgumentBuilder<CommandSender> sgCommand = LiteralArgumentBuilder
-            .<CommandSender>literal("sg")
-            .requires(sender -> sender.hasPermission("lumasg.play"))
-            .executes(this::handleMenuCommand);
-        
-        // Join command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("join")
-            .then(RequiredArgumentBuilder.<CommandSender, String>argument("arena", StringArgumentType.word())
-                .suggests(this::suggestArenas)
-                .executes(this::handleJoinCommand)));
-        
-        // Leave command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("leave")
-            .executes(this::handleLeaveCommand));
-        
-        // Start command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("start")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .then(RequiredArgumentBuilder.<CommandSender, String>argument("arena", StringArgumentType.word())
-                .suggests(this::suggestArenas)
-                .executes(this::handleStartCommand)));
-        
-        // Stop command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("stop")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .executes(this::handleStopCommand));
-        
-        // List command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("list")
-            .executes(this::handleListCommand));
-        
-        // Info command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("info")
-            .executes(this::handleInfoCommand));
-        
-        // Reload command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("reload")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .executes(this::handleReloadCommand));
-        
-        // Wand command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("wand")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .executes(this::handleWandCommand));
-        
-        // Create command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("create")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .then(RequiredArgumentBuilder.<CommandSender, String>argument("name", StringArgumentType.word())
-                .then(RequiredArgumentBuilder.<CommandSender, String>argument("radius", StringArgumentType.word())
-                    .executes(this::handleCreateCommand))));
-        
-        // Arena command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("arena")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .then(LiteralArgumentBuilder.<CommandSender>literal("select")
-                .then(RequiredArgumentBuilder.<CommandSender, String>argument("arena", StringArgumentType.word())
-                    .suggests(this::suggestArenas)
-                    .executes(this::handleArenaSelectCommand))));
-        
-        // Scan chests command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("scanchests")
-            .requires(sender -> sender.hasPermission("lumasg.admin"))
-            .then(RequiredArgumentBuilder.<CommandSender, String>argument("arena", StringArgumentType.word())
-                .suggests(this::suggestArenas)
-                .executes(this::handleScanChestsCommand)));
-        
-        // Menu command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("menu")
-            .executes(this::handleMenuCommand));
-        
-        // Help command
-        sgCommand.then(LiteralArgumentBuilder.<CommandSender>literal("help")
-            .executes(this::handleHelpCommand));
-        
-        // Register command
-        dispatcher.register(sgCommand);
+    @Deprecated
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(createCommandBuilder());
     }
     
     /**
      * Suggests arena names for tab completion.
      */
-    private CompletableFuture<Suggestions> suggestArenas(CommandContext<CommandSender> context, SuggestionsBuilder builder) {
+    private CompletableFuture<Suggestions> suggestArenas(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        // Initialize managers if needed
+        initializeManagers();
+        
         String input = builder.getRemaining().toLowerCase();
         for (Arena arena : arenaManager.getArenas()) {
-            if (arena.getName().toLowerCase().startsWith(input)) {
-                builder.suggest(arena.getName());
+            String name = arena.getName().toLowerCase();
+            if (name.startsWith(input)) {
+                builder.suggest(name);
             }
         }
         return builder.buildFuture();
@@ -177,422 +167,143 @@ public class SGCommand {
     /**
      * Handles the join command.
      */
-    private int handleJoinCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        String arenaName = StringArgumentType.getString(context, "arena");
+    private int joinGame(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
         
+        CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Check if player is already in a game
-        if (gameManager.getGameByPlayer(player) != null) {
-            player.sendMessage(Component.text("You are already in a game. Use /sg leave to leave first.")
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Find arena by name
+
+        String arenaName = StringArgumentType.getString(context, "arena");
         Arena arena = arenaManager.getArena(arenaName);
+
         if (arena == null) {
-            player.sendMessage(Component.text("Arena not found: " + arenaName)
-                .color(NamedTextColor.RED));
+            player.sendMessage(Component.text("Arena not found!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Get or create game
-        Game game = gameManager.getOrCreateGame(arena);
+
+        Game game = gameManager.getGameByArena(arena);
         if (game == null) {
-            player.sendMessage(Component.text("Failed to create game for arena: " + arenaName)
-                .color(NamedTextColor.RED));
+            game = gameManager.createGame(arena);
+        }
+
+        if (game == null) {
+            player.sendMessage(Component.text("Failed to create game!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Add player to game
+
+        if (game.getState() != GameState.WAITING) {
+            player.sendMessage(Component.text("Game is already in progress!", NamedTextColor.RED));
+            return 0;
+        }
+
+        if (gameManager.isPlayerInGame(player)) {
+            player.sendMessage(Component.text("You are already in a game!", NamedTextColor.RED));
+            return 0;
+        }
+
         game.addPlayer(player);
+        player.sendMessage(Component.text("You joined the game!", NamedTextColor.GREEN));
         return 1;
     }
     
     /**
      * Handles the leave command.
      */
-    private int handleLeaveCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
+    private int leaveGame(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
         
+        CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Check if player is in a game
+
         Game game = gameManager.getGameByPlayer(player);
         if (game == null) {
-            player.sendMessage(Component.text("You are not in a game.")
-                .color(NamedTextColor.RED));
+            player.sendMessage(Component.text("You are not in a game!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Remove player from game
+
         game.removePlayer(player, false);
-        player.sendMessage(Component.text("You have left the game.")
-            .color(NamedTextColor.GREEN));
+        player.sendMessage(Component.text("You left the game!", NamedTextColor.GREEN));
         return 1;
     }
     
     /**
      * Handles the start command.
      */
-    private int handleStartCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        String arenaName = StringArgumentType.getString(context, "arena");
+    private int startGame(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
         
-        // Find arena by name
-        Arena arena = arenaManager.getArena(arenaName);
-        if (arena == null) {
-            sender.sendMessage(Component.text("Arena not found: " + arenaName)
-                .color(NamedTextColor.RED));
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Get or create game
-        Game game = gameManager.getOrCreateGame(arena);
+
+        Game game = gameManager.getGameByPlayer(player);
         if (game == null) {
-            sender.sendMessage(Component.text("Failed to create game for arena: " + arenaName)
-                .color(NamedTextColor.RED));
+            player.sendMessage(Component.text("You are not in a game!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Start countdown
-        if (game.getState() == GameState.WAITING) {
-            game.startCountdown();
-            sender.sendMessage(Component.text("Game countdown started for arena: " + arenaName)
-                .color(NamedTextColor.GREEN));
-        } else {
-            sender.sendMessage(Component.text("Game is already in progress.")
-                .color(NamedTextColor.RED));
+
+        if (game.getState() != GameState.WAITING) {
+            player.sendMessage(Component.text("Game is already in progress!", NamedTextColor.RED));
             return 0;
         }
-        
+
+        game.startCountdown();
         return 1;
     }
     
     /**
      * Handles the stop command.
      */
-    private int handleStopCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
+    private int stopGame(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
         
-        if (gameManager.getActiveGames().isEmpty()) {
-            sender.sendMessage(Component.text("There are no active games to stop.")
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // If sender is a player, check if they're in a game
-        if (sender instanceof Player player) {
-            Game playerGame = gameManager.getGameByPlayer(player);
-            if (playerGame != null) {
-                playerGame.endGame(null);
-                sender.sendMessage(Component.text("Your game has been stopped.")
-                    .color(NamedTextColor.GREEN));
-                return 1;
-            }
-        }
-        
-        // If no specific game, stop all games
-        for (Game game : new ArrayList<>(gameManager.getActiveGames())) {
-            game.endGame(null);
-        }
-        
-        sender.sendMessage(Component.text("All games have been stopped.")
-            .color(NamedTextColor.GREEN));
-        return 1;
-    }
-    
-    /**
-     * Handles the list command.
-     */
-    private int handleListCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        
-        // List arenas
-        List<Arena> arenas = arenaManager.getArenas();
-        sender.sendMessage(Component.text("Available Arenas (" + arenas.size() + "):")
-            .color(NamedTextColor.GOLD));
-        
-        for (Arena arena : arenas) {
-            sender.sendMessage(Component.text(" - " + arena.getName() + " (Spawn Points: " + arena.getSpawnPoints().size() + ")")
-                .color(NamedTextColor.YELLOW));
-        }
-        
-        // List active games
-        List<Game> games = gameManager.getActiveGames();
-        sender.sendMessage(Component.text("Active Games (" + games.size() + "):")
-            .color(NamedTextColor.GOLD));
-        
-        for (Game game : games) {
-            sender.sendMessage(Component.text(" - " + game.getArena().getName() + " (" + game.getState() + ", Players: " + game.getPlayers().size() + ")")
-                .color(NamedTextColor.YELLOW));
-        }
-        
-        return 1;
-    }
-    
-    /**
-     * Handles the info command.
-     */
-    private int handleInfoCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        
+        CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Check if player is in a game
+
         Game game = gameManager.getGameByPlayer(player);
         if (game == null) {
-            player.sendMessage(Component.text("You are not in a game.")
-                .color(NamedTextColor.RED));
+            player.sendMessage(Component.text("You are not in a game!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Show game info
-        player.sendMessage(Component.text("Game Information:")
-            .color(NamedTextColor.GOLD));
-        player.sendMessage(Component.text(" - Arena: " + game.getArena().getName())
-            .color(NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(" - State: " + game.getState())
-            .color(NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(" - Players: " + game.getPlayers().size())
-            .color(NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(" - Time Remaining: " + formatTime(game.getTimeRemaining()))
-            .color(NamedTextColor.YELLOW));
-        
-        return 1;
-    }
-    
-    /**
-     * Formats time in seconds to a readable string.
-     */
-    private String formatTime(int seconds) {
-        int minutes = seconds / 60;
-        int remainingSeconds = seconds % 60;
-        return String.format("%d:%02d", minutes, remainingSeconds);
-    }
-    
-    /**
-     * Handles the reload command.
-     */
-    private int handleReloadCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        
-        try {
-            plugin.reload();
-            sender.sendMessage(Component.text("LumaSG configuration reloaded successfully.")
-                .color(NamedTextColor.GREEN));
-            return 1;
-        } catch (Exception e) {
-            logger.severe("Error reloading configuration", e);
-            sender.sendMessage(Component.text("Error reloading configuration: " + e.getMessage())
-                .color(NamedTextColor.RED));
+
+        if (game.getState() == GameState.WAITING) {
+            player.sendMessage(Component.text("Game has not started yet!", NamedTextColor.RED));
             return 0;
         }
-    }
-    
-    /**
-     * Handles the wand command.
-     */
-    private int handleWandCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        try {
-            // Give admin wand to player
-            plugin.getAdminWandListener().giveWand(player);
-            player.sendMessage(Component.text("You have received the admin wand.")
-                .color(NamedTextColor.GREEN));
-            return 1;
-        } catch (Exception e) {
-            logger.severe("Error giving admin wand", e);
-            player.sendMessage(Component.text("Error giving admin wand: " + e.getMessage())
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-    }
-    
-    /**
-     * Handles the create command.
-     */
-    private int handleCreateCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        String name = StringArgumentType.getString(context, "name");
-        String radiusStr = StringArgumentType.getString(context, "radius");
-        
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Parse radius
-        int radius;
-        try {
-            radius = Integer.parseInt(radiusStr);
-        } catch (NumberFormatException e) {
-            player.sendMessage(Component.text("Invalid radius: " + radiusStr)
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Create arena
-        try {
-            Arena arena = arenaManager.createArena(name, player.getLocation(), radius);
-            if (arena != null) {
-                player.sendMessage(Component.text("Arena created: " + name)
-                    .color(NamedTextColor.GREEN));
-                return 1;
-            } else {
-                player.sendMessage(Component.text("Failed to create arena: " + name)
-                    .color(NamedTextColor.RED));
-                return 0;
-            }
-        } catch (Exception e) {
-            logger.severe("Error creating arena", e);
-            player.sendMessage(Component.text("Error creating arena: " + e.getMessage())
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-    }
-    
-    /**
-     * Handles the arena select command.
-     */
-    private int handleArenaSelectCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        String arenaName = StringArgumentType.getString(context, "arena");
-        
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Find arena by name
-        Arena arena = arenaManager.getArena(arenaName);
-        if (arena == null) {
-            player.sendMessage(Component.text("Arena not found: " + arenaName)
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Select arena
-        plugin.getAdminWandListener().setSelectedArena(player, arena);
-        player.sendMessage(Component.text("Selected arena: " + arenaName)
-            .color(NamedTextColor.GREEN));
-        return 1;
-    }
-    
-    /**
-     * Handles the scan chests command.
-     */
-    private int handleScanChestsCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        String arenaName = StringArgumentType.getString(context, "arena");
-        
-        // Find arena by name
-        Arena arena = arenaManager.getArena(arenaName);
-        if (arena == null) {
-            sender.sendMessage(Component.text("Arena not found: " + arenaName)
-                .color(NamedTextColor.RED));
-            return 0;
-        }
-        
-        // Scan for chests
-        int chestCount = arena.scanForChests();
-        sender.sendMessage(Component.text("Found " + chestCount + " chests in arena " + arenaName)
-            .color(NamedTextColor.GREEN));
-        
-        // Save arena
-        arenaManager.saveArenas();
-        sender.sendMessage(Component.text("Saved chest locations for arena " + arenaName)
-            .color(NamedTextColor.GREEN));
-        
+
+        game.endGame(null);
         return 1;
     }
     
     /**
      * Handles the menu command.
      */
-    private int handleMenuCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
+    private int openMenu(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
         
+        CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.")
-                .color(NamedTextColor.RED));
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
             return 0;
         }
-        
-        // Open main menu
-        new MainMenu(plugin).show(player);
+
+        new MainMenu(getPlugin()).show(player);
         return 1;
-    }
-    
-    /**
-     * Handles the help command.
-     */
-    private int handleHelpCommand(CommandContext<CommandSender> context) {
-        CommandSender sender = context.getSource();
-        showHelp(sender);
-        return 1;
-    }
-    
-    /**
-     * Shows help information to the sender.
-     */
-    private void showHelp(CommandSender sender) {
-        sender.sendMessage(Component.text("LumaSG Commands:")
-            .color(NamedTextColor.GOLD));
-        
-        // Basic commands
-        sender.sendMessage(Component.text(" /sg join <arena> - Join a game")
-            .color(NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text(" /sg leave - Leave the current game")
-            .color(NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text(" /sg list - List available arenas and games")
-            .color(NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text(" /sg info - Show information about current game")
-            .color(NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text(" /sg menu - Open the main menu")
-            .color(NamedTextColor.YELLOW));
-        
-        // Admin commands
-        if (sender.hasPermission("lumasg.admin")) {
-            sender.sendMessage(Component.text("Admin Commands:")
-                .color(NamedTextColor.GOLD));
-            sender.sendMessage(Component.text(" /sg start <arena> - Start a game")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg stop - Stop the current game")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg reload - Reload plugin configuration")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg wand - Get the admin wand")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg create <name> <radius> - Create a new arena")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg arena select <arena> - Select an arena for editing")
-                .color(NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text(" /sg scanchests <arena> - Scan for chests in an arena")
-                .color(NamedTextColor.YELLOW));
-        }
     }
 } 
