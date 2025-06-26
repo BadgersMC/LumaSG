@@ -115,7 +115,6 @@ public class SGCommand {
      */
     public LiteralArgumentBuilder<CommandSourceStack> createCommandBuilder() {
         return Commands.literal("sg")
-            .requires(source -> source.getSender().hasPermission("lumasg.command.sg"))
             .executes(this::openMenu) // Default behavior: open menu when no subcommand is provided
             .then(Commands.literal("join")
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.join"))
@@ -132,7 +131,6 @@ public class SGCommand {
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.stop"))
                 .executes(this::stopGame))
             .then(Commands.literal("menu")
-                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.menu"))
                 .executes(this::openMenu));
     }
     

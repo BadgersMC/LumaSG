@@ -27,14 +27,6 @@ import java.util.concurrent.CompletableFuture;
  * GUI menu for displaying player leaderboards.
  */
 public class LeaderboardMenu {
-    private static final String GUI_STRUCTURE = 
-        "# k # w # g # d #" +
-        "# # # c # # # # #" +
-        "# l l l l l l l #" +
-        "# l l l l l l l #" +
-        "# l l l l l l l #" +
-        "# # # # b # # # #";
-        
     private static final Map<StatType, TabItemConfig> TAB_CONFIGS = new EnumMap<>(StatType.class);
     
     static {
@@ -85,7 +77,13 @@ public class LeaderboardMenu {
     
     private Gui createBaseGui(StatType statType) {
         return Gui.normal()
-            .setStructure(GUI_STRUCTURE)
+            .setStructure(
+                "# k # w # g # d #",
+                "# # # c # # # # #",
+                "# l l l l l l l #",
+                "# l l l l l l l #",
+                "# l l l l l l l #",
+                "# # # # b # # # #")
             .addIngredient('#', createBorderItem())
             .addIngredient('k', createTabItem(StatType.KILLS, statType))
             .addIngredient('w', createTabItem(StatType.WINS, statType))
