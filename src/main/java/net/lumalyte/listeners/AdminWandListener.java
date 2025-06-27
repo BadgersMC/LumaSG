@@ -25,12 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.bukkit.Bukkit;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Handles all interactions with the SG Admin Wand.
@@ -73,9 +68,9 @@ public class AdminWandListener implements Listener {
 
         // Handle the interaction based on click type
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            handleSpawnPointAddition(player, selectedArena, event.getClickedBlock());
+            handleSpawnPointAddition(player, selectedArena, Objects.requireNonNull(event.getClickedBlock()));
         } else if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            handleSpawnPointRemoval(player, selectedArena, event.getClickedBlock().getLocation());
+            handleSpawnPointRemoval(player, selectedArena, Objects.requireNonNull(event.getClickedBlock()).getLocation());
         }
     }
     
@@ -264,10 +259,9 @@ public class AdminWandListener implements Listener {
     
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInventoryClick(@NotNull InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) return;
-        Player player = (Player) event.getWhoClicked();
-        
-        // Check if the clicked item is a wand
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+		// Check if the clicked item is a wand
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem != null && adminWand.isWand(clickedItem)) {
             // Hide beacons when moving wand in inventory
@@ -288,8 +282,7 @@ public class AdminWandListener implements Listener {
         ItemStack offHandItem = event.getOffHandItem();
         
         // Check if either item is a wand
-        if ((mainHandItem != null && adminWand.isWand(mainHandItem)) ||
-            (offHandItem != null && adminWand.isWand(offHandItem))) {
+        if (adminWand.isWand(mainHandItem) || adminWand.isWand(offHandItem)) {
             // Hide beacons when swapping wand
             Arena selectedArena = selectedArenas.get(player.getUniqueId());
             if (selectedArena != null) {

@@ -230,13 +230,11 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamage(@NotNull EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player)) {
+        if (!(event.getEntity() instanceof Player player)) {
             return; // Only handle player damage
         }
-        
-        Player player = (Player) event.getEntity();
-        
-        try {
+
+		try {
             // Check for firework damage first
             if (handleFireworkDamage(event, player)) {
                 return; // Firework damage was handled
@@ -261,18 +259,15 @@ public class PlayerListener implements Listener {
             return false;
         }
         
-        if (!(event instanceof EntityDamageByEntityEvent)) {
+        if (!(event instanceof EntityDamageByEntityEvent entityEvent)) {
             return false;
         }
-        
-        EntityDamageByEntityEvent entityEvent = (EntityDamageByEntityEvent) event;
-        if (!(entityEvent.getDamager() instanceof org.bukkit.entity.Firework)) {
+
+		if (!(entityEvent.getDamager() instanceof org.bukkit.entity.Firework firework)) {
             return false;
         }
-        
-        org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) entityEvent.getDamager();
-        
-        // Check if this is a celebration firework
+
+		// Check if this is a celebration firework
         if (firework.hasMetadata("celebration_firework")) {
             event.setCancelled(true);
             logger.debug("Prevented celebration firework damage to player " + player.getName());
@@ -324,14 +319,11 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamageByEntity(@NotNull EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof Player) || !(event.getDamager() instanceof Player)) {
+        if (!(event.getEntity() instanceof Player victim) || !(event.getDamager() instanceof Player attacker)) {
             return; // Only handle player vs player damage
         }
-        
-        Player victim = (Player) event.getEntity();
-        Player attacker = (Player) event.getDamager();
-        
-        try {
+
+		try {
             Game victimGame = gameManager.getGameByPlayer(victim);
             Game attackerGame = gameManager.getGameByPlayer(attacker);
             if (victimGame != null && attackerGame != null && victimGame.equals(attackerGame)) {
@@ -379,8 +371,7 @@ public class PlayerListener implements Listener {
         try {
             Game game = gameManager.getGameByPlayer(player);
             Location to = event.getTo();
-            if (game != null && game.getState() != GameState.WAITING && game.getState() != GameState.FINISHED && !game.isShuttingDown() 
-                && to != null && !isLocationInArena(to, game)) {
+            if (game != null && game.getState() != GameState.WAITING && game.getState() != GameState.FINISHED && !game.isShuttingDown() && !isLocationInArena(to, game)) {
                 // Player trying to teleport outside arena during active game
                 event.setCancelled(true);
                 player.sendMessage(Component.text("You cannot leave the arena during the game!", NamedTextColor.RED));
@@ -465,10 +456,9 @@ public class PlayerListener implements Listener {
     public void onEntityExplode(@NotNull EntityExplodeEvent event) {
         try {
             // Check if this is a firework explosion
-            if (event.getEntity() instanceof org.bukkit.entity.Firework) {
-                org.bukkit.entity.Firework firework = (org.bukkit.entity.Firework) event.getEntity();
-                
-                // Always prevent block damage from celebration fireworks
+            if (event.getEntity() instanceof org.bukkit.entity.Firework firework) {
+
+				// Always prevent block damage from celebration fireworks
                 if (firework.hasMetadata("celebration_firework")) {
                     event.blockList().clear();
                     logger.debug("Prevented celebration firework block damage");
@@ -478,9 +468,8 @@ public class PlayerListener implements Listener {
                 // Check if any players in the area are in a game
                 boolean inGameArea = false;
                 for (org.bukkit.entity.Entity nearby : firework.getNearbyEntities(10, 10, 10)) {
-                    if (nearby instanceof Player) {
-                        Player player = (Player) nearby;
-                        Game game = gameManager.getGameByPlayer(player);
+                    if (nearby instanceof Player player) {
+						Game game = gameManager.getGameByPlayer(player);
                         if (game != null) {
                             inGameArea = true;
                             break;

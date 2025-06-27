@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
+import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.gui.PagedGui;
 import xyz.xenondevs.invui.gui.structure.Markers;
@@ -55,7 +56,7 @@ public class GameBrowserMenu {
             }
             
             @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+            public void handleClick(ClickType clickType, @NotNull Player player, org.bukkit.event.inventory.@NotNull InventoryClickEvent event) {
                 if (clickType.isLeftClick()) {
                     player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                     player.closeInventory();
@@ -76,7 +77,7 @@ public class GameBrowserMenu {
             }
             
             @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+            public void handleClick(ClickType clickType, @NotNull Player player, org.bukkit.event.inventory.@NotNull InventoryClickEvent event) {
                 if (clickType.isLeftClick()) {
                     player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                     player.closeInventory();
@@ -106,11 +107,11 @@ public class GameBrowserMenu {
             
             // Add lore based on game status
             List<String> lore = new ArrayList<>();
-            lore.add("§7Players: §f" + (gameExists && finalGame != null ? finalGame.getPlayerCount() : 0) + "/" + finalArena.getMaxPlayers());
+            lore.add("§7Players: §f" + (gameExists ? finalGame.getPlayerCount() : 0) + "/" + finalArena.getMaxPlayers());
             lore.add("§7Status: " + getGameStatusText(finalGame));
             lore.add("");
             
-            if (gameExists && finalGame != null && finalGame.getState() != GameState.FINISHED) {
+            if (gameExists && finalGame.getState() != GameState.FINISHED) {
                 lore.add("§aClick to join this game");
             } else {
                 lore.add("§aClick to create a new game");
@@ -127,7 +128,7 @@ public class GameBrowserMenu {
                 }
                 
                 @Override
-                public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+                public void handleClick(ClickType clickType, @NotNull Player player, org.bukkit.event.inventory.@NotNull InventoryClickEvent event) {
                     if (clickType.isLeftClick()) {
                         player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                         player.closeInventory();
@@ -198,22 +199,15 @@ public class GameBrowserMenu {
         if (game == null) {
             return Material.EMERALD_BLOCK; // No game, can create
         }
-        
-        switch (game.getState()) {
-            case WAITING:
-                return Material.LIME_WOOL; // Waiting for players
-            case COUNTDOWN:
-                return Material.YELLOW_WOOL; // Countdown in progress
-            case GRACE_PERIOD:
-            case ACTIVE:
-                return Material.ORANGE_WOOL; // Game in progress
-            case DEATHMATCH:
-                return Material.RED_WOOL; // Deathmatch in progress
-            case FINISHED:
-                return Material.EMERALD_BLOCK; // Game finished, can create new
-            default:
-                return Material.GRAY_WOOL; // Unknown state
-        }
+
+		return switch (game.getState()) {
+			case WAITING -> Material.LIME_WOOL; // Waiting for players
+			case COUNTDOWN -> Material.YELLOW_WOOL; // Countdown in progress
+			case GRACE_PERIOD, ACTIVE -> Material.ORANGE_WOOL; // Game in progress
+			case DEATHMATCH -> Material.RED_WOOL; // Deathmatch in progress
+			case FINISHED -> Material.EMERALD_BLOCK; // Game finished, can create new
+			default -> Material.GRAY_WOOL; // Unknown state
+		};
     }
     
     /**
@@ -226,22 +220,15 @@ public class GameBrowserMenu {
         if (game == null) {
             return "§aAvailable";
         }
-        
-        switch (game.getState()) {
-            case WAITING:
-                return "§aWaiting for players";
-            case COUNTDOWN:
-                return "§eStarting soon";
-            case GRACE_PERIOD:
-                return "§6Grace period";
-            case ACTIVE:
-                return "§cIn progress";
-            case DEATHMATCH:
-                return "§4Deathmatch";
-            case FINISHED:
-                return "§aFinished";
-            default:
-                return "§7Unknown";
-        }
+
+		return switch (game.getState()) {
+			case WAITING -> "§aWaiting for players";
+			case COUNTDOWN -> "§eStarting soon";
+			case GRACE_PERIOD -> "§6Grace period";
+			case ACTIVE -> "§cIn progress";
+			case DEATHMATCH -> "§4Deathmatch";
+			case FINISHED -> "§aFinished";
+			default -> "§7Unknown";
+		};
     }
 } 

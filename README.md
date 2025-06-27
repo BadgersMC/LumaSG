@@ -45,6 +45,25 @@ The plugin includes PlaceholderAPI integration for displaying game statistics an
 
 Custom items from Nexo can be configured in the chest loot tables.
 
+### KingdomsX
+
+LumaSG automatically detects and integrates with KingdomsX to handle PvP conflicts during survival games.
+
+**How it works:**
+- When KingdomsX prevents PvP (same kingdom, pacifist kingdoms, PvP disabled players)
+- LumaSG's hook overrides this protection during active survival games
+- Players are notified once per game that PvP is enabled
+- Uses reflection to safely access KingdomsX API (compatible with version 1.16.20.5+)
+
+**Technical Details:**
+- Listens for `EntityDamageByEntityEvent` at `HIGHEST` priority
+- Checks if both players are in the same active survival game with PvP enabled
+- Un-cancels damage events that were blocked by KingdomsX
+- Proper package names: `org.kingdoms.constants.player.KingdomPlayer`, `org.kingdoms.constants.group.Kingdom`
+
+The hook works by running after KingdomsX's PvP protection and un-cancelling damage events when both players are in the same active survival game with PvP enabled.
+If you need another Claim/Team plugin hooked in open a pull request and I will look into it.
+
 ## Requirements
 
 - Paper 1.21.4 or higher (Required - will not work on Spigot/CraftBukkit)
@@ -177,6 +196,8 @@ Replace `item_id` with the ID of the Nexo item you want to use.
 
 ### Player Commands
 
+- `/sg` - Open the main survival games menu
+- `/sg menu` - Open the main survival games menu
 - `/sg join <arena>` - Join a game
 - `/sg leave` - Leave the current game
 - `/sg spectate <arena>` - Spectate a game
@@ -194,6 +215,7 @@ Replace `item_id` with the ID of the Nexo item you want to use.
 - `/sg stop <arena>` - Force stop a game
 - `/sg reload` - Reload the configuration
 - `/sg info <arena>` - Show information about an arena
+- `/sg debug skippvp` - Skip grace period and enable PvP immediately (requires debug permission)
 
 ## Permissions
 

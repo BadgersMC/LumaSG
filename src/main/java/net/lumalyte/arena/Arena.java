@@ -7,7 +7,6 @@ import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,18 +17,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.Material;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.logging.Level;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Map;
 import java.util.Set;
 
@@ -75,9 +69,8 @@ public class Arena {
      * @param spawnPoints Array of spawn point locations for players
      * @param maxPlayers Maximum number of players this arena can support
      * @param minPlayers Minimum number of players required to start a game
-     * 
-     * @throws LumaSGException if parameters are invalid
-     */
+     *
+	 */
     public Arena(@NotNull String name, @NotNull LumaSG plugin, @NotNull Location[] spawnPoints, int maxPlayers, int minPlayers) {
         // Validate input parameters using ValidationUtils
         ValidationUtils.requireNonEmpty(name, "Arena Name", "Arena Construction");
@@ -107,10 +100,8 @@ public class Arena {
         
         // Add spawn points with null safety
         for (Location location : spawnPoints) {
-            if (location != null) {
-                this.spawnPoints.add(location.clone());
-            }
-        }
+			this.spawnPoints.add(location.clone());
+		}
         
         // Ensure we have at least one spawn point
         ValidationUtils.requireNonEmpty(this.spawnPoints, "Spawn Points List", "Arena Construction");
@@ -121,8 +112,7 @@ public class Arena {
      * 
      * @param name The unique name/identifier for this arena
      * @param plugin The plugin instance
-     * @throws LumaSGException if parameters are invalid
-     */
+	 */
     public Arena(@NotNull String name, @NotNull LumaSG plugin) {
         ValidationUtils.requireNonEmpty(name, "Arena Name", "Arena Construction");
         ValidationUtils.requireNonNull(plugin, "Plugin Instance", "Arena Construction");
@@ -146,8 +136,7 @@ public class Arena {
      * @param plugin The plugin instance
      * @param maxPlayers Maximum number of players
      * @param minPlayers Minimum number of players
-     * @throws LumaSGException if parameters are invalid
-     */
+	 */
     public Arena(@NotNull String name, @NotNull LumaSG plugin, int maxPlayers, int minPlayers) {
         ValidationUtils.requireNonEmpty(name, "Arena Name", "Arena Construction");
         ValidationUtils.requireNonNull(plugin, "Plugin Instance", "Arena Construction");
@@ -176,8 +165,7 @@ public class Arena {
      * @param plugin The plugin instance
      * @param center The center location
      * @param radius The radius from the center
-     * @throws LumaSGException if parameters are invalid
-     */
+	 */
     public Arena(@NotNull String name, @NotNull LumaSG plugin, @NotNull Location center, int radius) throws LumaSGException.ConfigurationException {
         this(name, plugin);
         ValidationUtils.requireNonNull(center, "Center Location", "Arena Construction");
@@ -388,8 +376,7 @@ public class Arena {
      * Saves the arena to a configuration section.
      *
      * @param section The configuration section
-     * @throws LumaSGException if the section is null
-     */
+	 */
     public void saveToConfig(@NotNull ConfigurationSection section) {
         ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Saving");
         
@@ -507,8 +494,7 @@ public class Arena {
      *
      * @param section The configuration section
      * @param location The location to save
-     * @throws LumaSGException if parameters are null
-     */
+	 */
     private static void saveLocation(@NotNull ConfigurationSection section, @NotNull Location location) {
         section.set("world", location.getWorld().getName());
         section.set("x", location.getX());
@@ -610,13 +596,12 @@ public class Arena {
     
     /**
      * Removes a spawn point from this arena.
-     * 
+     *
      * @param index The index of the spawn point to remove
-     * @return true if removed successfully, false otherwise
      */
-    public synchronized boolean removeSpawnPoint(int index) {
+    public synchronized void removeSpawnPoint(int index) {
         if (index < 0 || index >= spawnPoints.size()) {
-            return false;
+            return;
         }
         
         spawnPoints.remove(index);
@@ -625,8 +610,7 @@ public class Arena {
         if (plugin.getConfig().getBoolean("arena.auto-save", true)) {
             plugin.getArenaManager().saveArenas();
         }
-        
-        return true;
+
     }
     
     /**
@@ -751,8 +735,7 @@ public class Arena {
      * 
      * @param playerCount The number of players to check
      * @return true if the arena can support this many players, false otherwise
-     * @throws LumaSGException if playerCount is negative
-     */
+	 */
     public boolean canSupportPlayers(int playerCount) {
         ValidationUtils.requireNonNegative(playerCount, "Player Count", "Checking Player Support");
         return playerCount >= minPlayers && playerCount <= maxPlayers;

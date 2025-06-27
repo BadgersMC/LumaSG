@@ -92,3 +92,11 @@ refactor_logging_guide.md
 codacy-cli
 codacy-metrics.json
 complexity-analysis*.json
+CODACY_WORKFLOW.md
+CODE_ANALYSIS_REPORT.md
+ANALYSIS_SESSION_SUMMARY.md
+*-results.json
+daily-*.json
+security-*.json
+vscode-results.json
+intellij-results.json

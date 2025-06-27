@@ -1,9 +1,7 @@
 package net.lumalyte.arena;
 
 import net.lumalyte.LumaSG;
-import net.lumalyte.exception.LumaSGException;
 import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -12,14 +10,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 /**
  * Manages Survival Games arenas, including loading, saving, and providing access to all arenas.
@@ -134,7 +129,7 @@ public class ArenaManager {
                     }
                     
                     // Attempt to load arena with retry mechanism
-                    Arena arena = loadArenaWithRetry(config, arenaName, 3);
+                    Arena arena = loadArenaWithRetry(config, arenaName);
                     if (arena != null) {
                         arena.setConfigFile(file);
                         arenas.add(arena);
@@ -165,15 +160,15 @@ public class ArenaManager {
     /**
      * Loads an arena with retry mechanism for recoverable errors.
      */
-    private @Nullable Arena loadArenaWithRetry(@NotNull YamlConfiguration config, @NotNull String arenaName, int maxRetries) {
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    private @Nullable Arena loadArenaWithRetry(@NotNull YamlConfiguration config, @NotNull String arenaName) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 Arena arena = Arena.fromConfig(plugin, config, arenaName);
                 if (arena != null) {
                     return arena;
                 }
                 
-                if (attempt < maxRetries) {
+                if (attempt < 3) {
                     logger.debug("Arena loading attempt " + attempt + " failed for " + arenaName + ", retrying...");
                     
                     // Brief delay before retry
@@ -187,9 +182,9 @@ public class ArenaManager {
                 
             } catch (Exception e) {
                 if (isRecoverableError(e)) {
-                    if (attempt < maxRetries) {
+                    if (attempt < 3) {
                         logger.warn("Recoverable error loading arena " + arenaName + 
-                            " (attempt " + attempt + "/" + maxRetries + "): " + e.getMessage());
+                            " (attempt " + attempt + "/" + 3 + "): " + e.getMessage());
                         
                         try {
                             Thread.sleep(200 * attempt);
@@ -198,7 +193,7 @@ public class ArenaManager {
                             break;
                         }
                     } else {
-                        logger.severe("Arena " + arenaName + " failed to load after " + maxRetries + " attempts: " + e.getMessage());
+                        logger.severe("Arena " + arenaName + " failed to load after " + 3 + " attempts: " + e.getMessage());
                     }
                 } else {
                     // Non-recoverable error, don't retry

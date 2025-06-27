@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -81,7 +82,7 @@ public class NexoHook implements PluginHook {
         }
         
         try {
-            return Optional.ofNullable(NexoItems.itemFromId(itemId).build());
+            return Optional.of(Objects.requireNonNull(NexoItems.itemFromId(itemId)).build());
         } catch (Exception e) {
             logger.warn("Failed to get Nexo item: " + itemId, e);
             return Optional.empty();

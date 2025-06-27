@@ -5,10 +5,8 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
-import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
-import xyz.xenondevs.invui.gui.PagedGui;
-import xyz.xenondevs.invui.gui.structure.Markers;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.ItemProvider;
 import xyz.xenondevs.invui.item.builder.ItemBuilder;
@@ -117,14 +115,13 @@ public class MainMenu {
         return new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
-                ItemBuilder builder = new ItemBuilder(material)
-                    .setDisplayName(name)
-                    .addLoreLines(description);
-                return builder;
+				return new ItemBuilder(material)
+					.setDisplayName(name)
+					.addLoreLines(description);
             }
             
             @Override
-            public void handleClick(ClickType clickType, Player player, org.bukkit.event.inventory.InventoryClickEvent event) {
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, org.bukkit.event.inventory.@NotNull InventoryClickEvent event) {
                 if (clickType.isLeftClick()) {
                     player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                     // Close the inventory and run the click handler in the next tick

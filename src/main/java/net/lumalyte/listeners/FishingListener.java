@@ -8,7 +8,6 @@ import net.lumalyte.util.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -35,7 +34,7 @@ public class FishingListener implements Listener {
     private final @NotNull LumaSG plugin;
     private final @NotNull Random random = new Random();
     private @Nullable ConfigurationSection fishingConfig;
-    private @Nullable File fishingFile;
+    private final @Nullable File fishingFile;
     
     /** The debug logger instance for this fishing listener */
     private final @NotNull DebugLogger.ContextualLogger logger;
@@ -67,16 +66,11 @@ public class FishingListener implements Listener {
                 logger.warn("fishing.yml not found, fishing loot will not be available");
                 return;
             }
-            
-            FileConfiguration fishingYml = YamlConfiguration.loadConfiguration(fishingFile);
-            fishingConfig = fishingYml;
-            
-            if (fishingConfig == null) {
-                logger.warn("Failed to load fishing.yml");
-            } else {
-                logger.info("Fishing loot configuration loaded successfully");
-            }
-        } catch (Exception e) {
+
+			fishingConfig = YamlConfiguration.loadConfiguration(fishingFile);
+
+			logger.info("Fishing loot configuration loaded successfully");
+		} catch (Exception e) {
             logger.warn("Error loading fishing loot configuration: " + e.getMessage());
         }
     }
@@ -150,7 +144,8 @@ public class FishingListener implements Listener {
      * Determines if the player should receive a special item based on chance.
      */
     private boolean shouldGiveSpecialItem() {
-        double specialChance = fishingConfig.getDouble("special_catch_chance", 25.0);
+		assert fishingConfig != null;
+		double specialChance = fishingConfig.getDouble("special_catch_chance", 25.0);
         double roll = random.nextDouble() * 100;
         if (roll > specialChance) {
             logger.debug("Player didn't get a special item (rolled " + roll + " > " + specialChance + ")");
@@ -181,7 +176,8 @@ public class FishingListener implements Listener {
      * Selects a random special item based on configured weights.
      */
     private @Nullable String selectRandomSpecialItem() {
-        ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
+		assert fishingConfig != null;
+		ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
         if (itemsSection == null) {
             logger.warn("No items section found in fishing.yml");
             return null;
@@ -229,7 +225,8 @@ public class FishingListener implements Listener {
      * Creates and gives the special item to the player.
      */
     private void createAndGiveSpecialItem(@NotNull Player player, @NotNull String selectedItem) {
-        ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
+		assert fishingConfig != null;
+		ConfigurationSection itemsSection = fishingConfig.getConfigurationSection("items");
         if (itemsSection == null) {
             return;
         }
@@ -304,7 +301,8 @@ public class FishingListener implements Listener {
      */
     private void notifyPlayerOfCatch(@NotNull Player player, @NotNull ItemStack item) {
         Component itemName = item.getItemMeta().displayName();
-        player.sendMessage(Component.text()
+		assert itemName != null;
+		player.sendMessage(Component.text()
             .append(Component.text("You caught ", NamedTextColor.AQUA))
             .append(itemName)
             .append(Component.text("!", NamedTextColor.AQUA))

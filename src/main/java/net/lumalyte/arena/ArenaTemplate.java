@@ -5,7 +5,6 @@ import net.lumalyte.exception.LumaSGException;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -79,8 +78,7 @@ public class ArenaTemplate {
      * @param description Description of the template
      * @param author The author/creator
      * @param version Template version
-     * @throws LumaSGException if parameters are invalid
-     */
+	 */
     public ArenaTemplate(@NotNull String name, @NotNull String description, @NotNull String author, @NotNull String version) {
         ValidationUtils.requireNonEmpty(name, "Template Name", "Template Creation");
         ValidationUtils.requireNonEmpty(description, "Template Description", "Template Creation");
@@ -110,8 +108,7 @@ public class ArenaTemplate {
      * @param author The author/creator
      * @param version Template version
      * @return The created template
-     * @throws LumaSGException if parameters are invalid or arena has no center
-     */
+	 */
     public static @NotNull ArenaTemplate fromArena(@NotNull Arena arena, @NotNull String name, 
                                                   @NotNull String description, @NotNull String author, 
                                                   @NotNull String version) throws LumaSGException.ArenaException {
@@ -162,8 +159,7 @@ public class ArenaTemplate {
      * @param arenaName The name for the new arena
      * @param center The center location for the new arena
      * @return The created arena
-     * @throws LumaSGException if parameters are invalid
-     */
+	 */
     public @NotNull Arena createArena(@NotNull LumaSG plugin, @NotNull String arenaName, @NotNull Location center) {
         ValidationUtils.requireNonNull(plugin, "Plugin", "Arena Creation from Template");
         ValidationUtils.requireNonEmpty(arenaName, "Arena Name", "Arena Creation from Template");

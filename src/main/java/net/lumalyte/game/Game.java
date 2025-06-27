@@ -8,16 +8,13 @@ import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MiniMessageUtils;
-import net.lumalyte.statistics.StatType;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.scoreboard.Criteria;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,7 +24,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
 
 /**
  * Represents a single instance of a Survival Games match.
@@ -131,14 +127,8 @@ public class Game {
      * @throws IllegalArgumentException if plugin or arena is null
      */
     public Game(@NotNull LumaSG plugin, @NotNull Arena arena) {
-        if (plugin == null) {
-            throw new IllegalArgumentException("Plugin cannot be null");
-        }
-        if (arena == null) {
-            throw new IllegalArgumentException("Arena cannot be null");
-        }
-        
-        this.plugin = plugin;
+
+		this.plugin = plugin;
         this.arena = arena;
         this.gameId = UUID.randomUUID();
         this.state = GameState.WAITING;
@@ -196,11 +186,8 @@ public class Game {
      * @throws IllegalArgumentException if player is null
      */
     public void addSpectator(@NotNull Player player) {
-        if (player == null) {
-            throw new IllegalArgumentException("Player cannot be null");
-        }
-        
-        playerManager.addSpectator(player);
+
+		playerManager.addSpectator(player);
         
         // Broadcast spectator message
         broadcastMessage(Component.text()
@@ -779,6 +766,31 @@ public class Game {
     }
     
     /**
+     * Skips the grace period and immediately enables PvP.
+     * This is primarily used for debugging and testing purposes.
+     */
+    public void skipGracePeriod() {
+        if (!isGracePeriod) {
+            logger.debug("Cannot skip grace period - not currently in grace period");
+            return;
+        }
+        
+        logger.debug("Skipping grace period for game: " + gameId);
+        
+        // Cancel any existing tasks (this will include grace period timer)
+        timerManager.cancelCountdown();
+        
+        // Immediately end the grace period
+        endGracePeriod();
+        
+        // Broadcast debug message
+        broadcastMessage(Component.text()
+            .append(Component.text("[DEBUG] ", NamedTextColor.GRAY))
+            .append(Component.text("Grace period skipped! PvP enabled immediately.", NamedTextColor.YELLOW))
+            .build());
+    }
+    
+    /**
      * Starts the deathmatch phase.
      */
     private void startDeathmatch() {
@@ -974,6 +986,7 @@ public class Game {
                 
                 // Clear inventory immediately to prevent items from being kept
                 player.getInventory().clear();
+                //TODO: Inventories can be null, because inventories can be empty. will add an exception for this
                 player.getInventory().setArmorContents(null);
             }
         }
@@ -1055,9 +1068,26 @@ public class Game {
      * @param isDisconnect Whether the player disconnected
      */
     public synchronized void removePlayer(Player player, boolean isDisconnect) {
+        removePlayer(player, isDisconnect, false);
+    }
+    
+    /**
+     * Removes a player from the game.
+     * 
+     * @param player The player to remove
+     * @param isDisconnect Whether the player disconnected
+     * @param isShuttingDown Whether the game is shutting down
+     */
+    public synchronized void removePlayer(Player player, boolean isDisconnect, boolean isShuttingDown) {
         if (!playerManager.getPlayers().contains(player.getUniqueId()) && 
             !playerManager.getSpectators().contains(player.getUniqueId())) {
             return;
+        }
+        
+        // Clean up any hook-related metadata
+        String kingdomsXMetadataKey = "lumasg_pvp_notified_" + arena.getName();
+        if (player.hasMetadata(kingdomsXMetadataKey)) {
+            player.removeMetadata(kingdomsXMetadataKey, plugin);
         }
         
         // Remove player from scoreboard first
@@ -1285,15 +1315,15 @@ public class Game {
     
     // Getters
     
-    public Arena getArena() {
+    public @NotNull Arena getArena() {
         return arena;
     }
     
-    public UUID getGameId() {
+    public @NotNull UUID getGameId() {
         return gameId;
     }
     
-    public GameState getState() {
+    public @NotNull GameState getState() {
         return state;
     }
     
@@ -1435,10 +1465,9 @@ public class Game {
      * Determines the final rankings based on elimination order and remaining players.
      */
     private @NotNull List<UUID> determineFinalRankings() {
-        List<UUID> finalRankings = new ArrayList<>();
-        
-        // Winners first (remaining players)
-        finalRankings.addAll(playerManager.getPlayers());
+
+		// Winners first (remaining players)
+		List<UUID> finalRankings = new ArrayList<>(playerManager.getPlayers());
         
         // Then eliminated players in reverse order (last eliminated = highest placement among eliminated)
         List<UUID> reversedElimination = new ArrayList<>(eliminationOrder);
@@ -1496,22 +1525,11 @@ public class Game {
             ", damage dealt=" + stats.damageDealt + ", damage taken=" + stats.damageTaken + 
             ", chests opened=" + stats.chestsOpened + ", game time=" + gameTimeSeconds + "s");
     }
-    
+
     /**
-     * Helper class to hold player game statistics.
-     */
-    private static class PlayerGameStats {
-        final int kills;
-        final double damageDealt;
-        final double damageTaken;
-        final int chestsOpened;
-        
-        PlayerGameStats(int kills, double damageDealt, double damageTaken, int chestsOpened) {
-            this.kills = kills;
-            this.damageDealt = damageDealt;
-            this.damageTaken = damageTaken;
-            this.chestsOpened = chestsOpened;
-        }
+         * Helper class to hold player game statistics.
+         */
+        private record PlayerGameStats(int kills, double damageDealt, double damageTaken, int chestsOpened) {
     }
 
     /**

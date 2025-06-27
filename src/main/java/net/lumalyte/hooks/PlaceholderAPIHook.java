@@ -28,6 +28,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         return "LumaLyte";
     }
 
+
     @Override
     public @NotNull String getVersion() {
         return plugin.getPluginMeta().getVersion();

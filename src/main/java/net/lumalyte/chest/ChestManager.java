@@ -3,14 +3,12 @@ package net.lumalyte.chest;
 import net.lumalyte.LumaSG;
 import net.lumalyte.exception.LumaSGException;
 import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ItemUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -24,7 +22,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -51,7 +48,7 @@ public class ChestManager {
     private final @NotNull DebugLogger.ContextualLogger logger;
     /** Thread-safe list for chest items */
     private final @NotNull List<ChestItem> chestItems;
-    private @NotNull File chestFile;
+    private final @NotNull File chestFile;
     
     /** ReadWriteLock for chest items operations */
     private final ReadWriteLock itemsLock = new ReentrantReadWriteLock();
@@ -195,14 +192,10 @@ public class ChestManager {
      * @param tier The loot tier to use (e.g., "common", "uncommon", "rare")
      * 
      * @return true if the chest was successfully filled, false otherwise
-     * 
-     * @throws LumaSGException if location is null, tier is invalid, or the chest cannot be filled
-     */
+     *
+	 */
     public boolean fillChest(@NotNull Location location, @NotNull String tier) throws LumaSGException.ChestException {
-        if (location == null) {
-            throw LumaSGException.chestError("Location cannot be null", "null");
-        }
-        if (tier == null || tier.trim().isEmpty()) {
+		if (tier.trim().isEmpty()) {
             throw LumaSGException.chestError("Tier cannot be null or empty", location.toString());
         }
         
@@ -222,12 +215,11 @@ public class ChestManager {
             
             // Get the chest block state
             BlockState state = block.getState();
-            if (!(state instanceof Chest)) {
+            if (!(state instanceof Chest chest)) {
                 throw LumaSGException.chestError("Block state is not a chest", location.toString());
             }
-            
-            Chest chest = (Chest) state;
-            Inventory inventory = chest.getInventory();
+
+			Inventory inventory = chest.getInventory();
             
             // Clear the chest inventory
             inventory.clear();
@@ -283,34 +275,32 @@ public class ChestManager {
 
     /**
      * Fills a chest with loot from a random tier.
-     * 
+     *
      * <p>This method randomly selects a loot tier and fills the chest with
      * items from that tier. The selection is weighted based on tier rarity
      * if configured.</p>
-     * 
+     *
      * @param location The location of the chest to fill
-     * @return true if the chest was successfully filled, false otherwise
      */
-    public boolean fillChest(@NotNull Location location) {
+    public void fillChest(@NotNull Location location) {
         if (chestItems.isEmpty()) {
             logger.warn("No chest items available for chest filling");
-            return false;
+            return;
         }
         
         // Select a random tier from available items
         Set<String> availableTiers = getTiers();
         if (availableTiers.isEmpty()) {
             logger.warn("No tiers available for chest filling");
-            return false;
+            return;
         }
         
         String[] tierArray = availableTiers.toArray(new String[0]);
         String tier = tierArray[ThreadLocalRandom.current().nextInt(tierArray.length)];
         try {
-            return fillChest(location, tier);
+            fillChest(location, tier);
         } catch (LumaSGException.ChestException e) {
             logger.severe("Failed to fill chest at " + location + " with tier " + tier, e);
-            return false;
         }
     }
 
@@ -368,7 +358,7 @@ public class ChestManager {
         }
         
         // Fallback to last item if rounding errors occur
-        return loot.get(loot.size() - 1);
+        return loot.getLast();
     }
 
     /**

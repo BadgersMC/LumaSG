@@ -3,7 +3,6 @@ package net.lumalyte.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -131,7 +130,13 @@ public class SGCommand {
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.stop"))
                 .executes(this::stopGame))
             .then(Commands.literal("menu")
-                .executes(this::openMenu));
+                .executes(this::openMenu))
+            .then(Commands.literal("debug")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.debug"))
+                .then(Commands.literal("skippvp")
+                    .executes(this::debugSkipPvP))
+                .then(Commands.literal("kingdomsx")
+                    .executes(this::debugKingdomsX)));
     }
     
     /**
@@ -303,5 +308,134 @@ public class SGCommand {
 
         new MainMenu(getPlugin()).show(player);
         return 1;
+    }
+
+    /**
+     * Handles the debug skip PvP command.
+     */
+    private int debugSkipPvP(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        Game game = gameManager.getGameByPlayer(player);
+        if (game == null) {
+            player.sendMessage(Component.text("You are not in a game!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Skip grace period and enable PvP immediately
+        game.skipGracePeriod();
+        player.sendMessage(Component.text("Grace period skipped! PvP is now enabled.", NamedTextColor.GREEN));
+        return 1;
+    }
+    
+    /**
+     * Handles the debug KingdomsX command - tests KingdomsX integration.
+     */
+    private int debugKingdomsX(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Test KingdomsX hook integration
+        boolean kingdomsXAvailable = getPlugin().getHookManager().isHookAvailable("KingdomsX");
+        
+        player.sendMessage(Component.text("=== KingdomsX Debug Information ===", NamedTextColor.GOLD));
+        player.sendMessage(Component.text("KingdomsX Plugin: " + (isKingdomsXInstalled() ? "✅ Installed" : "❌ Not Found"), 
+            isKingdomsXInstalled() ? NamedTextColor.GREEN : NamedTextColor.RED));
+        player.sendMessage(Component.text("KingdomsX Hook: " + (kingdomsXAvailable ? "✅ Active" : "❌ Inactive"), 
+            kingdomsXAvailable ? NamedTextColor.GREEN : NamedTextColor.RED));
+        
+        if (kingdomsXAvailable) {
+            // Test KingdomsX API access
+            testKingdomsXAPI(player);
+        } else {
+            player.sendMessage(Component.text("Install KingdomsX to test integration!", NamedTextColor.YELLOW));
+        }
+        
+        // Test current game status
+        Game game = gameManager.getGameByPlayer(player);
+        if (game != null) {
+            player.sendMessage(Component.text("Current Game: ✅ In game (" + game.getArena().getName() + ")", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("Game State: " + game.getState(), NamedTextColor.YELLOW));
+            player.sendMessage(Component.text("PvP Enabled: " + (game.isPvpEnabled() ? "✅ Yes" : "❌ No"), 
+                game.isPvpEnabled() ? NamedTextColor.GREEN : NamedTextColor.RED));
+        } else {
+            player.sendMessage(Component.text("Current Game: ❌ Not in game", NamedTextColor.RED));
+            player.sendMessage(Component.text("Join a game with /sg join <arena> to test PvP integration!", NamedTextColor.YELLOW));
+        }
+        
+        return 1;
+    }
+    
+    /**
+     * Checks if KingdomsX plugin is installed.
+     */
+    private boolean isKingdomsXInstalled() {
+        return getPlugin().getServer().getPluginManager().getPlugin("KingdomsX") != null;
+    }
+    
+    /**
+     * Tests KingdomsX API access using reflection (same as our hook).
+     */
+    private void testKingdomsXAPI(Player player) {
+        try {
+            // Test the same reflection calls our hook uses
+            Class<?> kingdomPlayerClass = Class.forName("org.kingdoms.constants.player.KingdomPlayer");
+            Class<?> kingdomClass = Class.forName("org.kingdoms.constants.group.Kingdom");
+            
+            // Test getting KingdomPlayer
+            java.lang.reflect.Method getKingdomPlayerMethod = kingdomPlayerClass.getMethod("getKingdomPlayer", java.util.UUID.class);
+            Object kingdomPlayer = getKingdomPlayerMethod.invoke(null, player.getUniqueId());
+            
+            player.sendMessage(Component.text("API Test Results:", NamedTextColor.AQUA));
+            
+            if (kingdomPlayer != null) {
+                // Test PvP status
+                java.lang.reflect.Method isPvpMethod = kingdomPlayerClass.getMethod("isPvp");
+                boolean playerPvp = (Boolean) isPvpMethod.invoke(kingdomPlayer);
+                
+                // Test kingdom membership
+                java.lang.reflect.Method getKingdomMethod = kingdomPlayerClass.getMethod("getKingdom");
+                Object kingdom = getKingdomMethod.invoke(kingdomPlayer);
+                
+                player.sendMessage(Component.text("  Player PvP: " + (playerPvp ? "✅ Enabled" : "❌ Disabled"), 
+                    playerPvp ? NamedTextColor.GREEN : NamedTextColor.RED));
+                
+                if (kingdom != null) {
+                    // Test pacifist status
+                    java.lang.reflect.Method isPacifistMethod = kingdomClass.getMethod("isPacifist");
+                    boolean kingdomPacifist = (Boolean) isPacifistMethod.invoke(kingdom);
+                    
+                    player.sendMessage(Component.text("  Has Kingdom: ✅ Yes", NamedTextColor.GREEN));
+                    player.sendMessage(Component.text("  Kingdom Pacifist: " + (kingdomPacifist ? "❌ Yes (blocks PvP)" : "✅ No"), 
+                        kingdomPacifist ? NamedTextColor.RED : NamedTextColor.GREEN));
+                } else {
+                    player.sendMessage(Component.text("  Has Kingdom: ❌ No", NamedTextColor.YELLOW));
+                }
+                
+                player.sendMessage(Component.text("  API Access: ✅ Working", NamedTextColor.GREEN));
+                
+            } else {
+                player.sendMessage(Component.text("  KingdomPlayer: ❌ Not found", NamedTextColor.YELLOW));
+                player.sendMessage(Component.text("  This is normal if you haven't used KingdomsX yet", NamedTextColor.GRAY));
+            }
+            
+        } catch (Exception e) {
+            player.sendMessage(Component.text("  API Access: ❌ Failed", NamedTextColor.RED));
+            player.sendMessage(Component.text("  Error: " + e.getMessage(), NamedTextColor.GRAY));
+            logger.warn("KingdomsX API test failed", e);
+        }
     }
 } 

@@ -28,84 +28,62 @@ public class HookManager {
     }
     
     /**
-     * Starts the hook manager.
+     * Starts all plugin hooks.
      */
     public void start() {
-        initializeHooks();
+        logger.info("Starting plugin hooks...");
+        
+        // Initialize PlaceholderAPI hook (different pattern since it extends PlaceholderExpansion)
+        if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            placeholderAPIHook = new PlaceholderAPIHook(plugin);
+            if (placeholderAPIHook.register()) {
+                logger.info("Successfully registered PlaceholderAPI hook!");
+            } else {
+                logger.warn("Failed to register PlaceholderAPI hook!");
+                placeholderAPIHook = null;
+            }
+        }
+        
+        // Initialize Nexo hook
+        PluginHook nexoHook = new NexoHook(plugin);
+        if (nexoHook.enable()) {
+            hooks.put("Nexo", nexoHook);
+        }
+        
+        // Initialize KingdomsX hook
+        PluginHook kingdomsXHook = new KingdomsXHook(plugin);
+        if (kingdomsXHook.enable()) {
+            hooks.put("KingdomsX", kingdomsXHook);
+        }
+        
+        logger.info("Started " + hooks.size() + " plugin hooks");
     }
     
     /**
-     * Stops the hook manager.
+     * Stops all plugin hooks.
      */
     public void stop() {
-        // Disable all hooks
+        logger.info("Stopping plugin hooks...");
+        
+        // Stop PlaceholderAPI hook
+        if (placeholderAPIHook != null) {
+            placeholderAPIHook.unregister();
+            placeholderAPIHook = null;
+        }
+        
+        // Stop other hooks
         for (PluginHook hook : hooks.values()) {
             try {
                 hook.disable();
             } catch (Exception e) {
-                logger.warn("Failed to disable hook: " + hook.getPluginName(), e);
+                logger.error("Error stopping hook for " + hook.getPluginName(), e);
             }
         }
         
         hooks.clear();
-    }
-    
-    /**
-     * Initializes all hooks.
-     */
-    private void initializeHooks() {
-        // Initialize Nexo hook
-        initializeNexoHook();
         
-        // Initialize PlaceholderAPI hook
-        initializePlaceholderAPIHook();
+        logger.info("Stopped all plugin hooks");
     }
-    
-    /**
-     * Initializes the Nexo hook.
-     */
-    private void initializeNexoHook() {
-        try {
-            NexoHook nexoHook = new NexoHook(plugin);
-            if (nexoHook.initialize()) {
-                if (nexoHook.enable()) {
-                    hooks.put(nexoHook.getPluginName(), nexoHook);
-                    logger.info("Successfully enabled Nexo hook!");
-                } else {
-                    logger.warn("Failed to enable Nexo hook!");
-                }
-            } else {
-                logger.info("Nexo plugin not found or not compatible.");
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to initialize Nexo hook", e);
-        }
-    }
-    
-    /**
-     * Initializes the PlaceholderAPI hook.
-     */
-    private void initializePlaceholderAPIHook() {
-        try {
-            Plugin placeholderPlugin = plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI");
-            if (placeholderPlugin != null) {
-                placeholderAPIHook = new PlaceholderAPIHook(plugin);
-                if (placeholderAPIHook.register()) {
-                    logger.info("Successfully registered PlaceholderAPI hook!");
-                } else {
-                    logger.warn("Failed to register PlaceholderAPI hook!");
-                    placeholderAPIHook = null;
-                }
-            } else {
-                logger.info("PlaceholderAPI plugin not found.");
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to initialize PlaceholderAPI hook", e);
-            placeholderAPIHook = null;
-        }
-    }
-    
-
     
     /**
      * Gets the Nexo hook.
@@ -117,7 +95,15 @@ public class HookManager {
         return hook instanceof NexoHook ? (NexoHook) hook : null;
     }
     
-
+    /**
+     * Gets the KingdomsX hook.
+     * 
+     * @return The KingdomsX hook, or null if not available
+     */
+    public @Nullable KingdomsXHook getKingdomsXHook() {
+        PluginHook hook = hooks.get("KingdomsX");
+        return hook instanceof KingdomsXHook ? (KingdomsXHook) hook : null;
+    }
     
     /**
      * Checks if a hook is available.
@@ -130,5 +116,33 @@ public class HookManager {
         return hook != null && hook.isAvailable();
     }
     
-
+    /**
+     * Checks if a player is in an active survival game with PvP enabled.
+     * This is a convenience method that delegates to the KingdomsX hook if available.
+     * 
+     * @param player The player to check
+     * @return true if the player is in an active survival game with PvP enabled
+     */
+    public boolean isPlayerInActivePvPGame(@NotNull Player player) {
+        KingdomsXHook kingdomsXHook = getKingdomsXHook();
+        return kingdomsXHook != null && kingdomsXHook.isPlayerInActivePvPGame(player);
+    }
+    
+    /**
+     * Checks if two players are in the same active survival game with PvP enabled.
+     * This is a convenience method that delegates to the KingdomsX hook if available.
+     * 
+     * @param player1 First player
+     * @param player2 Second player
+     * @return true if both players are in the same active survival game with PvP enabled
+     */
+    public boolean arePlayersInSamePvPGame(@NotNull Player player1, @NotNull Player player2) {
+        KingdomsXHook kingdomsXHook = getKingdomsXHook();
+        if (kingdomsXHook == null || !kingdomsXHook.isAvailable()) {
+            return false;
+        }
+        
+        return kingdomsXHook.isPlayerInActivePvPGame(player1) && 
+               kingdomsXHook.isPlayerInActivePvPGame(player2);
+    }
 } 

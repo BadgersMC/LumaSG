@@ -21,6 +21,10 @@ dependencies:
     PlaceholderAPI:
       required: false
       load: BEFORE
+    Kingdoms:
+      required: false
+      load: BEFORE
+      join-classpath: true
 permissions:
   lumasg.admin:
     description: Allows access to all admin commands

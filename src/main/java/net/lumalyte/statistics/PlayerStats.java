@@ -64,7 +64,7 @@ public class PlayerStats {
     private int chestsOpened;
     
     /** Date and time when the player first joined */
-    private @Nullable LocalDateTime firstJoined;
+    private final @Nullable LocalDateTime firstJoined;
     
     /** Date and time of the player's last game */
     private @Nullable LocalDateTime lastPlayed;

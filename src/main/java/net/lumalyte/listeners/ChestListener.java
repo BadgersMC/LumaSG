@@ -59,12 +59,7 @@ public class ChestListener implements Listener {
     /** The set of opened chests */
     private final Set<Block> openedChests;
 
-    /** The random object for generating random numbers */
-    // For future use
-    @SuppressWarnings("unused")
-    private final Random random;
-    
-    /**
+	/**
      * Constructs a new ChestListener instance.
      * 
      * @param plugin The plugin instance
@@ -75,7 +70,8 @@ public class ChestListener implements Listener {
         this.gameManager = plugin.getGameManager();
         this.logger = plugin.getDebugLogger().forContext("ChestListener");
         this.openedChests = new HashSet<>();
-        this.random = new Random();
+		// For future use
+		Random random = new Random();
     }
     
     /**
@@ -115,12 +111,11 @@ public class ChestListener implements Listener {
      */
     private void processChestOpenEvent(@NotNull Player player, @NotNull Inventory inventory) {
         // Check if this is a chest inventory
-        if (!(inventory.getHolder() instanceof Chest)) {
+        if (!(inventory.getHolder() instanceof Chest chest)) {
             return;
         }
-        
-        Chest chest = (Chest) inventory.getHolder();
-        Game game = gameManager.getGameByPlayer(player);
+
+		Game game = gameManager.getGameByPlayer(player);
         
         if (isPlayerInActiveGame(game)) {
             // Player is in an active game, check if chest needs filling
@@ -215,12 +210,11 @@ public class ChestListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(@NotNull InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
             return; // Only handle player interactions
         }
-        
-        Player player = (Player) event.getWhoClicked();
-        Inventory inventory = event.getInventory();
+
+		Inventory inventory = event.getInventory();
         
         try {
             // Check if this is a chest inventory
