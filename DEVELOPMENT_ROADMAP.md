@@ -21,9 +21,9 @@
 ## High Priority Features (Next 2 weeks)
 
 ### 1. **Critical Bug Fixes & Core Issues**
-- [ ] **World Border Deathmatch Fix** - Fix world border not shrinking during deathmatch (prevents players from running away)
-- [ ] **Nameplate Hiding System** - Implement packet manipulation or custom tab hook to hide player nameplates through walls
-- [ ] **Console Game Management** - Enable console to start games and add players for automated/external control
+- [✅] **World Border Deathmatch Fix** - Fix world border not shrinking during deathmatch (prevents players from running away)
+- [✅] **Nameplate Hiding System** - Implement packet manipulation or custom tab hook to hide player nameplates through walls
+- [✅] **Console Game Management** - Enable console to start games and add players for automated/external control
 - [ ] **Adventure Mode Replacement** - Replace adventure mode with custom block placement tracking system
 
 ### 2. **Custom Items System Foundation**
