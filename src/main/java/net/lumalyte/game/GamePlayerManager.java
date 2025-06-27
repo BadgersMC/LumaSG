@@ -223,10 +223,9 @@ public class GamePlayerManager {
         player.setLevel(0);
         player.setExp(0.0f);
         
-        // Set full hunger but NORMAL saturation to allow hunger depletion
+        // Set full hunger and saturation
         player.setFoodLevel(20);
-        // DO NOT set saturation to 20.0f - this prevents hunger from decreasing!
-        // Let saturation remain at its natural level so hunger mechanics work properly
+        player.setSaturation(20.0f); // Set to max saturation so hunger depletes normally during game
         
         // Remove all potion effects
         for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
@@ -277,10 +276,9 @@ public class GamePlayerManager {
             player.getInventory().clear();
             player.getInventory().setArmorContents(null);
             
-            // Set full hunger but NORMAL saturation to allow hunger depletion
+            // Set full hunger and saturation
             player.setFoodLevel(20);
-            // DO NOT set saturation to 20.0f - this prevents hunger from decreasing!
-            // Let saturation remain at its natural level so hunger mechanics work properly
+            player.setSaturation(20.0f);
             
             // Remove all potion effects for spectators
             for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {

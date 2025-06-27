@@ -1154,6 +1154,10 @@ public class Game {
             return; // Player couldn't be added (arena full, etc.)
         }
         
+        // Set player's food level and saturation to full when joining
+        player.setFoodLevel(20);
+        player.setSaturation(20.0f);
+        
         // Create barrier cage around the new player's spawn point immediately
         // This prevents them from moving off their spawn platform
         Location spawnLoc = playerManager.getPlayerLocations().get(player.getUniqueId());

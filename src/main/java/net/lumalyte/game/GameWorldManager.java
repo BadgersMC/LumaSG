@@ -236,6 +236,7 @@ public class GameWorldManager {
             if (originalBorderCenter != null) {
                 worldBorder.setCenter(originalBorderCenter);
             }
+            // Ensure we're setting the size immediately, not gradually
             worldBorder.setSize(originalBorderSize);
             logger.info("Restored world border to original size: " + originalBorderSize + " blocks for arena: " + arena.getName());
             
