@@ -1,6 +1,6 @@
 # LumaSG Development Roadmap
 
-## Current Status (December 2024)
+## Current Status (6/27/2025)
 
 ✅ **Completed Major Cleanup**
 - Enhanced error handling with retry mechanisms and circuit breaker patterns
@@ -18,7 +18,7 @@
 - Codacy CLI workflow established
 - PMD analysis integration working
 
-## High Priority Features (Next 2-4 weeks)
+## High Priority Features (Next 2 weeks)
 
 ### 1. **Critical Bug Fixes & Core Issues**
 - [ ] **World Border Deathmatch Fix** - Fix world border not shrinking during deathmatch (prevents players from running away)
@@ -38,7 +38,7 @@
   - Special emoji markers for airdrops
 - [ ] **Knockback Stick** - Classic stick with Knockback 5 enchantment
 
-## Medium Priority Features (1-2 months)
+## Medium Priority Features (1 months)
 
 ### 4. **Advanced Custom Items (Phase 2)**
 - [ ] **Fire Bomb** - Custom TNT block with realistic fire explosion mechanics
@@ -283,5 +283,5 @@ custom-items:
 
 ---
 
-*Last Updated: December 2024*
-*Next Review: January 2025* 
+*Last Updated: June 27 2025*
+*Next Review: July 4 2025* 
