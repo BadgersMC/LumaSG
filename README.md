@@ -2,6 +2,8 @@
 
 A modern Minecraft Survival Games (Hunger Games) plugin built exclusively for Paper servers, inspired by classic SG servers like MCSG. This plugin is designed to take full advantage of Paper's advanced APIs and features for optimal performance and functionality.
 
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/079f7794fb864d5b879febbed82a4ebe)](https://app.codacy.com/gh/BadgersMC/LumaSG/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 >**⚠ Warning**: This plugin is currently a WIP. Some features may be unfinished or completely non functional.
 
 > **Note**: This plugin is Paper-only and does not support Spigot or CraftBukkit. We recommend using Paper as it offers significant performance improvements and modern APIs that allow us to provide a better experience.
