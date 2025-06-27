@@ -12,6 +12,7 @@ import net.lumalyte.listeners.ChestListener;
 import net.lumalyte.listeners.FishingListener;
 import net.lumalyte.listeners.PlayerListener;
 import net.lumalyte.statistics.StatisticsManager;
+import net.lumalyte.util.AdminWand;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -38,6 +39,7 @@ public class LumaSG extends JavaPlugin {
     private StatisticsManager statisticsManager;
     private AdminWandListener adminWandListener;
     private DebugLogger debugLogger;
+    private AdminWand adminWand;
     
     @Override
     public void onEnable() {
@@ -46,8 +48,6 @@ public class LumaSG extends JavaPlugin {
         
         // Set the plugin instance for InvUI
         InvUI.getInstance().setPlugin(this);
-        
-
         
         // Load configuration
         saveDefaultConfig();
@@ -65,6 +65,7 @@ public class LumaSG extends JavaPlugin {
         hookManager = new HookManager(this);
         statisticsManager = new StatisticsManager(this);
         adminWandListener = new AdminWandListener(this);
+        adminWand = new AdminWand(this);
         
         // Validate managers were created successfully
         ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
@@ -73,6 +74,7 @@ public class LumaSG extends JavaPlugin {
         ValidationUtils.requireNonNull(hookManager, "Hook Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(statisticsManager, "Statistics Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(adminWandListener, "Admin Wand Listener", "Plugin Initialization");
+        ValidationUtils.requireNonNull(adminWand, "Admin Wand", "Plugin Initialization");
         
         // Initialize GUI system
         MenuUtils.initialize(this);
@@ -229,5 +231,12 @@ public class LumaSG extends JavaPlugin {
      */
     public static @NotNull LumaSG getInstance() {
         return instance;
+    }
+    
+    /**
+     * Gets the admin wand instance.
+     */
+    public @NotNull AdminWand getAdminWand() {
+        return adminWand;
     }
 } 

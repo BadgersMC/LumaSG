@@ -6,13 +6,17 @@ import net.lumalyte.util.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.WorldBorder;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages world-related aspects of a game instance.
@@ -28,11 +32,21 @@ public class GameWorldManager {
     /** Track placed blocks during the game */
     private final @NotNull Set<Location> placedBlocks = new HashSet<>();
     
+    /** Track barrier blocks for cleanup */
+    private final @NotNull Set<Location> barrierBlocks = ConcurrentHashMap.newKeySet();
+    
     /** Original difficulty of the arena world before game start */
     private org.bukkit.Difficulty originalDifficulty;
     
     /** Original time in the arena world before game start */
     private long originalTime;
+    
+    /** Original world border settings */
+    private double originalBorderSize;
+    private Location originalBorderCenter;
+    
+    /** Deathmatch border shrinking task */
+    private @Nullable BukkitTask borderShrinkTask;
     
     public GameWorldManager(@NotNull LumaSG plugin, @NotNull Arena arena) {
         this.plugin = plugin;
@@ -50,6 +64,11 @@ public class GameWorldManager {
             originalDifficulty = arenaWorld.getDifficulty();
             originalTime = arenaWorld.getTime();
             
+            // Store original world border settings
+            WorldBorder worldBorder = arenaWorld.getWorldBorder();
+            originalBorderSize = worldBorder.getSize();
+            originalBorderCenter = worldBorder.getCenter();
+            
             // Set game settings
             arenaWorld.setDifficulty(org.bukkit.Difficulty.PEACEFUL);
             arenaWorld.setTime(1000); // Set to morning/day (1000 ticks)
@@ -60,9 +79,10 @@ public class GameWorldManager {
                              (!arena.getSpawnPoints().isEmpty() ? arena.getSpawnPoints().get(0) : null));
             
             if (center != null) {
-                arenaWorld.getWorldBorder().setCenter(center);
-                arenaWorld.getWorldBorder().setSize(500.0); // 500x500 border for the main game
-                logger.info("Set world border to 500 blocks centered at " + 
+                double initialBorderSize = plugin.getConfig().getDouble("world-border.initial-size", 500.0);
+                worldBorder.setCenter(center);
+                worldBorder.setSize(initialBorderSize);
+                logger.info("Set world border to " + initialBorderSize + " blocks centered at " + 
                     String.format("(%.1f, %.1f)", center.getX(), center.getZ()));
             }
             
@@ -72,15 +92,130 @@ public class GameWorldManager {
     }
     
     /**
-     * Sets up the world border for deathmatch.
+     * Sets up the world border for deathmatch with gradual shrinking.
      */
     public void setupDeathmatchBorder() {
         Location center = arena.getLobbySpawn();
+        if (center == null) {
+            center = arena.getCenter();
+        }
+        if (center == null && !arena.getSpawnPoints().isEmpty()) {
+            center = arena.getSpawnPoints().get(0);
+        }
+        
         if (center != null && center.getWorld() != null) {
-            center.getWorld().getWorldBorder().setCenter(center);
-            center.getWorld().getWorldBorder().setSize(75.0); // 75x75 border for deathmatch
-            logger.info("Set deathmatch world border to 75 blocks centered at " + 
+            WorldBorder worldBorder = center.getWorld().getWorldBorder();
+            
+            // Get configuration values
+            double deathmatchStartSize = plugin.getConfig().getDouble("world-border.deathmatch.start-size", 75.0);
+            double deathmatchEndSize = plugin.getConfig().getDouble("world-border.deathmatch.end-size", 10.0);
+            long shrinkDurationSeconds = plugin.getConfig().getLong("world-border.deathmatch.shrink-duration-seconds", 120);
+            boolean enableShrinking = plugin.getConfig().getBoolean("world-border.deathmatch.enable-shrinking", true);
+            
+            // Set center and initial size
+            worldBorder.setCenter(center);
+            worldBorder.setSize(deathmatchStartSize);
+            
+            logger.info("Set deathmatch world border to " + deathmatchStartSize + " blocks centered at " + 
                 String.format("(%.1f, %.1f)", center.getX(), center.getZ()));
+            
+            // Start gradual shrinking if enabled
+            if (enableShrinking && deathmatchEndSize < deathmatchStartSize) {
+                startBorderShrinking(worldBorder, deathmatchEndSize, shrinkDurationSeconds);
+            }
+        }
+    }
+    
+    /**
+     * Sets the world border to a safe size during the celebration phase.
+     * This ensures players don't get hurt by the border during celebration.
+     */
+    public void setCelebrationBorder() {
+        World arenaWorld = arena.getWorld();
+        if (arenaWorld != null) {
+            WorldBorder worldBorder = arenaWorld.getWorldBorder();
+            
+            // Get the initial border size from config (default 500.0)
+            double celebrationSize = plugin.getConfig().getDouble("world-border.initial-size", 500.0);
+            
+            // Set center to arena center or lobby spawn
+            Location center = arena.getCenter();
+            if (center == null) {
+                center = arena.getLobbySpawn();
+            }
+            if (center == null && !arena.getSpawnPoints().isEmpty()) {
+                center = arena.getSpawnPoints().get(0);
+            }
+            
+            if (center != null) {
+                worldBorder.setCenter(center);
+            }
+            
+            // Set to safe size immediately
+            worldBorder.setSize(celebrationSize);
+            logger.info("Set celebration world border to " + celebrationSize + " blocks");
+        }
+    }
+    
+    /**
+     * Starts the gradual border shrinking process during deathmatch.
+     */
+    private void startBorderShrinking(@NotNull WorldBorder worldBorder, double targetSize, long durationSeconds) {
+        // Cancel any existing shrink task
+        if (borderShrinkTask != null && !borderShrinkTask.isCancelled()) {
+            borderShrinkTask.cancel();
+        }
+        
+        // Use Bukkit's built-in smooth border shrinking
+        worldBorder.setSize(targetSize, durationSeconds);
+        
+        logger.info("Started world border shrinking to " + targetSize + " blocks over " + durationSeconds + " seconds");
+        
+        // Optional: Schedule warnings for players
+        schedulePlayerWarnings(durationSeconds);
+    }
+    
+    /**
+     * Schedules warnings to players about the shrinking border.
+     */
+    private void schedulePlayerWarnings(long durationSeconds) {
+        // Warning at 75% time remaining
+        long warning1Time = (long)(durationSeconds * 0.25 * 20); // Convert to ticks
+        // Warning at 50% time remaining  
+        long warning2Time = (long)(durationSeconds * 0.5 * 20);
+        // Warning at 25% time remaining
+        long warning3Time = (long)(durationSeconds * 0.75 * 20);
+        
+        if (warning1Time > 0) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                broadcastBorderWarning("The world border will continue shrinking! Stay inside the safe zone!");
+            }, warning1Time);
+        }
+        
+        if (warning2Time > 0) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                broadcastBorderWarning("World border is halfway to its final size! Move toward the center!");
+            }, warning2Time);
+        }
+        
+        if (warning3Time > 0) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                broadcastBorderWarning("World border is almost at minimum size! Fight in the center!");
+            }, warning3Time);
+        }
+    }
+    
+    /**
+     * Broadcasts a border warning message to all players in the arena.
+     */
+    private void broadcastBorderWarning(@NotNull String message) {
+        World arenaWorld = arena.getWorld();
+        if (arenaWorld != null) {
+            for (Player player : arenaWorld.getPlayers()) {
+                player.sendMessage(net.kyori.adventure.text.Component.text(message, 
+                    net.kyori.adventure.text.format.NamedTextColor.RED));
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 0.5f);
+            }
         }
     }
     
@@ -90,9 +225,19 @@ public class GameWorldManager {
     public void restoreWorld() {
         World arenaWorld = arena.getWorld();
         if (arenaWorld != null) {
-            // Reset world border to normal size
-            arenaWorld.getWorldBorder().setSize(500.0);
-            logger.info("Reset world border to 500 blocks for arena: " + arena.getName());
+            // Cancel any border shrinking task
+            if (borderShrinkTask != null && !borderShrinkTask.isCancelled()) {
+                borderShrinkTask.cancel();
+                borderShrinkTask = null;
+            }
+            
+            // Restore original world border settings
+            WorldBorder worldBorder = arenaWorld.getWorldBorder();
+            if (originalBorderCenter != null) {
+                worldBorder.setCenter(originalBorderCenter);
+            }
+            worldBorder.setSize(originalBorderSize);
+            logger.info("Restored world border to original size: " + originalBorderSize + " blocks for arena: " + arena.getName());
             
             // Restore original difficulty and time if available
             if (originalDifficulty != null) {
@@ -175,9 +320,76 @@ public class GameWorldManager {
     }
     
     /**
+     * Tracks a barrier block for cleanup.
+     * @param location The location of the barrier block
+     */
+    public void trackBarrierBlock(@NotNull Location location) {
+        barrierBlocks.add(location.clone());
+    }
+
+    /**
+     * Removes a barrier block from tracking.
+     * @param location The location of the barrier block
+     */
+    public void untrackBarrierBlock(@NotNull Location location) {
+        barrierBlocks.remove(location);
+    }
+
+    /**
+     * Removes all barrier blocks in the arena.
+     */
+    public void removeAllBarrierBlocks() {
+        World arenaWorld = arena.getWorld();
+        if (arenaWorld == null) {
+            logger.warn("Arena world is null, cannot remove barrier blocks");
+            return;
+        }
+
+        // Remove all tracked barrier blocks
+        for (Location location : barrierBlocks) {
+            if (location.getWorld() != null && location.getBlock().getType() == Material.BARRIER) {
+                location.getBlock().setType(Material.AIR);
+                logger.debug("Removed barrier block at " + location);
+            }
+        }
+        barrierBlocks.clear();
+
+        // Safety check: Scan for any untracked barrier blocks in the arena
+        Location center = arena.getCenter();
+        if (center == null) {
+            center = arena.getLobbySpawn();
+        }
+        if (center == null && !arena.getSpawnPoints().isEmpty()) {
+            center = arena.getSpawnPoints().get(0);
+        }
+
+        if (center != null) {
+            int radius = 100; // Reasonable radius to check
+            int barrierBlocksFound = 0;
+            
+            for (int x = -radius; x <= radius; x++) {
+                for (int y = -50; y <= 50; y++) { // Vertical range of ±50 blocks
+                    for (int z = -radius; z <= radius; z++) {
+                        Location loc = center.clone().add(x, y, z);
+                        if (loc.getBlock().getType() == Material.BARRIER) {
+                            loc.getBlock().setType(Material.AIR);
+                            barrierBlocksFound++;
+                        }
+                    }
+                }
+            }
+            
+            if (barrierBlocksFound > 0) {
+                logger.warn("Found and removed " + barrierBlocksFound + " untracked barrier blocks during cleanup");
+            }
+        }
+    }
+    
+    /**
      * Cleans up all world-related resources.
      */
     public void cleanup() {
+        removeAllBarrierBlocks();
         removeAllPlacedBlocks();
         clearAllDrops();
         restoreWorld();

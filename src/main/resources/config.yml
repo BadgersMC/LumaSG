@@ -34,6 +34,24 @@ arena:
   auto-save: true
   save-delay-seconds: 3  # Delay before saving arena changes (prevents excessive saves)
   immediate-save-on-shutdown: true  # Always save immediately during shutdown
+
+# World Border Settings
+world-border:
+  # Initial border size when the game starts
+  initial-size: 500.0
+  
+  # Deathmatch border settings
+  deathmatch:
+    # Whether to enable gradual border shrinking during deathmatch
+    enable-shrinking: true
+    # Starting size when deathmatch begins
+    start-size: 75.0
+    # Final size the border shrinks to
+    end-size: 10.0
+    # How long (in seconds) it takes to shrink from start-size to end-size
+    shrink-duration-seconds: 120
+    # Whether to show warning messages to players about the shrinking border
+    show-warnings: true
   
 # Scoreboard Settings
 scoreboard:

@@ -276,6 +276,9 @@ public class Game {
             // Place barrier block (invisible to players)
             loc.getBlock().setType(Material.BARRIER);
             
+            // Track in world manager for safety cleanup
+            worldManager.trackBarrierBlock(loc);
+            
             logger.debug("Placed barrier block at (" + x + ", " + y + ", " + z + "), replacing " + originalMaterial);
         }
     }
@@ -292,6 +295,7 @@ public class Game {
             if (loc.getWorld() != null) {
                 Material originalMaterial = originalBlocks.getOrDefault(loc, Material.AIR);
                 loc.getBlock().setType(originalMaterial);
+                worldManager.untrackBarrierBlock(loc);
                 logger.debug("Restored block at " + loc + " to " + originalMaterial);
             }
         }
@@ -337,6 +341,7 @@ public class Game {
                         }
                         
                         barrierBlocks.remove(barrierLoc);
+                        worldManager.untrackBarrierBlock(barrierLoc);
                     }
                 }
             }
@@ -925,8 +930,8 @@ public class Game {
         // Set all players and spectators to adventure mode for safety during celebration
         preparePlayersForEndGame();
         
-        // Restore world settings using world manager
-        worldManager.restoreWorld();
+        // Set world border to safe size for celebration (500 blocks)
+        worldManager.setCelebrationBorder();
         
         // Record game statistics if enabled
         recordStatisticsIfEnabled();
@@ -1030,6 +1035,9 @@ public class Game {
     private void scheduleGameCleanup() {
         // This gives time for fireworks and title to be seen
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // Restore world settings using world manager (including original border)
+            worldManager.restoreWorld();
+            
             // Return all players to lobby or original locations using player manager
             playerManager.cleanup();
             
