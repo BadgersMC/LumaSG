@@ -1154,9 +1154,9 @@ public class Game {
             return; // Player couldn't be added (arena full, etc.)
         }
         
-        // Set player's food level and saturation to full when joining
+        // Set player's food level to full but saturation to zero so hunger starts immediately
         player.setFoodLevel(20);
-        player.setSaturation(20.0f);
+        player.setSaturation(0.0f);
         
         // Create barrier cage around the new player's spawn point immediately
         // This prevents them from moving off their spawn platform

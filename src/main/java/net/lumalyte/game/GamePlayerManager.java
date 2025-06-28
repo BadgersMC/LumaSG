@@ -223,9 +223,9 @@ public class GamePlayerManager {
         player.setLevel(0);
         player.setExp(0.0f);
         
-        // Set full hunger and saturation
+        // Set full hunger but zero saturation so hunger starts depleting immediately when grace period begins
         player.setFoodLevel(20);
-        player.setSaturation(20.0f); // Set to max saturation so hunger depletes normally during game
+        player.setSaturation(0.0f); // No saturation - hunger will start depleting right away
         
         // Remove all potion effects
         for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
