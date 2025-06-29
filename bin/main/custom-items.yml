@@ -57,10 +57,10 @@ items:
       compass-width: 21        # Width of the action bar compass
       show-distance-info: true # Show distance info in action bar
       
-    # Loot table integration
+    # Loot table integration - Made more common
     loot:
-      tiers: ["uncommon", "rare", "epic", "legendary"]
-      chance: 0.35
+      tiers: ["common", "uncommon", "rare"]
+      chance: 0.75
       min-amount: 1
       max-amount: 1
       
@@ -103,10 +103,10 @@ items:
       # Cooldown in ticks
       cooldown: 40
       
-    # Loot table integration
+    # Loot table integration - Made much more common
     loot:
       tiers: ["common", "uncommon", "rare"]
-      chance: 0.45
+      chance: 0.85
       min-amount: 1
       max-amount: 1
       
@@ -152,10 +152,10 @@ items:
       damage-thrower: false
       block-damage: false
       
-    # Loot table integration
+    # Loot table integration - Made more common
     loot:
-      tiers: ["uncommon", "rare", "epic"]
-      chance: 0.25
+      tiers: ["common", "uncommon", "rare"]
+      chance: 0.65
       min-amount: 1
       max-amount: 2
       
@@ -200,10 +200,10 @@ items:
       damage-thrower: false
       block-damage: false
       
-    # Loot table integration
+    # Loot table integration - Made more common
     loot:
-      tiers: ["uncommon", "rare", "epic"]
-      chance: 0.20
+      tiers: ["common", "uncommon", "rare"]
+      chance: 0.60
       min-amount: 1
       max-amount: 1
       
@@ -249,10 +249,10 @@ items:
       sound-effects: true
       announcement: true
       
-    # Loot table integration
+    # Loot table integration - Kept as uncommon/rare only
     loot:
-      tiers: ["rare", "epic", "legendary"]
-      chance: 0.15
+      tiers: ["uncommon", "rare", "epic"]
+      chance: 0.35
       min-amount: 1
       max-amount: 1
       
