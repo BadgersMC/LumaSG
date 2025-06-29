@@ -315,9 +315,17 @@ public class ChestManager {
     private @NotNull List<ChestItem> getLootForTier(@NotNull String tier) {
         itemsLock.readLock().lock();
         try {
-            return chestItems.stream()
+            List<ChestItem> loot = new ArrayList<>(chestItems.stream()
                 .filter(item -> tier.equalsIgnoreCase(item.getTier()))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
+            
+            // Add custom items for this tier
+            if (plugin.getCustomItemsManager() != null) {
+                loot.addAll(plugin.getCustomItemsManager().getChestItemsForTier(tier));
+                logger.debug("Added custom items for tier: " + tier);
+            }
+            
+            return loot;
         } finally {
             itemsLock.readLock().unlock();
         }

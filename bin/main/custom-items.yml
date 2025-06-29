@@ -1,0 +1,306 @@
+# LumaSG Custom Items Configuration
+# This file defines special custom items with unique behaviors in Survival Games
+
+# Global settings for custom items
+settings:
+  # Whether custom items are enabled
+  enabled: true
+  
+  # Whether to cleanup custom items when games end
+  cleanup-on-game-end: true
+  
+  # Whether to track custom item usage for statistics
+  track-usage: true
+
+# Custom items organized by categories
+items:
+  # === TRACKING ITEMS ===
+  player_tracker:
+    # Basic item properties
+    material: COMPASS
+    name: "<gradient:#ff6b6b:#4ecdc4><bold>🧭 Player Tracker</bold></gradient>"
+    lore:
+      - "<gray>A mystical compass that reveals the"
+      - "<gray>positions of other players around you"
+      - ""
+      - "<yellow>• <white>🔴 Close players (0-50 blocks)"
+      - "<yellow>• <white>🟡 Medium range (50-150 blocks)" 
+      - "<yellow>• <white>🟢 Far players (150+ blocks)"
+      - "<yellow>• <red><bold>🗡️</bold></red> <white>Top killer indicator"
+      - ""
+      - "<aqua>Hold in inventory to activate"
+      - "<gray>Updates every 0.5 seconds"
+    unbreakable: true
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    custom-model-data: 2001
+    
+    # Custom item behavior settings
+    behavior:
+      type: PLAYER_TRACKER
+      
+      # Update frequency (in ticks, 20 = 1 second)
+      update-interval: 10
+      
+      # Tracking settings
+      track-players: true
+      track-top-killer: true
+      track-airdrops: true  # For future airdrop system
+      
+      # Distance settings
+      max-range: 500           # Maximum tracking distance in blocks
+      close-distance: 50       # Distance for red color (close)
+      medium-distance: 150     # Distance for yellow color (medium)
+      
+      # Display settings
+      compass-width: 21        # Width of the action bar compass
+      show-distance-info: true # Show distance info in action bar
+      
+    # Loot table integration
+    loot:
+      tiers: ["uncommon", "rare", "epic", "legendary"]
+      chance: 0.35
+      min-amount: 1
+      max-amount: 1
+      
+    # Persistent data for identification
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "player_tracker"
+      category: "utility"
+
+  # === COMBAT ITEMS ===
+  knockback_stick:
+    # Basic item properties
+    material: STICK
+    name: "<gradient:#ff9a9e:#fecfef><bold>⚡ Knockback Stick</bold></gradient>"
+    lore:
+      - "<gray>A magical stick imbued with"
+      - "<gray>powerful knockback energy"
+      - ""
+      - "<yellow>• <white>Knockback V enchantment"
+      - "<yellow>• <white>Send enemies flying! 🚀"
+      - ""
+      - "<red>Right-click to attack"
+    unbreakable: true
+    enchantments:
+      knockback: 5
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+      - HIDE_ENCHANTS
+    custom-model-data: 2002
+    
+    # Custom item behavior settings
+    behavior:
+      type: KNOCKBACK_STICK
+      
+      # Knockback settings
+      knockback-multiplier: 1.5
+      vertical-boost: 0.3
+      
+      # Cooldown in ticks
+      cooldown: 40
+      
+    # Loot table integration
+    loot:
+      tiers: ["common", "uncommon", "rare"]
+      chance: 0.45
+      min-amount: 1
+      max-amount: 1
+      
+    # Persistent data for identification
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "knockback_stick"
+      category: "combat"
+
+  # === EXPLOSIVE ITEMS ===
+  fire_bomb:
+    # Basic item properties
+    material: TNT
+    name: "<gradient:#ff6b35:#f7931e><bold>🔥 Fire Bomb</bold></gradient>"
+    lore:
+      - "<gray>A volatile explosive that erupts"
+      - "<gray>in a blaze of destructive fire"
+      - ""
+      - "<yellow>• <white>2.5 second fuse time ⏱️"
+      - "<yellow>• <white>Creates fire in 3-7 block radius"
+      - "<yellow>• <white>Fire lasts for 3 seconds"
+      - "<yellow>• <red>No block damage"
+      - ""
+      - "<red>Right-click to throw"
+      - "<dark_red>Handle with extreme care!"
+    custom-model-data: 2003
+    
+    # Custom item behavior settings
+    behavior:
+      type: FIRE_BOMB
+      
+      # Explosion settings
+      fuse-time: 50          # Ticks (2.5 seconds)
+      fire-radius-min: 3
+      fire-radius-max: 7
+      fire-duration: 60      # Ticks (3 seconds)
+      
+      # Throwing settings
+      throw-velocity: 1.2
+      gravity-effect: true
+      
+      # Safety settings
+      damage-thrower: false
+      block-damage: false
+      
+    # Loot table integration
+    loot:
+      tiers: ["uncommon", "rare", "epic"]
+      chance: 0.25
+      min-amount: 1
+      max-amount: 2
+      
+    # Persistent data for identification
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "fire_bomb"
+      category: "explosive"
+
+  poison_bomb:
+    # Basic item properties
+    material: TNT
+    name: "<gradient:#9b59b6:#8e44ad><bold>☠️ Poison Bomb</bold></gradient>"
+    lore:
+      - "<gray>A sinister device that releases"
+      - "<gray>a toxic cloud upon detonation"
+      - ""
+      - "<yellow>• <white>2 second fuse time ⏱️"
+      - "<yellow>• <white>5 block poison radius"
+      - "<yellow>• <white>Poison II for 5 seconds"
+      - "<yellow>• <red>No block damage"
+      - ""
+      - "<red>Right-click to throw"
+      - "<dark_purple>Toxic and dangerous!"
+    custom-model-data: 2004
+    
+    # Custom item behavior settings
+    behavior:
+      type: POISON_BOMB
+      
+      # Explosion settings
+      fuse-time: 40          # Ticks (2 seconds)
+      effect-radius: 5
+      poison-duration: 100   # Ticks (5 seconds)
+      poison-amplifier: 1    # Poison II
+      
+      # Throwing settings
+      throw-velocity: 1.0
+      gravity-effect: true
+      
+      # Safety settings
+      damage-thrower: false
+      block-damage: false
+      
+    # Loot table integration
+    loot:
+      tiers: ["uncommon", "rare", "epic"]
+      chance: 0.20
+      min-amount: 1
+      max-amount: 1
+      
+    # Persistent data for identification
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "poison_bomb"
+      category: "explosive"
+
+  # === AIRDROP ITEMS ===
+  airdrop_flare:
+    # Basic item properties
+    material: REDSTONE_TORCH
+    name: "<gradient:#e74c3c:#f39c12><bold>📦 Airdrop Flare</bold></gradient>"
+    lore:
+      - "<gray>A signal flare that calls in"
+      - "<gray>a supply drop from the sky"
+      - ""
+      - "<yellow>• <white>Calls airdrop to your location 🎯"
+      - "<yellow>• <white>5 minute cooldown ⏳"
+      - "<yellow>• <white>Visible to all players 👀"
+      - "<yellow>• <gold>Contains rare loot 💎"
+      - ""
+      - "<red>Right-click to activate"
+      - "<gold>Use wisely - others will see it!"
+    custom-model-data: 2005
+    
+    # Custom item behavior settings
+    behavior:
+      type: AIRDROP_FLARE
+      
+      # Airdrop settings
+      cooldown: 300          # Seconds (5 minutes)
+      delay: 30              # Seconds until airdrop arrives
+      
+      # Airdrop contents
+      loot-tier: "airdrop"
+      item-count-min: 5
+      item-count-max: 10
+      
+      # Visual/audio effects
+      smoke-trail: true
+      sound-effects: true
+      announcement: true
+      
+    # Loot table integration
+    loot:
+      tiers: ["rare", "epic", "legendary"]
+      chance: 0.15
+      min-amount: 1
+      max-amount: 1
+      
+    # Persistent data for identification
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "airdrop_flare"
+      category: "utility"
+
+# Integration settings
+integration:
+  # Chest loot integration
+  chest-loot:
+    enabled: true
+    # Custom items will be automatically added to chest loot tables
+    # based on their loot.tiers and loot.chance settings
+    
+  # Fishing loot integration  
+  fishing-loot:
+    enabled: false
+    # Custom items can optionally be added to fishing loot
+    # Set to true to enable custom items in fishing
+    
+  # Statistics tracking
+  statistics:
+    track-usage: true
+    track-kills-with-item: true
+    track-damage-dealt: true
+
+# Performance settings
+performance:
+  # Maximum number of custom items that can exist at once
+  max-items-per-game: 50
+  
+  # Cleanup interval for expired effects (in ticks)
+  cleanup-interval: 200  # 10 seconds
+  
+  # Whether to use async processing for heavy operations
+  async-processing: true
+  
+  # Maximum concurrent custom item operations
+  max-concurrent-operations: 10
+  
+  # Cache size for custom item lookups
+  cache-size: 500
+  
+  # Enable debug logging for custom items
+  debug-logging: false
+  
+  # Cleanup orphaned custom items on server restart
+  cleanup-on-restart: true 

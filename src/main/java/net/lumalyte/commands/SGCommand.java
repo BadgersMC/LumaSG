@@ -19,6 +19,7 @@ import net.lumalyte.util.DebugLogger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
@@ -28,6 +29,11 @@ import io.papermc.paper.command.brigadier.Commands;
 import java.util.concurrent.CompletableFuture;
 import java.util.Collection;
 import java.util.UUID;
+import net.lumalyte.customitems.behaviors.AirdropBehavior;
+import net.lumalyte.customitems.behaviors.AirdropData;
+import net.lumalyte.customitems.CustomItemsManager;
+import net.lumalyte.listeners.CustomItemListener;
+import net.lumalyte.util.MiniMessageUtils;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.
@@ -185,7 +191,9 @@ public class SGCommand {
                 .then(Commands.literal("skippvp")
                     .executes(this::debugSkipPvP))
                 .then(Commands.literal("kingdomsx")
-                    .executes(this::debugKingdomsX)))
+                    .executes(this::debugKingdomsX))
+                .then(Commands.literal("meteor")
+                    .executes(this::debugSpawnMeteor)))
             .then(Commands.literal("create")
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.admin"))
                 .then(Commands.argument("name", StringArgumentType.word())
@@ -1074,5 +1082,71 @@ public class SGCommand {
         player.sendMessage(Component.text("Arena '" + arenaName + "' selected! Use the admin wand to edit it.", NamedTextColor.GREEN));
         
         return 1;
+    }
+
+    /**
+     * Debug command to spawn a meteor for testing.
+     */
+    private int debugSpawnMeteor(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        Player player = context.getSource().getExecutor() instanceof Player p ? p : null;
+        if (player == null) {
+            context.getSource().getSender().sendMessage(
+                MiniMessageUtils.parseMessage("<red>This command can only be used by players!</red>")
+            );
+            return 0;
+        }
+
+        // Check if player has permission
+        if (!player.hasPermission("lumasg.admin")) {
+            MiniMessageUtils.sendMessage(player, "<red>You don't have permission to use this command!</red>");
+            return 0;
+        }
+
+        try {
+            // Get the custom items manager
+            CustomItemsManager customItemsManager = plugin.getCustomItemsManager();
+
+            // Calculate spawn location - 50 blocks away from player
+            Location targetLocation = player.getLocation();
+            double angle = Math.random() * 2 * Math.PI;
+            double spawnDistance = 50.0;
+            Location spawnLocation = targetLocation.clone().add(
+                Math.cos(angle) * spawnDistance,
+                150, // Reasonable height for meteor spawn
+                Math.sin(angle) * spawnDistance
+            );
+
+            // Create new airdrop behavior instance
+            AirdropBehavior airdropBehavior = new AirdropBehavior(plugin, targetLocation, spawnLocation, player);
+
+            // Create test airdrop data
+            UUID airdropId = UUID.randomUUID();
+            AirdropData testAirdropData = new AirdropData(
+                airdropId,
+                player.getUniqueId(),
+                targetLocation.clone(), // Use clone to ensure we have the exact location
+                "tier4",
+                System.currentTimeMillis()
+            );
+
+            // Execute the airdrop immediately
+            airdropBehavior.executeAirdrop(testAirdropData);
+
+            MiniMessageUtils.sendMessage(player, 
+                "<green><bold>Debug meteor spawned!</bold></green> <yellow>Target: " + 
+                (int)targetLocation.getX() + ", " + (int)targetLocation.getY() + ", " + (int)targetLocation.getZ() + 
+                " - Check the sky for incoming meteor!</yellow>");
+
+            logger.info("Debug meteor spawned by " + player.getName() + " at " + targetLocation);
+            return 1;
+
+        } catch (Exception e) {
+            logger.error("Failed to spawn debug meteor", e);
+            MiniMessageUtils.sendMessage(player, "<red>Failed to spawn meteor: " + e.getMessage() + "</red>");
+            return 0;
+        }
     }
 } 

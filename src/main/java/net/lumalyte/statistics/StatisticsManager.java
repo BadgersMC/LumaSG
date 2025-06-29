@@ -313,12 +313,11 @@ public class StatisticsManager {
     
     /**
      * Preloads statistics for a player (useful when they join the server).
-     * 
+     *
      * @param player The player to preload statistics for
-     * @return A CompletableFuture that completes when loading is done
      */
-    public @NotNull CompletableFuture<Void> preloadPlayerStats(@NotNull Player player) {
-        return getPlayerStats(player.getUniqueId(), player.getName()).thenAccept(stats -> {
+    public void preloadPlayerStats(@NotNull Player player) {
+        getPlayerStats(player.getUniqueId(), player.getName()).thenAccept(stats -> {
             // Statistics are now cached
         }).exceptionally(throwable -> {
             logger.warn("Failed to preload statistics for " + player.getName(), throwable);

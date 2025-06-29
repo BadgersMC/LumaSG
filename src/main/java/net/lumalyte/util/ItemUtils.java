@@ -100,6 +100,10 @@ public class ItemUtils {
         if (section.contains("name")) {
             String name = section.getString("name");
             if (name != null) {
+                // Wrap with <!italic> if not already wrapped
+                if (!name.contains("<!italic>")) {
+                    name = "<!italic>" + name + "</!italic>";
+                }
                 Component displayName = MiniMessageUtils.parseMessage(name);
                 meta.displayName(displayName);
                 logger.debug("Set display name for item: " + itemKey);
@@ -112,6 +116,10 @@ public class ItemUtils {
             if (!loreStrings.isEmpty()) {
                 List<Component> lore = new ArrayList<>();
                 for (String line : loreStrings) {
+                    // Wrap with <!italic> if not already wrapped
+                    if (!line.contains("<!italic>")) {
+                        line = "<!italic>" + line + "</!italic>";
+                    }
                     lore.add(MiniMessageUtils.parseMessage(line));
                 }
                 meta.lore(lore);

@@ -4,11 +4,13 @@ import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
 import net.lumalyte.chest.ChestManager;
 import net.lumalyte.commands.SGCommand;
+import net.lumalyte.customitems.CustomItemsManager;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.gui.MenuUtils;
 import net.lumalyte.hooks.HookManager;
 import net.lumalyte.listeners.AdminWandListener;
 import net.lumalyte.listeners.ChestListener;
+import net.lumalyte.listeners.CustomItemListener;
 import net.lumalyte.listeners.FishingListener;
 import net.lumalyte.listeners.PlayerListener;
 import net.lumalyte.statistics.StatisticsManager;
@@ -35,9 +37,11 @@ public class LumaSG extends JavaPlugin {
     private ArenaManager arenaManager;
     private GameManager gameManager;
     private ChestManager chestManager;
+    private CustomItemsManager customItemsManager;
     private HookManager hookManager;
     private StatisticsManager statisticsManager;
     private AdminWandListener adminWandListener;
+    private CustomItemListener customItemListener;
     private DebugLogger debugLogger;
     private AdminWand adminWand;
     
@@ -54,6 +58,8 @@ public class LumaSG extends JavaPlugin {
         saveResource("chest.yml", false);
         saveResource("fishing.yml", false);
         saveResource("config.yml", false);
+        saveResource("custom-items.yml", false);
+        saveResource("placeholders.yml", false);
         
         // Initialize debug logger early
         debugLogger = new DebugLogger(this);
@@ -62,18 +68,22 @@ public class LumaSG extends JavaPlugin {
         arenaManager = new ArenaManager(this);
         gameManager = new GameManager(this);
         chestManager = new ChestManager(this);
+        customItemsManager = new CustomItemsManager(this);
         hookManager = new HookManager(this);
         statisticsManager = new StatisticsManager(this);
         adminWandListener = new AdminWandListener(this);
+        customItemListener = new CustomItemListener(this);
         adminWand = new AdminWand(this);
         
         // Validate managers were created successfully
         ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(chestManager, "Chest Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(customItemsManager, "Custom Items Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(hookManager, "Hook Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(statisticsManager, "Statistics Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(adminWandListener, "Admin Wand Listener", "Plugin Initialization");
+        ValidationUtils.requireNonNull(customItemListener, "Custom Item Listener", "Plugin Initialization");
         ValidationUtils.requireNonNull(adminWand, "Admin Wand", "Plugin Initialization");
         
         // Initialize GUI system
@@ -83,13 +93,18 @@ public class LumaSG extends JavaPlugin {
         arenaManager.start();
         hookManager.start();
         
+        // Initialize custom items manager FIRST (before chest loading)
+        if (!customItemsManager.initialize()) {
+            getLogger().log(Level.SEVERE, "Failed to initialize custom items manager");
+        }
+        
         // Initialize statistics manager (async)
         statisticsManager.initialize().exceptionally(throwable -> {
             getLogger().log(Level.SEVERE, "Failed to initialize statistics manager", throwable);
             return null;
         });
         
-        // Load chest items
+        // Load chest items AFTER custom items are initialized
         chestManager.loadChestItems();
         
         // Register commands
@@ -128,6 +143,7 @@ public class LumaSG extends JavaPlugin {
             if (statisticsManager != null) {
                 statisticsManager.shutdown().join(); // Wait for statistics to be saved
             }
+            if (customItemListener != null) customItemListener.shutdown();
             if (hookManager != null) hookManager.stop();
             if (gameManager != null) gameManager.shutdown();
             if (chestManager != null) chestManager.stop();
@@ -180,6 +196,7 @@ public class LumaSG extends JavaPlugin {
         pm.registerEvents(new PlayerListener(this), this);
         pm.registerEvents(new ChestListener(this), this);
         pm.registerEvents(adminWandListener, this);
+        pm.registerEvents(customItemListener, this);
         pm.registerEvents(new FishingListener(this), this);
     }
     
@@ -207,6 +224,10 @@ public class LumaSG extends JavaPlugin {
     
     public @NotNull ChestManager getChestManager() {
         return chestManager;
+    }
+    
+    public @NotNull CustomItemsManager getCustomItemsManager() {
+        return customItemsManager;
     }
     
     public @NotNull HookManager getHookManager() {
@@ -238,5 +259,9 @@ public class LumaSG extends JavaPlugin {
      */
     public @NotNull AdminWand getAdminWand() {
         return adminWand;
+    }
+    
+    public CustomItemListener getCustomItemListener() {
+        return customItemListener;
     }
 } 

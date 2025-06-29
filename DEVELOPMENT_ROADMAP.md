@@ -21,45 +21,45 @@
 ## High Priority Features (Next 2 weeks)
 
 ### 1. **Critical Bug Fixes & Core Issues**
-- [✅] **World Border Deathmatch Fix** - Fix world border not shrinking during deathmatch (prevents players from running away)
-- [✅] **Nameplate Hiding System** - Implement packet manipulation or custom tab hook to hide player nameplates through walls
-- [✅] **Console Game Management** - Enable console to start games and add players for automated/external control
+- [x] **World Border Deathmatch Fix** - Fix world border not shrinking during deathmatch (prevents players from running away)
+- [x] **Nameplate Hiding System** - Implement packet manipulation or custom tab hook to hide player nameplates through walls
+- [x] **Console Game Management** - Enable console to start games and add players for automated/external control
 - [ ] **Adventure Mode Replacement** - Replace adventure mode with custom block placement tracking system
 
 ### 2. **Custom Items System Foundation**
-- [ ] **Custom Items Configuration** - Create `custom-items.yml` config system similar to `loot.yml` and `fishing.yml`
-- [ ] **Custom Items Manager** - Core manager class for handling custom item creation, tracking, and cleanup
-- [ ] **Loot Integration** - Integrate custom items into chest loot system with min/max amounts and rarity
+- [x] **Custom Items Configuration** - Create `custom-items.yml` config system similar to `loot.yml` and `fishing.yml`
+- [x] **Custom Items Manager** - Core manager class for handling custom item creation, tracking, and cleanup
+- [x] **Loot Integration** - Integrate custom items into chest loot system with min/max amounts and rarity
 
 ### 3. **Essential Custom Items (Phase 1)**
-- [ ] **Player Tracker** - Compass-based player tracking system using hotbar
+- [x] **Player Tracker** - Compass-based player tracking system using hotbar
   - Red markers for all players
   - Black marker for current top killer
   - Special emoji markers for airdrops
-- [ ] **Knockback Stick** - Classic stick with Knockback 5 enchantment
+- [x] **Knockback Stick** - Classic stick with Knockback 5 enchantment
 
 ## Medium Priority Features (1 months)
 
 ### 4. **Advanced Custom Items (Phase 2)**
-- [ ] **Fire Bomb** - Custom TNT block with realistic fire explosion mechanics
+- [x] **Fire Bomb** - Custom TNT block with realistic fire explosion mechanics
   - 2.5 second fuse time with primed TNT entity
   - Random imperfect fire shape (configurable min/max radius)
   - Fire ticks for 3 seconds then disappears
   - No block breaking damage
-- [ ] **Poison Bomb** - Lingering poison effect bomb
+- [x] **Poison Bomb** - Lingering poison effect bomb
   - Similar to fire bomb but creates poison cloud
   - More circular/rounded cloud shape for realism
   - Configurable poison duration and potency
 
-### 5. **Airdrop System** - *Complex Feature*
-- [ ] **Airdrop Flares** - Custom redstone torch item to call airdrops
-- [ ] **Meteor Physics** - Vector-based falling meteor with particle trail
-- [ ] **Impact Effects** - Fake explosion that "throws" blocks as falling entities
-- [ ] **Chest Placement** - Place chest or Nexo furniture chest with hologram
-- [ ] **Opening Mechanics** - 3-second look requirement with blindness effect
-- [ ] **Item Distribution** - Fountain-style item ejection and cleanup
-- [ ] **Game Integration** - Match announcements and tracking system
-- [ ] **Leaderboard Tracking** - Track amount of opened air drops versus drops called in
+### 5. **Airdrop System** - *Complex Feature* ✅ COMPLETED
+- [x] **Airdrop Flares** - Custom redstone torch item to call airdrops
+- [x] **Meteor Physics** - Vector-based falling meteor with particle trail
+- [x] **Impact Effects** - Physics explosion that throws blocks as falling entities
+- [x] **Chest Placement** - Place chest with high-tier loot
+- [x] **Game Integration** - Match announcements and coordinate broadcasting
+- [x] **Physics Explosion** - SunLight-inspired block throwing with realistic physics
+- [x] **Visual Effects** - Blinking drop zone indicator, meteor trail, impact particles
+- [x] **Safety Features** - Cooldowns, game state validation, damage/knockback system
 
 ### 6. **Block Placement System** - *Replaces Adventure Mode*
 - [ ] **Block Tracking Manager** - Map and track all player-placed blocks during games

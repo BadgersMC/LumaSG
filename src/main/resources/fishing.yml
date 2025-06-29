@@ -9,10 +9,14 @@ items:
   special_sword:
     material: DIAMOND_SWORD
     chance: 10.0
-    name: "<!italic><blue>Poseidon's Blade</blue>"
+    name: "<gradient:#1e90ff:#00bfff><bold>⚔️ Poseidon's Blade</bold></gradient>"
     lore:
-      - "<!italic><gray>A legendary sword pulled</gray>"
-      - "<!italic><gray>from the depths</gray>"
+      - "<gray>A legendary sword pulled"
+      - "<gray>from the depths"
+      - ""
+      - "<yellow>• <white>Sharpness II"
+      - "<yellow>• <white>Knockback II"
+      - "<yellow>• <aqua>Blessed by the sea 🌊"
     unbreakable: true
     enchantments:
       sharpness: 2
@@ -26,10 +30,14 @@ items:
   trident:
     material: TRIDENT
     chance: 5.0
-    name: "<!italic><dark_aqua>Ocean's Fury</dark_aqua>"
+    name: "<gradient:#00b4d8:#90e0ef><bold>🔱 Ocean's Fury</bold></gradient>"
     lore:
-      - "<!italic><gray>A powerful trident imbued</gray>"
-      - "<!italic><gray>with the ocean's might</gray>"
+      - "<gray>A powerful trident imbued"
+      - "<gray>with the ocean's might"
+      - ""
+      - "<yellow>• <white>Loyalty II"
+      - "<yellow>• <white>Channeling I"
+      - "<yellow>• <aqua>Command the seas ⚡"
     unbreakable: true
     enchantments:
       loyalty: 2

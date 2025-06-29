@@ -3,6 +3,7 @@ package net.lumalyte.game;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.ValidationUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -48,18 +49,28 @@ public class GameWorldManager {
     /** Deathmatch border shrinking task */
     private @Nullable BukkitTask borderShrinkTask;
     
+    /** Flag to track if original settings have been stored */
+    private boolean originalSettingsStored = false;
+    
     public GameWorldManager(@NotNull LumaSG plugin, @NotNull Arena arena) {
+        ValidationUtils.requireNonNull(plugin, "Plugin", "GameWorldManager Construction");
+        ValidationUtils.requireNonNull(arena, "Arena", "GameWorldManager Construction");
+        
         this.plugin = plugin;
         this.arena = arena;
-        this.logger = plugin.getDebugLogger().forContext("GameWorldManager");
+        this.logger = plugin.getDebugLogger().forContext("GameWorldManager-" + arena.getName());
+        
+        // Store original world settings immediately when the manager is created
+        storeOriginalWorldSettings();
     }
     
     /**
-     * Sets up the world for game start.
+     * Stores the original world settings that will be restored after the game.
+     * This is called once when the manager is created to prevent overwriting with modified values.
      */
-    public void setupWorld() {
+    private void storeOriginalWorldSettings() {
         World arenaWorld = arena.getWorld();
-        if (arenaWorld != null) {
+        if (arenaWorld != null && !originalSettingsStored) {
             // Store original settings
             originalDifficulty = arenaWorld.getDifficulty();
             originalTime = arenaWorld.getTime();
@@ -69,6 +80,19 @@ public class GameWorldManager {
             originalBorderSize = worldBorder.getSize();
             originalBorderCenter = worldBorder.getCenter();
             
+            originalSettingsStored = true;
+            
+            logger.debug("Stored original world settings - Difficulty: " + originalDifficulty + 
+                ", Time: " + originalTime + ", Border Size: " + originalBorderSize);
+        }
+    }
+    
+    /**
+     * Sets up the world for game start.
+     */
+    public void setupWorld() {
+        World arenaWorld = arena.getWorld();
+        if (arenaWorld != null) {
             // Set game settings
             arenaWorld.setDifficulty(org.bukkit.Difficulty.PEACEFUL);
             arenaWorld.setTime(1000); // Set to morning/day (1000 ticks)
@@ -79,6 +103,7 @@ public class GameWorldManager {
                              (!arena.getSpawnPoints().isEmpty() ? arena.getSpawnPoints().get(0) : null));
             
             if (center != null) {
+                WorldBorder worldBorder = arenaWorld.getWorldBorder();
                 double initialBorderSize = plugin.getConfig().getDouble("world-border.initial-size", 500.0);
                 worldBorder.setCenter(center);
                 worldBorder.setSize(initialBorderSize);
@@ -86,8 +111,7 @@ public class GameWorldManager {
                     String.format("(%.1f, %.1f)", center.getX(), center.getZ()));
             }
             
-            logger.debug("Set arena world " + arenaWorld.getName() + " to peaceful and daytime (was " + 
-                originalDifficulty + " and time " + originalTime + ")");
+            logger.debug("Set arena world " + arenaWorld.getName() + " to peaceful and daytime");
         }
     }
     

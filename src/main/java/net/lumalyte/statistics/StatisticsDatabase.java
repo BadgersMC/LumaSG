@@ -28,9 +28,8 @@ import java.util.concurrent.Executors;
  * @since 1.0
  */
 public class StatisticsDatabase {
-    
-    private final @NotNull LumaSG plugin;
-    private final @NotNull File databaseFile;
+
+	private final @NotNull File databaseFile;
     private final @NotNull ExecutorService executorService;
     private final @NotNull DateTimeFormatter dateTimeFormatter;
     
@@ -92,8 +91,7 @@ public class StatisticsDatabase {
      * @param plugin The plugin instance
      */
     public StatisticsDatabase(@NotNull LumaSG plugin) {
-        this.plugin = plugin;
-        this.databaseFile = new File(plugin.getDataFolder(), "statistics.db");
+		this.databaseFile = new File(plugin.getDataFolder(), "statistics.db");
         this.executorService = Executors.newFixedThreadPool(2, r -> {
             Thread thread = new Thread(r, "LumaSG-Statistics-" + System.currentTimeMillis());
             thread.setDaemon(true);
