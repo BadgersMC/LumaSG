@@ -101,10 +101,10 @@ public class ChestManager {
             try {
                 // Load chest configuration
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(chestFile);
-                ConfigurationSection tiersSection = config.getConfigurationSection("tiers");
+                ConfigurationSection itemsSection = config.getConfigurationSection("items");
                 
-                if (tiersSection == null) {
-                    logger.warn("No tiers section found in chest.yml");
+                if (itemsSection == null) {
+                    logger.warn("No items section found in chest.yml");
                     return;
                 }
                 
@@ -115,43 +115,49 @@ public class ChestManager {
                     chestItems.clear();
                     logger.debug("Loading chest items from configuration...");
                     
-                    // Load items from each tier
-                    for (String tierName : tiersSection.getKeys(false)) {
-                        logger.debug("Processing tier: " + tierName);
-                        ConfigurationSection tierSection = tiersSection.getConfigurationSection(tierName);
-                        if (tierSection != null) {
-                            ConfigurationSection itemsSection = tierSection.getConfigurationSection("items");
-                            if (itemsSection != null) {
-                                for (String key : itemsSection.getKeys(false)) {
-                                    ConfigurationSection itemSection = itemsSection.getConfigurationSection(key);
-                                    if (itemSection != null) {
-                                        logger.debug("Loading item: " + key + " for tier: " + tierName);
-                                        // Create a new section that includes the tier
-                                        YamlConfiguration enrichedSection = new YamlConfiguration();
-                                        enrichedSection.set("tier", tierName);
+                    // Load items from the global items section
+                    for (String itemKey : itemsSection.getKeys(false)) {
+                        logger.debug("Processing item: " + itemKey);
+                        ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
+                        if (itemSection != null) {
+                            // Check if this item has tier-weights
+                            ConfigurationSection tierWeights = itemSection.getConfigurationSection("tier-weights");
+                            if (tierWeights != null) {
+                                // Create a ChestItem for each tier with appropriate weight
+                                for (String tier : tierWeights.getKeys(false)) {
+                                    double weight = tierWeights.getDouble(tier, 0.0);
+                                    if (weight > 0) {
+                                        logger.debug("Loading item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
                                         
-                                        // Copy all item properties
-                                        for (String itemKey : itemSection.getKeys(true)) {
-                                            enrichedSection.set(itemKey, itemSection.get(itemKey));
+                                        // Create a new section that includes the tier and weight as chance
+                                        YamlConfiguration enrichedSection = new YamlConfiguration();
+                                        enrichedSection.set("tier", tier);
+                                        enrichedSection.set("chance", weight);
+                                        
+                                        // Copy all item properties except tier-weights
+                                        for (String propertyKey : itemSection.getKeys(true)) {
+                                            if (!propertyKey.startsWith("tier-weights")) {
+                                                enrichedSection.set(propertyKey, itemSection.get(propertyKey));
+                                            }
                                         }
                                         
                                         // Check if this is a Nexo item and handle it gracefully
                                         if (enrichedSection.contains("nexo-item") && !plugin.getHookManager().isHookAvailable("Nexo")) {
-                                            logger.debug("Skipping Nexo item: " + key + " because Nexo plugin is not available");
+                                            logger.debug("Skipping Nexo item: " + itemKey + " because Nexo plugin is not available");
                                             continue;
                                         }
                                         
-                                        ChestItem item = ChestItem.fromConfig(plugin, enrichedSection, key);
+                                        ChestItem item = ChestItem.fromConfig(plugin, enrichedSection, itemKey);
                                         if (item != null) {
                                             chestItems.add(item);
-                                            logger.debug("Successfully loaded item: " + key + " for tier: " + tierName);
+                                            logger.debug("Successfully loaded item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
                                         } else {
-                                            logger.warn("Failed to create item: " + key + " for tier: " + tierName);
+                                            logger.warn("Failed to create item: " + itemKey + " for tier: " + tier);
                                         }
                                     }
                                 }
                             } else {
-                                logger.warn("No items section found for tier: " + tierName);
+                                logger.warn("Item " + itemKey + " has no tier-weights configuration - skipping");
                             }
                         }
                     }
@@ -195,82 +201,80 @@ public class ChestManager {
      *
 	 */
     public boolean fillChest(@NotNull Location location, @NotNull String tier) throws LumaSGException.ChestException {
-		if (tier.trim().isEmpty()) {
+        if (tier.trim().isEmpty()) {
             throw LumaSGException.chestError("Tier cannot be null or empty", location.toString());
         }
         
-        try {
-            logger.debug("Attempting to fill chest at " + location + " with tier: " + tier);
-            
-            // Validate world exists
-            if (location.getWorld() == null) {
-                throw LumaSGException.chestError("World is null", location.toString());
-            }
-            
-            // Get the block at the specified location
-            Block block = location.getBlock();
-            if (block.getType() != Material.CHEST) {
-                throw LumaSGException.chestError("Block is not a chest (type: " + block.getType() + ")", location.toString());
-            }
-            
-            // Get the chest block state
-            BlockState state = block.getState();
-            if (!(state instanceof Chest chest)) {
-                throw LumaSGException.chestError("Block state is not a chest", location.toString());
-            }
-
-			Inventory inventory = chest.getInventory();
-            
-            // Clear the chest inventory
-            inventory.clear();
-            
-            // Fill with loot from the specified tier
-            List<ChestItem> loot = getLootForTier(tier);
-            if (loot.isEmpty()) {
-                logger.warn("No loot found for tier: " + tier + " (available tiers: " + getTiers() + ")");
-                return false;
-            }
-            
-            // Add random items to the chest using ThreadLocalRandom
-            ThreadLocalRandom random = ThreadLocalRandom.current();
-            int minItems = plugin.getConfig().getInt("chest.min-items", 3);
-            int maxItems = plugin.getConfig().getInt("chest.max-items", 8);
-            int itemsToAdd = random.nextInt(minItems, maxItems + 1);
-            logger.debug("Adding " + itemsToAdd + " items to chest");
-            
-            int addedItems = 0;
-            for (int i = 0; i < itemsToAdd; i++) {
-                ChestItem item = getRandomItem(loot);
-                if (item != null) {
-                    // Find a random empty slot
-                    int slot = getRandomEmptySlot(inventory);
-                    if (slot != -1) {
-                        ItemStack itemStack = item.getItemStack(plugin);
-                        if (itemStack != null) {
-                            inventory.setItem(slot, itemStack);
-                            addedItems++;
-                            logger.debug("Added item to chest: " + itemStack.getType() + " in slot " + slot);
-                        } else {
-                            logger.warn("Failed to create ItemStack for item: " + item.getMaterial());
-                        }
-                    } else {
-                        logger.warn("No empty slots available in chest at " + location);
-                        break;
-                    }
-                } else {
-                    logger.warn("Failed to get random item for tier: " + tier);
-                }
-            }
-            
-            logger.debug("Successfully filled chest at " + location + " with " + addedItems + " items");
-            return addedItems > 0;
-            
-        } catch (LumaSGException e) {
-            throw e; // Re-throw LumaSG exceptions
-        } catch (Exception e) {
-            logger.severe("Unexpected error filling chest at " + location, e);
-            throw LumaSGException.chestError("Unexpected error: " + e.getMessage(), location.toString());
+        Block block = location.getBlock();
+        if (!isChest(block)) {
+            throw LumaSGException.chestError("Block at location is not a chest", location.toString());
         }
+        
+        BlockState state = block.getState();
+        if (!(state instanceof Chest chest)) {
+            throw LumaSGException.chestError("Failed to get chest state", location.toString());
+        }
+        
+        Inventory inventory = chest.getInventory();
+        inventory.clear();
+        
+        logger.debug("Filling chest at " + location.toString() + " with tier: " + tier);
+        
+        // Get loot for this tier
+        List<ChestItem> loot = getLootForTier(tier);
+        logger.debug("Got " + loot.size() + " possible items for tier: " + tier);
+        
+        // Fill chest with random items
+        int itemCount = ThreadLocalRandom.current().nextInt(4, 7); // 4-6 items per chest
+        int filledSlots = 0;
+        int attempts = 0;
+        int maxAttempts = 50; // Prevent infinite loops
+        
+        logger.debug("Attempting to fill chest with " + itemCount + " items");
+        
+        while (filledSlots < itemCount && attempts < maxAttempts) {
+            attempts++;
+            
+            // Get a random item from the loot pool
+            ChestItem selectedItem = getRandomItem(loot);
+            if (selectedItem == null) {
+                logger.debug("Failed to select an item from loot pool (attempt " + attempts + ")");
+                continue;
+            }
+            
+            // Get the actual item stack
+            ItemStack itemStack = selectedItem.getItemStack(plugin);
+            if (itemStack == null) {
+                logger.debug("Selected item returned null ItemStack (attempt " + attempts + ")");
+                continue;
+            }
+            
+            // Randomize amount within configured range
+            int amount = selectedItem.getMinAmount();
+            if (selectedItem.getMaxAmount() > selectedItem.getMinAmount()) {
+                amount += ThreadLocalRandom.current().nextInt(selectedItem.getMaxAmount() - selectedItem.getMinAmount() + 1);
+            }
+            itemStack.setAmount(amount);
+            
+            // Find a random empty slot
+            int slot = getRandomEmptySlot(inventory);
+            if (slot == -1) {
+                logger.debug("No empty slots found in chest (attempt " + attempts + ")");
+                break;
+            }
+            
+            // Add the item to the chest
+            inventory.setItem(slot, itemStack);
+            filledSlots++;
+            
+            logger.debug("Added item to chest - Material: " + itemStack.getType() + 
+                ", Amount: " + itemStack.getAmount() + 
+                ", Slot: " + slot + 
+                " (attempt " + attempts + ")");
+        }
+        
+        logger.debug("Chest filling complete - Added " + filledSlots + " items in " + attempts + " attempts");
+        return filledSlots > 0;
     }
 
     /**
@@ -319,10 +323,24 @@ public class ChestManager {
                 .filter(item -> tier.equalsIgnoreCase(item.getTier()))
                 .collect(Collectors.toList()));
             
+            logger.debug("Found " + loot.size() + " regular items for tier: " + tier);
+            
             // Add custom items for this tier
             if (plugin.getCustomItemsManager() != null) {
-                loot.addAll(plugin.getCustomItemsManager().getChestItemsForTier(tier));
-                logger.debug("Added custom items for tier: " + tier);
+                List<ChestItem> customItems = plugin.getCustomItemsManager().getChestItemsForTier(tier);
+                logger.debug("Found " + customItems.size() + " custom items for tier: " + tier);
+                
+                for (ChestItem item : customItems) {
+                    logger.debug("Adding custom item to loot pool - Material: " + 
+                        (item.getItemStack(plugin) != null ? item.getItemStack(plugin).getType() : "null") + 
+                        ", Chance: " + item.getChance() + 
+                        ", Amount: " + item.getMinAmount() + "-" + item.getMaxAmount());
+                }
+                
+                loot.addAll(customItems);
+                logger.debug("Total items in loot pool for tier " + tier + ": " + loot.size());
+            } else {
+                logger.warn("CustomItemsManager is null - custom items will not be added to loot pool");
             }
             
             return loot;

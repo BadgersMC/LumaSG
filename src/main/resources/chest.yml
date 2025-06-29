@@ -1,393 +1,537 @@
 # LumaSG Chest Configuration
 # This file contains the configuration for chest loot in the Survival Games
+# 
+# NEW WEIGHTED TIER SYSTEM:
+# All items can appear in all chest tiers, but with different weights/probabilities
+# Higher tier chests have better odds for rare items
+#
+# Tier weights determine how likely an item is to appear in each tier:
+# - common: Basic items have high weight, rare items have very low weight
+# - uncommon: Balanced distribution, moderate weights for all items  
+# - rare: Rare items have high weight, basic items have low weight
 
-tiers:
+# Global loot pool - all items available in all tiers with different weights
+items:
+  # === BASIC SURVIVAL ITEMS ===
+  wooden_sword:
+    material: WOODEN_SWORD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Wooden Sword</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 25.0      # Very common in basic chests
+      uncommon: 8.0     # Less common in better chests
+      rare: 2.0         # Rare in high-tier chests
+      
+  stone_axe:
+    material: STONE_AXE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Stone Axe</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 15.0
+      uncommon: 12.0
+      rare: 5.0
+      
+  leather_helmet:
+    material: LEATHER_HELMET
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Leather Cap</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 18.0
+      uncommon: 10.0
+      rare: 3.0
+      
+  leather_chestplate:
+    material: LEATHER_CHESTPLATE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Leather Tunic</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 15.0
+      uncommon: 8.0
+      rare: 2.0
+      
+  leather_leggings:
+    material: LEATHER_LEGGINGS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Leather Pants</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 15.0
+      uncommon: 8.0
+      rare: 2.0
+      
+  leather_boots:
+    material: LEATHER_BOOTS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Leather Boots</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 18.0
+      uncommon: 10.0
+      rare: 3.0
+      
+  bread:
+    material: BREAD
+    min-amount: 1
+    max-amount: 3
+    tier-weights:
+      common: 30.0
+      uncommon: 15.0
+      rare: 5.0
+      
+  apple:
+    material: APPLE
+    min-amount: 1
+    max-amount: 2
+    tier-weights:
+      common: 25.0
+      uncommon: 12.0
+      rare: 4.0
+      
+  arrow:
+    material: ARROW
+    min-amount: 2
+    max-amount: 6
+    tier-weights:
+      common: 20.0
+      uncommon: 25.0    # More arrows in mid-tier
+      rare: 15.0
+      
+  stick:
+    material: STICK
+    min-amount: 1
+    max-amount: 3
+    tier-weights:
+      common: 25.0
+      uncommon: 10.0
+      rare: 3.0
+      
+  iron_ingot:
+    material: IRON_INGOT
+    min-amount: 1
+    max-amount: 2
+    tier-weights:
+      common: 12.0
+      uncommon: 20.0
+      rare: 15.0
+
+  # === INTERMEDIATE ITEMS ===
+  stone_sword:
+    material: STONE_SWORD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Stone Sword</green>"
+    unbreakable: true
+    enchantments:
+      knockback: 1
+    tier-weights:
+      common: 8.0       # Can appear in common but less likely
+      uncommon: 20.0    # Most common in uncommon
+      rare: 12.0        # Still decent chance in rare
+      
+  iron_axe:
+    material: IRON_AXE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Iron Axe</green>"
+    unbreakable: true
+    tier-weights:
+      common: 5.0
+      uncommon: 15.0
+      rare: 18.0
+      
+  chainmail_helmet:
+    material: CHAINMAIL_HELMET
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Chainmail Helmet</green>"
+    unbreakable: true
+    tier-weights:
+      common: 6.0
+      uncommon: 18.0
+      rare: 12.0
+      
+  chainmail_chestplate:
+    material: CHAINMAIL_CHESTPLATE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Chainmail Chestplate</green>"
+    unbreakable: true
+    tier-weights:
+      common: 4.0
+      uncommon: 15.0
+      rare: 10.0
+      
+  chainmail_leggings:
+    material: CHAINMAIL_LEGGINGS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Chainmail Leggings</green>"
+    unbreakable: true
+    tier-weights:
+      common: 4.0
+      uncommon: 15.0
+      rare: 10.0
+      
+  chainmail_boots:
+    material: CHAINMAIL_BOOTS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Chainmail Boots</green>"
+    unbreakable: true
+    tier-weights:
+      common: 6.0
+      uncommon: 18.0
+      rare: 12.0
+      
+  bow:
+    material: BOW
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Bow</green>"
+    unbreakable: true
+    tier-weights:
+      common: 8.0
+      uncommon: 20.0
+      rare: 15.0
+      
+  cooked_beef:
+    material: COOKED_BEEF
+    min-amount: 1
+    max-amount: 3
+    tier-weights:
+      common: 10.0
+      uncommon: 25.0
+      rare: 18.0
+      
+  golden_apple:
+    material: GOLDEN_APPLE
+    min-amount: 1
+    max-amount: 1
+    tier-weights:
+      common: 3.0       # Rare in common chests
+      uncommon: 12.0    # More common in uncommon
+      rare: 20.0        # Very common in rare chests
+      
+  fishing_rod:
+    material: FISHING_ROD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Fishing Rod</green>"
+    unbreakable: true
+    tier-weights:
+      common: 5.0
+      uncommon: 12.0
+      rare: 8.0
+
+  diamond:
+    material: DIAMOND
+    min-amount: 1
+    max-amount: 2
+    tier-weights:
+      common: 1.0       # Very rare in common
+      uncommon: 8.0     # Uncommon in mid-tier
+      rare: 18.0        # Common in rare chests
+      
+  experience_bottle:
+    material: EXPERIENCE_BOTTLE
+    min-amount: 2
+    max-amount: 4
+    tier-weights:
+      common: 2.0
+      uncommon: 12.0
+      rare: 15.0
+      
+  splash_potion_poison:
+    material: SPLASH_POTION
+    min-amount: 1
+    max-amount: 1
+    potion-type: POISON
+    custom-effects:
+      poison:
+        duration: 100
+        amplifier: 0
+        ambient: false
+        particles: true
+        icon: true
+    tier-weights:
+      common: 3.0
+      uncommon: 10.0
+      rare: 12.0
+
+  # === HIGH-TIER ITEMS ===
+  iron_sword:
+    material: IRON_SWORD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Sword</aqua>"
+    lore:
+      - "<!italic><gray>A powerful sword</gray>"
+      - "<!italic><gray>forged from iron</gray>"
+    unbreakable: true
+    enchantments:
+      sharpness: 1
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    attributes:
+      ATTACK_DAMAGE: 7.0
+    tier-weights:
+      common: 0.5       # Extremely rare in common
+      uncommon: 5.0     # Rare in uncommon
+      rare: 20.0        # Common in rare
+      
+  diamond_axe:
+    material: DIAMOND_AXE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Diamond Axe</aqua>"
+    unbreakable: true
+    enchantments:
+      efficiency: 2
+    tier-weights:
+      common: 0.2
+      uncommon: 2.0
+      rare: 15.0
+      
+  iron_helmet:
+    material: IRON_HELMET
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Helmet</aqua>"
+    unbreakable: true
+    enchantments:
+      protection: 1
+    tier-weights:
+      common: 0.5
+      uncommon: 4.0
+      rare: 18.0
+      
+  iron_chestplate:
+    material: IRON_CHESTPLATE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Chestplate</aqua>"
+    unbreakable: true
+    enchantments:
+      protection: 1
+    tier-weights:
+      common: 0.3
+      uncommon: 3.0
+      rare: 15.0
+      
+  iron_leggings:
+    material: IRON_LEGGINGS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Leggings</aqua>"
+    unbreakable: true
+    enchantments:
+      protection: 1
+    tier-weights:
+      common: 0.3
+      uncommon: 3.0
+      rare: 15.0
+      
+  iron_boots:
+    material: IRON_BOOTS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Boots</aqua>"
+    unbreakable: true
+    enchantments:
+      protection: 1
+    tier-weights:
+      common: 0.5
+      uncommon: 4.0
+      rare: 18.0
+      
+  power_bow:
+    material: BOW
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Power Bow</aqua>"
+    unbreakable: true
+    enchantments:
+      power: 2
+      punch: 1
+    tier-weights:
+      common: 0.5
+      uncommon: 6.0
+      rare: 20.0
+      
+  diamond_sword:
+    material: DIAMOND_SWORD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><light_purple>Diamond Sword</light_purple>"
+    lore:
+      - "<!italic><gray>The ultimate weapon</gray>"
+      - "<!italic><gray>for survival</gray>"
+    unbreakable: true
+    enchantments:
+      sharpness: 2
+      fire_aspect: 1
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    tier-weights:
+      common: 0.1       # Extremely rare in common
+      uncommon: 1.0     # Very rare in uncommon
+      rare: 12.0        # Uncommon even in rare chests
+
+  # === ENCHANTED BOOKS ===
+  enchanted_book_sharpness:
+    material: ENCHANTED_BOOK
+    min-amount: 1
+    max-amount: 1
+    stored-enchants:
+      sharpness: 3
+    tier-weights:
+      common: 0.2
+      uncommon: 2.0
+      rare: 10.0
+      
+  enchanted_book_protection:
+    material: ENCHANTED_BOOK
+    min-amount: 1
+    max-amount: 1
+    stored-enchants:
+      protection: 3
+    tier-weights:
+      common: 0.2
+      uncommon: 2.0
+      rare: 10.0
+      
+  enchanted_book_power:
+    material: ENCHANTED_BOOK
+    min-amount: 1
+    max-amount: 1
+    stored-enchants:
+      power: 3
+    tier-weights:
+      common: 0.2
+      uncommon: 2.0
+      rare: 10.0
+      
+  # === LEGENDARY ITEMS ===
+  ender_pearl:
+    material: ENDER_PEARL
+    min-amount: 1
+    max-amount: 2
+    name: "<!italic><light_purple>Ender Pearl</light_purple>"
+    tier-weights:
+      common: 0.1
+      uncommon: 1.0
+      rare: 8.0
+      
+  notch_apple:
+    material: ENCHANTED_GOLDEN_APPLE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gold>Notch Apple</gold>"
+    lore:
+      - "<!italic><gray>The most powerful</gray>"
+      - "<!italic><gray>healing item</gray>"
+    tier-weights:
+      common: 0.05      # Almost impossible in common
+      uncommon: 0.5     # Very rare even in uncommon  
+      rare: 3.0         # Rare even in rare chests
+      
+  splash_healing:
+    material: SPLASH_POTION
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><green>Healing Potion</green>"
+    potion-type: HEALING
+    tier-weights:
+      common: 0.5
+      uncommon: 3.0
+      rare: 10.0
+      
+  # === NEXO ITEMS (if available) ===
+  nexo_sword:
+    nexo-item: "legendary_sword"
+    min-amount: 1
+    max-amount: 1
+    tier-weights:
+      common: 0.1
+      uncommon: 0.5
+      rare: 5.0
+      
+  nexo_bow:
+    nexo-item: "explosive_bow"
+    min-amount: 1
+    max-amount: 1
+    tier-weights:
+      common: 0.1
+      uncommon: 0.5
+      rare: 5.0
+      
+  # === CUSTOM LEGENDARY ITEMS ===
+  custom_helmet:
+    material: DIAMOND_HELMET
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><light_purple>Champion's Helmet</light_purple>"
+    lore:
+      - "<!italic><gray>A legendary helmet worn by</gray>"
+      - "<!italic><gray>champions of the Survival Games</gray>"
+    unbreakable: true
+    enchantments:
+      protection: 2
+      respiration: 1
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    attributes:
+      ARMOR: 4.0
+      MAX_HEALTH: 2.0
+    custom-model-data: 1001
+    persistent-data:
+      item-type: "champion_gear"
+      tier: "legendary"
+    tier-weights:
+      common: 0.02      # Legendary rarity
+      uncommon: 0.2
+      rare: 2.0
+
+# Tier settings - controls how many items appear in each tier
+tier-settings:
   common:
-    items:
-      wooden_sword:
-        material: WOODEN_SWORD
-        min-amount: 1
-        max-amount: 1
-        chance: 15.0
-        name: "<!italic><gray>Wooden Sword</gray>"
-        unbreakable: true
-        
-      stone_axe:
-        material: STONE_AXE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><gray>Stone Axe</gray>"
-        unbreakable: true
-        
-      leather_armor:
-        material: LEATHER_HELMET
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><gray>Leather Cap</gray>"
-        unbreakable: true
-        
-      leather_chestplate:
-        material: LEATHER_CHESTPLATE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><gray>Leather Tunic</gray>"
-        unbreakable: true
-        
-      leather_leggings:
-        material: LEATHER_LEGGINGS
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><gray>Leather Pants</gray>"
-        unbreakable: true
-        
-      leather_boots:
-        material: LEATHER_BOOTS
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><gray>Leather Boots</gray>"
-        unbreakable: true
-        
-      bread:
-        material: BREAD
-        min-amount: 1
-        max-amount: 3
-        chance: 20.0
-        
-      apple:
-        material: APPLE
-        min-amount: 1
-        max-amount: 2
-        chance: 15.0
-        
-      arrow:
-        material: ARROW
-        min-amount: 2
-        max-amount: 6
-        chance: 10.0
-        
-      stick:
-        material: STICK
-        min-amount: 1
-        max-amount: 3
-        chance: 15.0
-
-        
-      iron_ingot:
-        material: IRON_INGOT
-        min-amount: 1
-        max-amount: 2
-        chance: 12.0
-  
+    min-items: 4
+    max-items: 7
+    # Common chests favor basic survival items
+    
   uncommon:
-    items:
-      stone_sword:
-        material: STONE_SWORD
-        min-amount: 1
-        max-amount: 1
-        chance: 15.0
-        name: "<!italic><green>Stone Sword</green>"
-        unbreakable: true
-        enchantments:
-          knockback: 1
-        
-      iron_axe:
-        material: IRON_AXE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><green>Iron Axe</green>"
-        unbreakable: true
-        
-      chainmail_helmet:
-        material: CHAINMAIL_HELMET
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><green>Chainmail Helmet</green>"
-        unbreakable: true
-        
-      chainmail_chestplate:
-        material: CHAINMAIL_CHESTPLATE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><green>Chainmail Chestplate</green>"
-        unbreakable: true
-        
-      chainmail_leggings:
-        material: CHAINMAIL_LEGGINGS
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><green>Chainmail Leggings</green>"
-        unbreakable: true
-        
-      chainmail_boots:
-        material: CHAINMAIL_BOOTS
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><green>Chainmail Boots</green>"
-        unbreakable: true
-        
-      bow:
-        material: BOW
-        min-amount: 1
-        max-amount: 1
-        chance: 15.0
-        name: "<!italic><green>Bow</green>"
-        unbreakable: true
-        
-      cooked_beef:
-        material: COOKED_BEEF
-        min-amount: 1
-        max-amount: 3
-        chance: 20.0
-        
-      golden_apple:
-        material: GOLDEN_APPLE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        
-      arrow:
-        material: ARROW
-        min-amount: 4
-        max-amount: 8
-        chance: 15.0
-        
-      fishing_rod:
-        material: FISHING_ROD
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><green>Fishing Rod</green>"
-        unbreakable: true
-
-      diamond:
-        material: DIAMOND
-        min-amount: 1
-        max-amount: 2
-        chance: 8.0
-        
-      iron_ingot:
-        material: IRON_INGOT
-        min-amount: 2
-        max-amount: 3
-        chance: 15.0
-
-        
-      experience_bottle:
-        material: EXPERIENCE_BOTTLE
-        min-amount: 2
-        max-amount: 4
-        chance: 10.0
-        
-      splash_potion:
-        material: SPLASH_POTION
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        potion-type: POISON
-        custom-effects:
-          poison:
-            duration: 100
-            amplifier: 0
-            ambient: false
-            particles: true
-            icon: true
-  
+    min-items: 3
+    max-items: 6
+    # Uncommon chests have balanced loot distribution
+    
   rare:
-    items:
-      iron_sword:
-        material: IRON_SWORD
-        min-amount: 1
-        max-amount: 1
-        chance: 15.0
-        name: "<!italic><aqua>Iron Sword</aqua>"
-        lore:
-          - "<!italic><gray>A powerful sword</gray>"
-          - "<!italic><gray>forged from iron</gray>"
-        unbreakable: true
-        enchantments:
-          sharpness: 1
-        item-flags:
-          - HIDE_ATTRIBUTES
-          - HIDE_UNBREAKABLE
-        attributes:
-          ATTACK_DAMAGE: 7.0
-        
-      diamond_axe:
-        material: DIAMOND_AXE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><aqua>Diamond Axe</aqua>"
-        unbreakable: true
-        enchantments:
-          efficiency: 2
-        
-      iron_helmet:
-        material: IRON_HELMET
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><aqua>Iron Helmet</aqua>"
-        unbreakable: true
-        enchantments:
-          protection: 1
-        
-      iron_chestplate:
-        material: IRON_CHESTPLATE
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><aqua>Iron Chestplate</aqua>"
-        unbreakable: true
-        enchantments:
-          protection: 1
-        
-      iron_leggings:
-        material: IRON_LEGGINGS
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><aqua>Iron Leggings</aqua>"
-        unbreakable: true
-        enchantments:
-          protection: 1
-        
-      iron_boots:
-        material: IRON_BOOTS
-        min-amount: 1
-        max-amount: 1
-        chance: 12.0
-        name: "<!italic><aqua>Iron Boots</aqua>"
-        unbreakable: true
-        enchantments:
-          protection: 1
-        
-      power_bow:
-        material: BOW
-        min-amount: 1
-        max-amount: 1
-        chance: 15.0
-        name: "<!italic><aqua>Power Bow</aqua>"
-        unbreakable: true
-        enchantments:
-          power: 2
-          punch: 1
-        
-      diamond_sword:
-        material: DIAMOND_SWORD
-        min-amount: 1
-        max-amount: 1
-        chance: 10.0
-        name: "<!italic><light_purple>Diamond Sword</light_purple>"
-        lore:
-          - "<!italic><gray>The ultimate weapon</gray>"
-          - "<!italic><gray>for survival</gray>"
-        unbreakable: true
-        enchantments:
-          sharpness: 2
-          fire_aspect: 1
-        item-flags:
-          - HIDE_ATTRIBUTES
-          - HIDE_UNBREAKABLE
+    min-items: 3
+    max-items: 5
+    # Rare chests favor high-quality items but fewer total items
 
-      diamond:
-        material: DIAMOND
-        min-amount: 2
-        max-amount: 3
-        chance: 10.0
-        
-      enchanted_book_sharpness:
-        material: ENCHANTED_BOOK
-        min-amount: 1
-        max-amount: 1
-        chance: 8.0
-        stored-enchants:
-          sharpness: 3
-          
-      enchanted_book_protection:
-        material: ENCHANTED_BOOK
-        min-amount: 1
-        max-amount: 1
-        chance: 8.0
-        stored-enchants:
-          protection: 3
-          
-      enchanted_book_power:
-        material: ENCHANTED_BOOK
-        min-amount: 1
-        max-amount: 1
-        chance: 8.0
-        stored-enchants:
-          power: 3
-        
-      ender_pearl:
-        material: ENDER_PEARL
-        min-amount: 1
-        max-amount: 2
-        chance: 8.0
-        name: "<!italic><light_purple>Ender Pearl</light_purple>"
-        
-      notch_apple:
-        material: ENCHANTED_GOLDEN_APPLE
-        min-amount: 1
-        max-amount: 1
-        chance: 3.0
-        name: "<!italic><gold>Notch Apple</gold>"
-        lore:
-          - "<!italic><gray>The most powerful</gray>"
-          - "<!italic><gray>healing item</gray>"
-        
-      splash_healing:
-        material: SPLASH_POTION
-        min-amount: 1
-        max-amount: 1
-        chance: 8.0
-        name: "<!italic><green>Healing Potion</green>"
-        potion-type: HEALING
-            
-      # Example Nexo item (if Nexo plugin is installed)
-      nexo_sword:
-        nexo-item: "legendary_sword"
-        min-amount: 1
-        max-amount: 1
-        chance: 5.0
-        
-      nexo_bow:
-        nexo-item: "explosive_bow"
-        min-amount: 1
-        max-amount: 1
-        chance: 5.0
-        
-      custom_helmet:
-        material: DIAMOND_HELMET
-        min-amount: 1
-        max-amount: 1
-        chance: 5.0
-        name: "<!italic><light_purple>Champion's Helmet</light_purple>"
-        lore:
-          - "<!italic><gray>A legendary helmet worn by</gray>"
-          - "<!italic><gray>champions of the Survival Games</gray>"
-        unbreakable: true
-        enchantments:
-          protection: 2
-          respiration: 1
-        item-flags:
-          - HIDE_ATTRIBUTES
-          - HIDE_UNBREAKABLE
-        attributes:
-          ARMOR: 4.0
-          MAX_HEALTH: 2.0
-        custom-model-data: 1001
-        persistent-data:
-          item-type: "champion_gear"
-          tier: "legendary" 
+# Performance settings
+settings:
+  # Enable debug logging for chest filling
+  debug-logging: true
+  
+  # Maximum attempts to fill a chest before giving up
+  max-fill-attempts: 50
+  
+  # Whether to allow duplicate items in the same chest
+  allow-duplicates: true
+  
+  # Minimum distance between identical items (if duplicates disabled)
+  duplicate-distance: 2
