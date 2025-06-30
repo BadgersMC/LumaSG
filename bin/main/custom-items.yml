@@ -18,18 +18,18 @@ items:
   player_tracker:
     # Basic item properties
     material: COMPASS
-    name: "<gradient:#ff6b6b:#4ecdc4><bold>🧭 Player Tracker</bold></gradient>"
+    name: "<gradient:#e74c3c:#f39c12><bold>🎯 Player Tracker</bold></gradient>"
     lore:
-      - "<gray>A mystical compass that reveals the"
-      - "<gray>positions of other players around you"
+      - "<gray>A mystical compass that points"
+      - "<gray>to the nearest enemy player"
       - ""
-      - "<yellow>• <white>🔴 Close players (0-50 blocks)"
-      - "<yellow>• <white>🟡 Medium range (50-150 blocks)" 
-      - "<yellow>• <white>🟢 Far players (150+ blocks)"
-      - "<yellow>• <red><bold>🗡️</bold></red> <white>Top killer indicator"
+      - "<yellow>• <white>Points to closest player 🧭"
+      - "<yellow>• <white>Updates every 2 seconds ⏰"
+      - "<yellow>• <white>50 block range 📏"
+      - "<yellow>• <red>Reveals your location too! 👁️"
       - ""
-      - "<aqua>Hold in inventory to activate"
-      - "<gray>Updates every 0.5 seconds"
+      - "<red>Hold to track enemies"
+      - "<gold>Use strategically!"
     unbreakable: true
     item-flags:
       - HIDE_ATTRIBUTES
@@ -40,27 +40,26 @@ items:
     behavior:
       type: PLAYER_TRACKER
       
-      # Update frequency (in ticks, 20 = 1 second)
-      update-interval: 10
-      
       # Tracking settings
-      track-players: true
-      track-top-killer: true
-      track-airdrops: true  # For future airdrop system
+      update-interval: 40        # Ticks (2 seconds)
+      max-range: 50             # Blocks
       
-      # Distance settings
-      max-range: 500           # Maximum tracking distance in blocks
-      close-distance: 50       # Distance for red color (close)
-      medium-distance: 150     # Distance for yellow color (medium)
+      # Visual settings
+      show-distance: true
+      show-direction: true
+      particle-effects: true
       
-      # Display settings
-      compass-width: 21        # Width of the action bar compass
-      show-distance-info: true # Show distance info in action bar
+      # Balancing settings
+      reveals-user: true        # User shows up on other trackers
+      cooldown: 5               # Seconds between uses
       
-    # Loot table integration - Made more common
+    # Loot table integration - Updated to use tier-weights
     loot:
-      tiers: ["common", "uncommon", "rare"]
-      chance: 0.75
+      enabled: true
+      tier-weights:
+        common: 8.0         # Common in basic chests
+        uncommon: 12.0      # More common in mid-tier
+        rare: 6.0           # Less common in rare (better items available)
       min-amount: 1
       max-amount: 1
       
@@ -74,15 +73,18 @@ items:
   knockback_stick:
     # Basic item properties
     material: STICK
-    name: "<gradient:#ff9a9e:#fecfef><bold>⚡ Knockback Stick</bold></gradient>"
+    name: "<gradient:#8e44ad:#9b59b6><bold>⚡ Knockback Stick</bold></gradient>"
     lore:
-      - "<gray>A magical stick imbued with"
-      - "<gray>powerful knockback energy"
+      - "<gray>A magically enhanced stick that"
+      - "<gray>sends enemies flying backwards"
       - ""
-      - "<yellow>• <white>Knockback V enchantment"
-      - "<yellow>• <white>Send enemies flying! 🚀"
+      - "<yellow>• <white>Powerful knockback effect 💥"
+      - "<yellow>• <white>No damage dealt ❤️"
+      - "<yellow>• <white>Perfect for crowd control 🛡️"
+      - "<yellow>• <white>Great for escaping danger 🏃"
       - ""
-      - "<red>Right-click to attack"
+      - "<red>Hit enemies to knock them back"
+      - "<purple>Non-lethal but effective!"
     unbreakable: true
     enchantments:
       knockback: 5
@@ -97,16 +99,26 @@ items:
       type: KNOCKBACK_STICK
       
       # Knockback settings
-      knockback-multiplier: 1.5
-      vertical-boost: 0.3
+      knockback-strength: 3.0   # Knockback multiplier
+      vertical-boost: 0.5       # Upward velocity
       
-      # Cooldown in ticks
-      cooldown: 40
+      # Damage settings
+      base-damage: 0.0          # No damage dealt
       
-    # Loot table integration - Made much more common
+      # Effect settings
+      particle-effects: true
+      sound-effects: true
+      
+      # Cooldown to prevent spam
+      cooldown: 1               # Seconds
+      
+    # Loot table integration - Updated to use tier-weights
     loot:
-      tiers: ["common", "uncommon", "rare"]
-      chance: 0.85
+      enabled: true
+      tier-weights:
+        common: 15.0        # Very common in basic chests
+        uncommon: 10.0      # Common in mid-tier
+        rare: 4.0           # Less common in rare chests
       min-amount: 1
       max-amount: 1
       
@@ -152,10 +164,13 @@ items:
       damage-thrower: false
       block-damage: false
       
-    # Loot table integration - Made more common
+    # Loot table integration - Updated to use tier-weights
     loot:
-      tiers: ["common", "uncommon", "rare"]
-      chance: 0.65
+      enabled: true
+      tier-weights:
+        common: 6.0         # Uncommon in basic chests
+        uncommon: 15.0      # Common in mid-tier
+        rare: 18.0          # Very common in rare chests
       min-amount: 1
       max-amount: 2
       
@@ -200,10 +215,13 @@ items:
       damage-thrower: false
       block-damage: false
       
-    # Loot table integration - Made more common
+    # Loot table integration - Updated to use tier-weights
     loot:
-      tiers: ["common", "uncommon", "rare"]
-      chance: 0.60
+      enabled: true
+      tier-weights:
+        common: 5.0         # Uncommon in basic chests
+        uncommon: 12.0      # Common in mid-tier
+        rare: 15.0          # Very common in rare chests
       min-amount: 1
       max-amount: 1
       
@@ -249,10 +267,13 @@ items:
       sound-effects: true
       announcement: true
       
-    # Loot table integration - Kept as uncommon/rare only
+    # Loot table integration - Updated to use tier-weights
     loot:
-      tiers: ["uncommon", "rare", "epic"]
-      chance: 0.35
+      enabled: true
+      tier-weights:
+        common: 0.5         # Very rare in basic chests
+        uncommon: 3.0       # Uncommon in mid-tier
+        rare: 8.0           # More common in rare chests
       min-amount: 1
       max-amount: 1
       
@@ -300,7 +321,7 @@ performance:
   cache-size: 500
   
   # Enable debug logging for custom items
-  debug-logging: false
+  debug-logging: true
   
   # Cleanup orphaned custom items on server restart
   cleanup-on-restart: true 

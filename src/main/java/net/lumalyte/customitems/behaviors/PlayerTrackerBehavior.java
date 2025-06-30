@@ -257,72 +257,135 @@ public class PlayerTrackerBehavior {
     }
     
     /**
-     * Gets all trackable targets for the player.
-     * 
-     * @param player The player holding the tracker
-     * @param game The game the player is in
-     * @param data The tracker configuration data
-     * @return List of trackable targets
+     * Gets a list of trackable targets for a player.
      */
     private @NotNull List<TrackableTarget> getTrackableTargets(@NotNull Player player, @NotNull Game game, @NotNull TrackerData data) {
         List<TrackableTarget> targets = new ArrayList<>();
         Location playerLocation = player.getLocation();
         
-        // Find top killer first
-        Player topKiller = findTopKiller(game);
+        // Find top killer first for reference
+        Player topKiller = data.trackTopKiller ? findTopKiller(game) : null;
         
-        // Track players
+        // Add player targets
         if (data.trackPlayers) {
-            for (UUID playerId : game.getPlayers()) {
-                if (playerId.equals(player.getUniqueId())) {
-                    continue; // Don't track self
-                }
-                
-                Player gamePlayer = Bukkit.getPlayer(playerId);
-                if (gamePlayer == null || !gamePlayer.isOnline()) {
-                    continue; // Skip offline players
-                }
-                
-                Location targetLocation = gamePlayer.getLocation();
-                double distance = playerLocation.distance(targetLocation);
-                
-                if (distance <= data.maxRange) {
-                    double angle = calculateAngle(playerLocation, targetLocation);
-                    
-                    // Determine if this is the top killer
-                    boolean isTopKiller = gamePlayer.equals(topKiller) && data.trackTopKiller;
-                    
-                    String symbol = isTopKiller ? TOP_KILLER_EMOJI : PLAYER_DOT;
-                    TextColor color = isTopKiller ? TOP_KILLER_COLOR : getDistanceColor(distance, data);
-                    
-                    targets.add(new TrackableTarget(angle, symbol, color, distance, isTopKiller));
-                }
-            }
+            targets.addAll(getPlayerTargets(player, game, playerLocation, topKiller, data));
         }
         
-        // Track active airdrops
+        // Add airdrop targets
         if (data.trackAirdrops) {
-            CustomItemListener customItemListener = plugin.getCustomItemListener();
-            if (customItemListener != null) {
-                Map<UUID, Location> activeAirdrops = customItemListener.getActiveAirdropLocations();
-                for (Location airdropLocation : activeAirdrops.values()) {
-                    double distance = playerLocation.distance(airdropLocation);
-                    if (distance <= data.maxRange) {
-                        double angle = calculateAngle(playerLocation, airdropLocation);
-                        targets.add(new TrackableTarget(angle, AIRDROP_EMOJI, NamedTextColor.GOLD, distance, false));
-                    }
+            targets.addAll(getAirdropTargets(playerLocation, data));
+        }
+        
+        // Sort targets by priority
+        sortTargetsByPriority(targets);
+        
+        return targets;
+    }
+    
+    /**
+     * Gets a list of player targets within range.
+     */
+    private @NotNull List<TrackableTarget> getPlayerTargets(
+            @NotNull Player player,
+            @NotNull Game game,
+            @NotNull Location playerLocation,
+            @Nullable Player topKiller,
+            @NotNull TrackerData data) {
+        
+        List<TrackableTarget> playerTargets = new ArrayList<>();
+        
+        for (UUID playerId : game.getPlayers()) {
+            if (playerId.equals(player.getUniqueId())) {
+                continue; // Don't track self
+            }
+            
+            TrackableTarget target = createPlayerTarget(playerId, playerLocation, topKiller, data);
+            if (target != null) {
+                playerTargets.add(target);
+            }
+        }
+        
+        return playerTargets;
+    }
+    
+    /**
+     * Creates a TrackableTarget for a player if they are valid and in range.
+     */
+    private @Nullable TrackableTarget createPlayerTarget(
+            @NotNull UUID playerId,
+            @NotNull Location playerLocation,
+            @Nullable Player topKiller,
+            @NotNull TrackerData data) {
+        
+        Player gamePlayer = Bukkit.getPlayer(playerId);
+        if (gamePlayer == null || !gamePlayer.isOnline()) {
+            return null; // Skip offline players
+        }
+        
+        Location targetLocation = gamePlayer.getLocation();
+        double distance = playerLocation.distance(targetLocation);
+        
+        if (distance > data.maxRange) {
+            return null; // Skip out of range players
+        }
+        
+        double angle = calculateAngle(playerLocation, targetLocation);
+        boolean isTopKiller = gamePlayer.equals(topKiller);
+        String symbol = isTopKiller ? TOP_KILLER_EMOJI : PLAYER_DOT;
+        TextColor color = isTopKiller ? TOP_KILLER_COLOR : getDistanceColor(distance, data);
+        
+        return new TrackableTarget(angle, symbol, color, distance, isTopKiller);
+    }
+    
+    /**
+     * Gets a list of airdrop targets within range.
+     */
+    private @NotNull List<TrackableTarget> getAirdropTargets(
+            @NotNull Location playerLocation,
+            @NotNull TrackerData data) {
+        
+        List<TrackableTarget> airdropTargets = new ArrayList<>();
+        CustomItemListener customItemListener = plugin.getCustomItemListener();
+        
+        if (customItemListener != null) {
+            Map<UUID, Location> activeAirdrops = customItemListener.getActiveAirdropLocations();
+            for (Location airdropLocation : activeAirdrops.values()) {
+                TrackableTarget target = createAirdropTarget(playerLocation, airdropLocation, data);
+                if (target != null) {
+                    airdropTargets.add(target);
                 }
             }
         }
         
-        // Sort by priority (top killer first, then by distance)
+        return airdropTargets;
+    }
+    
+    /**
+     * Creates a TrackableTarget for an airdrop if it's in range.
+     */
+    private @Nullable TrackableTarget createAirdropTarget(
+            @NotNull Location playerLocation,
+            @NotNull Location airdropLocation,
+            @NotNull TrackerData data) {
+        
+        double distance = playerLocation.distance(airdropLocation);
+        if (distance > data.maxRange) {
+            return null;
+        }
+        
+        double angle = calculateAngle(playerLocation, airdropLocation);
+        return new TrackableTarget(angle, AIRDROP_EMOJI, NamedTextColor.GOLD, distance, false);
+    }
+    
+    /**
+     * Sorts targets by priority (top killer first, then by distance).
+     */
+    private void sortTargetsByPriority(@NotNull List<TrackableTarget> targets) {
         targets.sort((a, b) -> {
             if (a.isTopKiller && !b.isTopKiller) return -1;
             if (!a.isTopKiller && b.isTopKiller) return 1;
             return Double.compare(a.distance, b.distance);
         });
-        
-        return targets;
     }
     
     /**

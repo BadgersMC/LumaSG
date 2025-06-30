@@ -9,6 +9,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
 
 /**
  * Represents a custom item with special behaviors in Survival Games.
@@ -251,22 +254,19 @@ public class CustomItem {
      * Represents loot integration settings for a custom item.
      */
     public static class LootSettings {
-        private final List<String> tiers;
-        private final double chance;
+        private final Map<String, Double> tierWeights;
         private final int minAmount;
         private final int maxAmount;
         
         /**
          * Creates new loot settings.
          * 
-         * @param tiers The loot tiers this item can appear in
-         * @param chance The spawn chance/weight
+         * @param tierWeights Map of tier names to their weights
          * @param minAmount The minimum amount that can spawn
          * @param maxAmount The maximum amount that can spawn
          */
-        public LootSettings(@NotNull List<String> tiers, double chance, int minAmount, int maxAmount) {
-            this.tiers = List.copyOf(tiers);
-            this.chance = chance;
+        public LootSettings(@NotNull Map<String, Double> tierWeights, int minAmount, int maxAmount) {
+            this.tierWeights = new HashMap<>(tierWeights);
             this.minAmount = minAmount;
             this.maxAmount = maxAmount;
         }
@@ -279,19 +279,40 @@ public class CustomItem {
          */
         public static @NotNull LootSettings fromConfig(@Nullable ConfigurationSection section) {
             if (section == null) {
-                return new LootSettings(List.of("common"), 1.0, 1, 1);
+                return new LootSettings(Map.of("common", 1.0), 1, 1);
             }
             
-            List<String> tiers = section.getStringList("tiers");
-            if (tiers.isEmpty()) {
-                tiers = List.of("common");
+            Map<String, Double> tierWeights = new HashMap<>();
+            
+            // Check for new tier-weights format
+            ConfigurationSection tierWeightsSection = section.getConfigurationSection("tier-weights");
+            if (tierWeightsSection != null) {
+                for (String tier : tierWeightsSection.getKeys(false)) {
+                    double weight = tierWeightsSection.getDouble(tier, 0.0);
+                    if (weight > 0.0) {
+                        tierWeights.put(tier, weight);
+                    }
+                }
             }
             
-            double chance = section.getDouble("chance", 1.0);
+            // Fallback to old format if no tier weights found
+            if (tierWeights.isEmpty()) {
+                List<String> tiers = section.getStringList("tiers");
+                double chance = section.getDouble("chance", 1.0);
+                
+                if (tiers.isEmpty()) {
+                    tiers = List.of("common");
+                }
+                
+                for (String tier : tiers) {
+                    tierWeights.put(tier, chance);
+                }
+            }
+            
             int minAmount = section.getInt("min-amount", 1);
             int maxAmount = section.getInt("max-amount", 1);
             
-            return new LootSettings(tiers, chance, minAmount, maxAmount);
+            return new LootSettings(tierWeights, minAmount, maxAmount);
         }
         
         /**
@@ -299,17 +320,18 @@ public class CustomItem {
          * 
          * @return The loot tiers
          */
-        public @NotNull List<String> getTiers() {
-            return tiers;
+        public @NotNull Set<String> getTiers() {
+            return tierWeights.keySet();
         }
         
         /**
-         * Gets the spawn chance/weight for this item.
+         * Gets the spawn chance/weight for a specific tier.
          * 
-         * @return The spawn chance
+         * @param tier The tier to get the weight for
+         * @return The spawn chance/weight, or 0.0 if not available in this tier
          */
-        public double getChance() {
-            return chance;
+        public double getChanceForTier(@NotNull String tier) {
+            return tierWeights.getOrDefault(tier, 0.0);
         }
         
         /**
@@ -337,7 +359,7 @@ public class CustomItem {
          * @return True if this item can appear in the specified tier
          */
         public boolean canAppearInTier(@NotNull String tier) {
-            return tiers.contains(tier);
+            return tierWeights.containsKey(tier) && tierWeights.get(tier) > 0.0;
         }
     }
 } 

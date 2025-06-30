@@ -301,6 +301,29 @@ public class ArenaTemplate {
     public static @NotNull ArenaTemplate loadFromConfig(@NotNull ConfigurationSection config) throws LumaSGException {
         ValidationUtils.requireNonNull(config, "Configuration", "Template Config Loading");
         
+        // Load and validate basic properties
+        ArenaTemplate template = createTemplateFromBasicProperties(config);
+        
+        // Load arena properties
+        loadArenaProperties(template, config);
+        
+        // Load locations
+        loadSpawnPoints(template, config);
+        loadChestLocations(template, config);
+        loadSpecialLocations(template, config);
+        
+        // Load allowed blocks
+        loadAllowedBlocks(template, config);
+        
+        return template;
+    }
+    
+    /**
+     * Creates a template with basic properties loaded from config.
+     */
+    private static @NotNull ArenaTemplate createTemplateFromBasicProperties(
+            @NotNull ConfigurationSection config) throws LumaSGException {
+        
         String name = config.getString("name");
         String description = config.getString("description");
         String author = config.getString("author");
@@ -310,51 +333,89 @@ public class ArenaTemplate {
             throw LumaSGException.configError("Template configuration is missing required fields");
         }
         
-        ArenaTemplate template = new ArenaTemplate(name, description, author, version);
+        return new ArenaTemplate(name, description, author, version);
+    }
+    
+    /**
+     * Loads arena properties from config into the template.
+     */
+    private static void loadArenaProperties(
+            @NotNull ArenaTemplate template,
+            @NotNull ConfigurationSection config) {
         
-        // Load arena properties
         template.radius = config.getInt("radius", 100);
         template.maxPlayers = config.getInt("max-players", 24);
         template.minPlayers = config.getInt("min-players", 2);
         template.lastModified = config.getLong("last-modified", System.currentTimeMillis());
+    }
+    
+    /**
+     * Loads spawn points from config into the template.
+     */
+    private static void loadSpawnPoints(
+            @NotNull ArenaTemplate template,
+            @NotNull ConfigurationSection config) {
         
-        // Load spawn points
         ConfigurationSection spawnSection = config.getConfigurationSection("spawn-points");
         if (spawnSection != null) {
-            for (String key : spawnSection.getKeys(false)) {
-                ConfigurationSection posSection = spawnSection.getConfigurationSection(key);
-                if (posSection != null) {
-                    RelativePosition pos = RelativePosition.loadFromConfig(posSection);
-                    template.spawnPoints.add(pos);
-                }
-            }
+            loadPositionsFromSection(spawnSection, template.spawnPoints);
         }
+    }
+    
+    /**
+     * Loads chest locations from config into the template.
+     */
+    private static void loadChestLocations(
+            @NotNull ArenaTemplate template,
+            @NotNull ConfigurationSection config) {
         
-        // Load chest locations
         ConfigurationSection chestSection = config.getConfigurationSection("chest-locations");
         if (chestSection != null) {
-            for (String key : chestSection.getKeys(false)) {
-                ConfigurationSection posSection = chestSection.getConfigurationSection(key);
-                if (posSection != null) {
-                    RelativePosition pos = RelativePosition.loadFromConfig(posSection);
-                    template.chestLocations.add(pos);
-                }
+            loadPositionsFromSection(chestSection, template.chestLocations);
+        }
+    }
+    
+    /**
+     * Helper method to load a list of positions from a configuration section.
+     */
+    private static void loadPositionsFromSection(
+            @NotNull ConfigurationSection section,
+            @NotNull List<RelativePosition> positions) {
+        
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection posSection = section.getConfigurationSection(key);
+            if (posSection != null) {
+                RelativePosition pos = RelativePosition.loadFromConfig(posSection);
+                positions.add(pos);
             }
         }
+    }
+    
+    /**
+     * Loads special locations (lobby and spectator spawns) from config into the template.
+     */
+    private static void loadSpecialLocations(
+            @NotNull ArenaTemplate template,
+            @NotNull ConfigurationSection config) {
         
-        // Load lobby spawn
         ConfigurationSection lobbySection = config.getConfigurationSection("lobby-spawn");
         if (lobbySection != null) {
             template.lobbySpawn = RelativePosition.loadFromConfig(lobbySection);
         }
         
-        // Load spectator spawn
         ConfigurationSection spectatorSection = config.getConfigurationSection("spectator-spawn");
         if (spectatorSection != null) {
             template.spectatorSpawn = RelativePosition.loadFromConfig(spectatorSection);
         }
+    }
+    
+    /**
+     * Loads allowed blocks from config into the template.
+     */
+    private static void loadAllowedBlocks(
+            @NotNull ArenaTemplate template,
+            @NotNull ConfigurationSection config) {
         
-        // Load allowed blocks
         List<String> blockNames = config.getStringList("allowed-blocks");
         for (String blockName : blockNames) {
             try {
@@ -364,8 +425,6 @@ public class ArenaTemplate {
                 // Skip invalid materials
             }
         }
-        
-        return template;
     }
     
     // Getters and setters

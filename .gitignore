@@ -100,3 +100,4 @@ daily-*.json
 security-*.json
 vscode-results.json
 intellij-results.json
+CODACY*.md

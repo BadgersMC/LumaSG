@@ -10,6 +10,10 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.inventory.meta.ArmorMeta;
+import org.bukkit.inventory.meta.trim.ArmorTrim;
+import org.bukkit.inventory.meta.trim.TrimMaterial;
+import org.bukkit.inventory.meta.trim.TrimPattern;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -23,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
+import java.util.Random;
 
 /**
  * Utility class for creating and modifying items.
@@ -62,6 +66,11 @@ public class ItemUtils {
             applyAttributes(section, meta, itemKey, logger, plugin);
             applyPotionEffects(section, meta, itemKey, logger);
             applyPersistentData(section, meta, logger, plugin);
+            
+            // Apply armor trim if applicable
+            if (meta instanceof ArmorMeta && isArmorMaterial(itemStack.getType())) {
+                applyArmorTrim(section, (ArmorMeta) meta, logger);
+            }
             
             itemStack.setItemMeta(meta);
             return itemStack;
@@ -169,6 +178,28 @@ public class ItemUtils {
      * Applies enchantments to the item meta.
      */
     private static void applyEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
+        // Handle stored enchantments for enchanted books
+        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta storageMeta && section.contains("stored-enchants")) {
+            ConfigurationSection storedEnchantSection = section.getConfigurationSection("stored-enchants");
+            if (storedEnchantSection != null) {
+                for (String enchantKey : storedEnchantSection.getKeys(false)) {
+                    try {
+                        Enchantment enchant = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(NamespacedKey.minecraft(enchantKey.toLowerCase()));
+                        if (enchant != null) {
+                            int level = storedEnchantSection.getInt(enchantKey);
+                            storageMeta.addStoredEnchant(enchant, level, true);
+                            logger.debug("Added stored enchantment: " + enchantKey + " level " + level);
+                        } else {
+                            logger.warn("Unknown stored enchantment: " + enchantKey);
+                        }
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Invalid stored enchantment: " + enchantKey);
+                    }
+                }
+            }
+        }
+
+        // Handle regular enchantments
         if (!section.contains("enchantments")) {
             return;
         }
@@ -332,6 +363,66 @@ public class ItemUtils {
                 meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, value);
                 logger.debug("Set persistent data: " + dataKey + " = " + value);
             }
+        }
+    }
+
+    /**
+     * Checks if a material is armor that can receive trims.
+     */
+    private static boolean isArmorMaterial(@NotNull Material material) {
+        return material.name().contains("LEATHER_") || 
+               material.name().contains("CHAINMAIL_") || 
+               material.name().contains("IRON_") || 
+               material.name().contains("GOLDEN_") || 
+               material.name().contains("DIAMOND_") || 
+               material.name().contains("NETHERITE_");
+    }
+
+    /**
+     * Applies armor trim to armor items based on configuration.
+     * If no trim is specified in config but the item is armor, applies a random trim.
+     */
+    private static void applyArmorTrim(@NotNull ConfigurationSection section, @NotNull ArmorMeta meta, @NotNull DebugLogger.ContextualLogger logger) {
+        try {
+            TrimPattern pattern;
+            TrimMaterial material;
+            
+            if (section.contains("trim")) {
+                ConfigurationSection trimSection = section.getConfigurationSection("trim");
+                if (trimSection == null) {
+                    return;
+                }
+                
+                // Get specified pattern and material
+                String patternKey = trimSection.getString("pattern", "");
+                String materialKey = trimSection.getString("material", "");
+                
+                pattern = RegistryAccess.registryAccess().getRegistry(RegistryKey.TRIM_PATTERN).get(NamespacedKey.minecraft(patternKey.toLowerCase()));
+                material = RegistryAccess.registryAccess().getRegistry(RegistryKey.TRIM_MATERIAL).get(NamespacedKey.minecraft(materialKey.toLowerCase()));
+            } else {
+                // Apply random trim if no specific trim is configured
+                Random random = new Random();
+                var patternRegistry = RegistryAccess.registryAccess().getRegistry(RegistryKey.TRIM_PATTERN);
+                var materialRegistry = RegistryAccess.registryAccess().getRegistry(RegistryKey.TRIM_MATERIAL);
+                
+                var patterns = new ArrayList<TrimPattern>();
+                var materials = new ArrayList<TrimMaterial>();
+                
+                // Collect all available patterns and materials
+                patternRegistry.forEach(patterns::add);
+                materialRegistry.forEach(materials::add);
+                
+                if (!patterns.isEmpty() && !materials.isEmpty()) {
+                    pattern = patterns.get(random.nextInt(patterns.size()));
+                    material = materials.get(random.nextInt(materials.size()));
+                    
+                    ArmorTrim trim = new ArmorTrim(material, pattern);
+                    meta.setTrim(trim);
+                    logger.debug("Applied random armor trim: " + pattern.getKey().getKey() + " with material " + material.getKey().getKey());
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to apply armor trim", e);
         }
     }
 } 

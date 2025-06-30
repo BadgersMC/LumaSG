@@ -60,10 +60,13 @@ public class GameTimerManager {
         Duration.ofMillis(500)   // Fade out time
     );
     
+    private final @NotNull DeathmatchReminderConfig reminderConfig;
+    
     public GameTimerManager(@NotNull LumaSG plugin, @NotNull GamePlayerManager playerManager) {
         this.plugin = plugin;
         this.playerManager = playerManager;
         this.logger = plugin.getDebugLogger().forContext("GameTimerManager");
+        this.reminderConfig = new DeathmatchReminderConfig(plugin);
         
         // Load configuration values
         this.countdown = plugin.getConfig().getInt("game.countdown-seconds", 30);
@@ -217,18 +220,13 @@ public class GameTimerManager {
      */
     private void scheduleDeathmatchReminders(int deathmatchStartTime) {
         // Check if deathmatch reminders are enabled
-        if (!plugin.getConfig().getBoolean("messages.deathmatch-reminders.enabled", true)) {
+        if (!reminderConfig.isEnabled()) {
             logger.debug("Deathmatch reminders are disabled in config");
             return;
         }
         
         // Get reminder times from config
-        List<Integer> reminderTimes = plugin.getConfig().getIntegerList("messages.deathmatch-reminders.reminder-times");
-        if (reminderTimes.isEmpty()) {
-            // Fallback to default times if config is empty
-            reminderTimes = List.of(300, 180, 120, 60, 30, 10);
-            logger.debug("Using default deathmatch reminder times");
-        }
+        List<Integer> reminderTimes = reminderConfig.getReminderTimes();
         
         for (int reminderTime : reminderTimes) {
             // Calculate when to send the reminder (game start + deathmatch start time - reminder time)
@@ -250,77 +248,24 @@ public class GameTimerManager {
      * Sends a deathmatch reminder message to all players.
      */
     private void sendDeathmatchReminder(int secondsUntilDeathmatch) {
-        String timeText;
-        String timeColorTag;
+        // Format time and get color
+        var timeFormat = reminderConfig.formatDeathmatchTime(secondsUntilDeathmatch);
+        String timeText = timeFormat.getKey();
+        String timeColorTag = timeFormat.getValue();
         
-        if (secondsUntilDeathmatch >= 60) {
-            int minutes = secondsUntilDeathmatch / 60;
-            timeText = minutes + " minute" + (minutes > 1 ? "s" : "");
-            timeColorTag = secondsUntilDeathmatch >= 180 ? "<yellow>" : "<gold>";
-        } else {
-            timeText = secondsUntilDeathmatch + " second" + (secondsUntilDeathmatch > 1 ? "s" : "");
-            timeColorTag = secondsUntilDeathmatch >= 30 ? "<gold>" : "<red>";
-        }
+        // Create the message component
+        Component message = reminderConfig.createDeathmatchMessage(timeText, timeColorTag);
         
-        // Get message template from config
-        String messageTemplate = plugin.getConfig().getString("messages.deathmatch-reminders.message", 
-            "⚔ <red><bold>DEATHMATCH</bold></red> <gray>starting in <time_color><bold><time></bold></time_color><gray>! Prepare for battle!");
-        
-        // Create placeholders for the message
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("time", timeText);
-        placeholders.put("time_color", timeColorTag);
-        
-        // Parse the message with placeholders
-        Component message;
-        try {
-            String processedMessage = messageTemplate.replace("<time_color>", timeColorTag).replace("</time_color>", "</" + timeColorTag.substring(1));
-            message = MiniMessageUtils.parseMessage(processedMessage, placeholders);
-        } catch (Exception e) {
-            logger.warn("Failed to parse deathmatch reminder message, using fallback", e);
-            // Fallback message
-            message = Component.text()
-                .append(Component.text("⚔ ", NamedTextColor.RED, TextDecoration.BOLD))
-                .append(Component.text("DEATHMATCH", NamedTextColor.RED, TextDecoration.BOLD))
-                .append(Component.text(" starting in ", NamedTextColor.GRAY))
-                .append(Component.text(timeText, NamedTextColor.GOLD, TextDecoration.BOLD))
-                .append(Component.text("! Prepare for battle!", NamedTextColor.GRAY))
-                .build();
-        }
-        
-        // Send message to all players
+        // Send message to all players and play sounds
         for (UUID playerId : playerManager.getPlayers()) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null) {
                 player.sendMessage(message);
-                
-                // Play warning sounds if enabled
-                if (plugin.getConfig().getBoolean("messages.deathmatch-reminders.play-sounds", true) && secondsUntilDeathmatch <= 60) {
-                    String soundName = secondsUntilDeathmatch <= 10 ? 
-                        plugin.getConfig().getString("messages.deathmatch-reminders.urgent-sound", "BLOCK_NOTE_BLOCK_PLING") :
-                        plugin.getConfig().getString("messages.deathmatch-reminders.warning-sound", "BLOCK_NOTE_BLOCK_BELL");
-                    
-                    try {
-                        // Parse namespaced key (supports both "minecraft:sound" and "lumalyte:whistle" formats)
-                        org.bukkit.NamespacedKey soundKey = soundName.contains(":") ? 
-                            org.bukkit.NamespacedKey.fromString(soundName.toLowerCase()) :
-                            org.bukkit.NamespacedKey.minecraft(soundName.toLowerCase());
-                        
-                        org.bukkit.Sound sound = org.bukkit.Registry.SOUNDS.get(soundKey);
-                        if (sound != null) {
-                            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
-                        } else {
-                            throw new IllegalArgumentException("Sound not found: " + soundName);
-                        }
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Invalid sound name in config: " + soundName + ", using default");
-                        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
-                    }
-                }
+                reminderConfig.playDeathmatchSound(player, secondsUntilDeathmatch);
             }
         }
         
-        // Also send to spectators
+        // Also send to spectators (without sounds)
         for (UUID spectatorId : playerManager.getSpectators()) {
             Player spectator = playerManager.getCachedPlayer(spectatorId);
             if (spectator != null) {

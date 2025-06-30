@@ -45,6 +45,7 @@ items:
       common: 18.0
       uncommon: 10.0
       rare: 3.0
+    # Random trim will be applied if not specified
       
   leather_chestplate:
     material: LEATHER_CHESTPLATE
@@ -67,6 +68,9 @@ items:
       common: 15.0
       uncommon: 8.0
       rare: 2.0
+    trim:
+      pattern: "wild"
+      material: "iron"
       
   leather_boots:
     material: LEATHER_BOOTS

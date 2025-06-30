@@ -337,8 +337,9 @@ public class CustomItemsManager {
         
         for (CustomItem customItem : customItems.values()) {
             CustomItem.LootSettings lootSettings = customItem.getLootSettings();
+            double weight = lootSettings.getChanceForTier(tier);
             
-            if (lootSettings.canAppearInTier(tier)) {
+            if (weight > 0.0) {
                 // Create a ChestItem from the CustomItem
                 ItemStack itemStack = customItem.createItemStack();
                 markAsCustomItem(itemStack, customItem.getId());
@@ -347,12 +348,12 @@ public class CustomItemsManager {
                     itemStack,
                     lootSettings.getMinAmount(),
                     lootSettings.getMaxAmount(),
-                    lootSettings.getChance(),
+                    weight,
                     tier
                 );
                 
                 chestItems.add(chestItem);
-                logger.debug("Added custom item '" + customItem.getId() + "' to tier '" + tier + "' loot table");
+                logger.debug("Added custom item '" + customItem.getId() + "' to tier '" + tier + "' loot table with weight " + weight);
             }
         }
         

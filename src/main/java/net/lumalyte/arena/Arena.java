@@ -60,6 +60,7 @@ public class Arena {
     private final int minPlayers;
     private final Map<Location, BukkitTask> beamTasks = new ConcurrentHashMap<>();
     private volatile File configFile;
+    private @NotNull ArenaConfigurationHelper configHelper;
     
     /**
      * Constructs a new Arena with the specified properties.
@@ -105,6 +106,8 @@ public class Arena {
         
         // Ensure we have at least one spawn point
         ValidationUtils.requireNonEmpty(this.spawnPoints, "Spawn Points List", "Arena Construction");
+        
+        this.configHelper = new ArenaConfigurationHelper(logger);
     }
 
     /**
@@ -114,19 +117,7 @@ public class Arena {
      * @param plugin The plugin instance
 	 */
     public Arena(@NotNull String name, @NotNull LumaSG plugin) {
-        ValidationUtils.requireNonEmpty(name, "Arena Name", "Arena Construction");
-        ValidationUtils.requireNonNull(plugin, "Plugin Instance", "Arena Construction");
-        
-        this.name = name;
-        this.plugin = plugin;
-        this.logger = plugin.getDebugLogger().forContext("Arena-" + name);
-        this.id = UUID.randomUUID();
-        this.spawnPoints = new CopyOnWriteArrayList<>();
-        this.chestLocations = new CopyOnWriteArrayList<>();
-        this.allowedBlocks = new HashSet<>();
-        this.radius = ValidationUtils.nullSafeInt(plugin.getConfig().getInt("arena.default-radius"), 100);
-        this.maxPlayers = ValidationUtils.nullSafeInt(plugin.getConfig().getInt("arena.default-max-players"), 24);
-        this.minPlayers = ValidationUtils.nullSafeInt(plugin.getConfig().getInt("arena.default-min-players"), 2);
+        this(name, plugin, 24, 2); // Default max/min players
     }
 
     /**
@@ -156,6 +147,8 @@ public class Arena {
         this.radius = ValidationUtils.nullSafeInt(plugin.getConfig().getInt("arena.default-radius"), 100);
         this.maxPlayers = maxPlayers;
         this.minPlayers = minPlayers;
+        
+        this.configHelper = new ArenaConfigurationHelper(logger);
     }
 
     /**
@@ -173,10 +166,12 @@ public class Arena {
         
         this.center = center;
         this.radius = radius;
+        
+        this.configHelper = new ArenaConfigurationHelper(logger);
     }
     
     /**
-     * Loads an arena from a configuration section.
+     * Creates a new arena with the given name.
      *
      * @param plugin The plugin instance
      * @param section The configuration section
@@ -250,7 +245,7 @@ public class Arena {
     private static void loadCenterLocation(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
         ConfigurationSection centerSection = section.getConfigurationSection("center");
         if (centerSection != null) {
-            arena.center = loadLocation(centerSection);
+            arena.center = arena.configHelper.loadLocation(centerSection);
             logger.debug("Loaded center location for arena: " + arenaName);
         }
     }
@@ -262,7 +257,7 @@ public class Arena {
         ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
         if (spawnSection != null && !spawnSection.getKeys(false).isEmpty()) {
             for (String key : spawnSection.getKeys(false)) {
-                Location location = loadLocation(spawnSection.getConfigurationSection(key));
+                Location location = arena.configHelper.loadLocation(spawnSection.getConfigurationSection(key));
                 if (location != null) {
                     arena.spawnPoints.add(location);
                     logger.debug("Loaded spawn point " + key + " for arena: " + arenaName);
@@ -280,7 +275,7 @@ public class Arena {
         ConfigurationSection chestSection = section.getConfigurationSection("chest-locations");
         if (chestSection != null && !chestSection.getKeys(false).isEmpty()) {
             for (String key : chestSection.getKeys(false)) {
-                Location location = loadLocation(chestSection.getConfigurationSection(key));
+                Location location = arena.configHelper.loadLocation(chestSection.getConfigurationSection(key));
                 if (location != null) {
                     arena.chestLocations.add(location);
                     logger.debug("Loaded chest location " + key + " for arena: " + arenaName);
@@ -297,7 +292,7 @@ public class Arena {
     private static void loadLobbySpawn(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
         ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
         if (lobbySection != null) {
-            arena.lobbySpawn = loadLocation(lobbySection);
+            arena.lobbySpawn = arena.configHelper.loadLocation(lobbySection);
             logger.debug("Loaded lobby spawn for arena: " + arenaName);
         }
     }
@@ -308,7 +303,7 @@ public class Arena {
     private static void loadSpectatorSpawn(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull DebugLogger.ContextualLogger logger, @NotNull String arenaName) {
         ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
         if (spectatorSection != null) {
-            arena.spectatorSpawn = loadLocation(spectatorSection);
+            arena.spectatorSpawn = arena.configHelper.loadLocation(spectatorSection);
             logger.debug("Loaded spectator spawn for arena: " + arenaName);
         }
     }
@@ -382,126 +377,18 @@ public class Arena {
         
         logger.debug("Saving arena: " + name);
         
-        section.set("max-players", maxPlayers);
-        section.set("min-players", minPlayers);
-        section.set("radius", radius);
-        
-        // Save center location
-        if (center != null) {
-            ConfigurationSection centerSection = section.getConfigurationSection("center");
-            if (centerSection == null) {
-                centerSection = section.createSection("center");
-            }
-            saveLocation(centerSection, center);
-            logger.debug("Saved center location");
-        }
-        
-        // Save spawn points with null safety
-        ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
-        if (spawnSection == null) {
-            spawnSection = section.createSection("spawn-points");
-        }
-        for (int i = 0; i < spawnPoints.size(); i++) {
-            Location location = spawnPoints.get(i);
-            if (location != null) {
-                ConfigurationSection pointSection = spawnSection.createSection(String.valueOf(i));
-                saveLocation(pointSection, location);
-                logger.debug("Saved spawn point " + i);
-            }
-        }
-        
-        // Clear existing chest locations section before saving new ones
-        section.set("chest-locations", null);
-        ConfigurationSection chestSection = section.createSection("chest-locations");
-        
-        // Save chest locations with null safety
-        for (int i = 0; i < chestLocations.size(); i++) {
-            Location location = chestLocations.get(i);
-            if (location != null) {
-                ConfigurationSection locationSection = chestSection.createSection(String.valueOf(i));
-                saveLocation(locationSection, location);
-                logger.debug("Saved chest location " + i);
-            }
-        }
-        
-        // Save lobby spawn with null safety
-        if (lobbySpawn != null) {
-            ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
-            if (lobbySection == null) {
-                lobbySection = section.createSection("lobby-spawn");
-            }
-            saveLocation(lobbySection, lobbySpawn);
-            logger.debug("Saved lobby spawn");
-        }
-        
-        // Save spectator spawn with null safety
-        if (spectatorSpawn != null) {
-            ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
-            if (spectatorSection == null) {
-                spectatorSection = section.createSection("spectator-spawn");
-            }
-            saveLocation(spectatorSection, spectatorSpawn);
-            logger.debug("Saved spectator spawn");
-        }
-        
-        // Save allowed blocks
-        List<String> allowedBlocksList = new ArrayList<>();
-        for (Material material : allowedBlocks) {
-            allowedBlocksList.add(material.name());
-        }
-        section.set("allowed-blocks", allowedBlocksList);
+        // Save all components using the configuration helper
+        configHelper.saveBasicProperties(section, maxPlayers, minPlayers, radius);
+        configHelper.saveLocation(section, "center", center);
+        configHelper.saveLocationList(section, "spawn-points", spawnPoints);
+        configHelper.saveLocationList(section, "chest-locations", chestLocations);
+        configHelper.saveLocation(section, "lobby-spawn", lobbySpawn);
+        configHelper.saveLocation(section, "spectator-spawn", spectatorSpawn);
+        configHelper.saveAllowedBlocks(section, new ArrayList<>(allowedBlocks));
         
         logger.info("Successfully saved arena " + name + " with " + 
             spawnPoints.size() + " spawn points and " + 
             chestLocations.size() + " chest locations");
-    }
-    
-    /**
-     * Loads a location from a configuration section.
-     *
-     * @param section The configuration section
-     * @return The loaded location, or null if invalid
-     */
-    private static @Nullable Location loadLocation(@Nullable ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
-        
-        String worldName = section.getString("world");
-        if (worldName == null) {
-            return null;
-        }
-        
-        World world = Bukkit.getWorld(worldName);
-        if (world == null) {
-            // Log the issue for debugging - this could happen if worlds aren't loaded yet during startup
-            System.err.println("[LumaSG] Warning: Could not find world '" + worldName + "' when loading location. " +
-                "This may be due to world loading timing during server startup.");
-            return null;
-        }
-        
-        double x = section.getDouble("x");
-        double y = section.getDouble("y");
-        double z = section.getDouble("z");
-        float yaw = (float) section.getDouble("yaw", 0.0);
-        float pitch = (float) section.getDouble("pitch", 0.0);
-        
-        return new Location(world, x, y, z, yaw, pitch);
-    }
-    
-    /**
-     * Saves a location to a configuration section.
-     *
-     * @param section The configuration section
-     * @param location The location to save
-	 */
-    private static void saveLocation(@NotNull ConfigurationSection section, @NotNull Location location) {
-        section.set("world", location.getWorld().getName());
-        section.set("x", location.getX());
-        section.set("y", location.getY());
-        section.set("z", location.getZ());
-        section.set("yaw", location.getYaw());
-        section.set("pitch", location.getPitch());
     }
     
     /**
@@ -981,5 +868,98 @@ public class Arena {
      */
     public boolean isBlockAllowed(@NotNull Material material) {
         return allowedBlocks.contains(material);
+    }
+
+    /**
+     * Loads arena data from a configuration section.
+     *
+     * @param section The configuration section
+     * @throws LumaSGException if loading fails
+     */
+    public static @NotNull Arena loadFromConfig(
+            @NotNull LumaSG plugin,
+            @NotNull ConfigurationSection section) throws LumaSGException {
+        ValidationUtils.requireNonNull(plugin, "Plugin Instance", "Arena Loading");
+        ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Loading");
+
+        String name = section.getString("name");
+        if (name == null || name.isEmpty()) {
+            throw new LumaSGException.ConfigurationException("Arena name cannot be null or empty");
+        }
+
+        int maxPlayers = section.getInt("max-players", 24);
+        int minPlayers = section.getInt("min-players", 2);
+        
+        Arena arena = new Arena(name, plugin, maxPlayers, minPlayers);
+        ArenaConfigurationHelper configHelper = arena.configHelper;
+        
+        // Load locations using the configuration helper
+        ConfigurationSection centerSection = section.getConfigurationSection("center");
+        if (centerSection != null) {
+            arena.center = configHelper.loadLocation(centerSection);
+            arena.logger.debug("Loaded center location");
+        }
+
+        ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
+        if (spawnSection != null && !spawnSection.getKeys(false).isEmpty()) {
+            for (String key : spawnSection.getKeys(false)) {
+                ConfigurationSection pointSection = spawnSection.getConfigurationSection(key);
+                if (pointSection != null) {
+                    Location location = configHelper.loadLocation(pointSection);
+                    if (location != null) {
+                        arena.spawnPoints.add(location);
+                        arena.logger.debug("Loaded spawn point " + key);
+                    }
+                }
+            }
+        }
+
+        ConfigurationSection chestSection = section.getConfigurationSection("chest-locations");
+        if (chestSection != null && !chestSection.getKeys(false).isEmpty()) {
+            for (String key : chestSection.getKeys(false)) {
+                ConfigurationSection locationSection = chestSection.getConfigurationSection(key);
+                if (locationSection != null) {
+                    Location location = configHelper.loadLocation(locationSection);
+                    if (location != null) {
+                        arena.chestLocations.add(location);
+                        arena.logger.debug("Loaded chest location " + key);
+                    }
+                }
+            }
+        }
+
+        ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
+        if (lobbySection != null) {
+            arena.lobbySpawn = configHelper.loadLocation(lobbySection);
+            arena.logger.debug("Loaded lobby spawn");
+        }
+
+        ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
+        if (spectatorSection != null) {
+            arena.spectatorSpawn = configHelper.loadLocation(spectatorSection);
+            arena.logger.debug("Loaded spectator spawn");
+        }
+
+        // Load allowed blocks
+        List<String> allowedBlocksList = section.getStringList("allowed-blocks");
+        for (String blockName : allowedBlocksList) {
+            try {
+                Material material = Material.valueOf(blockName.toUpperCase());
+                arena.allowedBlocks.add(material);
+                arena.logger.debug("Added allowed block: " + material);
+            } catch (IllegalArgumentException e) {
+                arena.logger.warn("Invalid material name: " + blockName);
+            }
+        }
+
+        // Set radius
+        arena.radius = section.getInt("radius", 100);
+
+        // Ensure we have at least one spawn point
+        if (arena.spawnPoints.isEmpty()) {
+            throw new LumaSGException.ConfigurationException("Arena must have at least one spawn point");
+        }
+
+        return arena;
     }
 } 

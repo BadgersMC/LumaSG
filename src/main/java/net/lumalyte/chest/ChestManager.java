@@ -49,6 +49,7 @@ public class ChestManager {
     /** Thread-safe list for chest items */
     private final @NotNull List<ChestItem> chestItems;
     private final @NotNull File chestFile;
+    private final @NotNull ChestConfiguration configuration;
     
     /** ReadWriteLock for chest items operations */
     private final ReadWriteLock itemsLock = new ReentrantReadWriteLock();
@@ -63,6 +64,7 @@ public class ChestManager {
         this.logger = plugin.getDebugLogger().forContext("ChestManager");
         this.chestItems = new CopyOnWriteArrayList<>();
         this.chestFile = new File(plugin.getDataFolder(), "chest.yml");
+        this.configuration = new ChestConfiguration(plugin, chestFile);
         
         // Save default chest configuration if it doesn't exist
         if (!chestFile.exists()) {
@@ -92,6 +94,101 @@ public class ChestManager {
     }
     
     /**
+     * Loads a single item from the configuration and adds it to the chest items list.
+     * 
+     * @param itemKey The key of the item in the configuration
+     * @param itemSection The configuration section containing the item data
+     */
+    private void loadSingleItem(@NotNull String itemKey, @NotNull ConfigurationSection itemSection) {
+        logger.debug("Processing item: " + itemKey);
+        
+        // Check if this item has tier-weights
+        ConfigurationSection tierWeights = itemSection.getConfigurationSection("tier-weights");
+        if (tierWeights == null) {
+            logger.warn("Item " + itemKey + " has no tier-weights configuration - skipping");
+            return;
+        }
+        
+        // Create a ChestItem for each tier with appropriate weight
+        for (String tier : tierWeights.getKeys(false)) {
+            loadItemTier(itemKey, itemSection, tierWeights, tier);
+        }
+    }
+    
+    /**
+     * Loads a specific tier variant of an item.
+     * 
+     * @param itemKey The key of the item
+     * @param itemSection The item's configuration section
+     * @param tierWeights The tier weights configuration section
+     * @param tier The specific tier being loaded
+     */
+    private void loadItemTier(@NotNull String itemKey, @NotNull ConfigurationSection itemSection,
+                            @NotNull ConfigurationSection tierWeights, @NotNull String tier) {
+        double weight = tierWeights.getDouble(tier, 0.0);
+        if (weight <= 0) {
+            return;
+        }
+        
+        logger.debug("Loading item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
+        
+        YamlConfiguration enrichedSection = createEnrichedSection(itemSection, tier, weight);
+        
+        // Check if this is a Nexo item and handle it gracefully
+        if (enrichedSection.contains("nexo-item") && !plugin.getHookManager().isHookAvailable("Nexo")) {
+            logger.debug("Skipping Nexo item: " + itemKey + " because Nexo plugin is not available");
+            return;
+        }
+        
+        ChestItem item = ChestItem.fromConfig(plugin, enrichedSection, itemKey);
+        if (item != null) {
+            chestItems.add(item);
+            logger.debug("Successfully loaded item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
+        } else {
+            logger.warn("Failed to create item: " + itemKey + " for tier: " + tier);
+        }
+    }
+    
+    /**
+     * Creates an enriched configuration section for an item tier.
+     * 
+     * @param itemSection Original item configuration
+     * @param tier The tier being processed
+     * @param weight The weight/chance for this tier
+     * @return Enriched configuration section
+     */
+    private @NotNull YamlConfiguration createEnrichedSection(@NotNull ConfigurationSection itemSection,
+                                                           @NotNull String tier, double weight) {
+        YamlConfiguration enrichedSection = new YamlConfiguration();
+        enrichedSection.set("tier", tier);
+        enrichedSection.set("chance", weight);
+        
+        // Copy all item properties except tier-weights
+        for (String propertyKey : itemSection.getKeys(true)) {
+            if (!propertyKey.startsWith("tier-weights")) {
+                enrichedSection.set(propertyKey, itemSection.get(propertyKey));
+            }
+        }
+        
+        return enrichedSection;
+    }
+    
+    /**
+     * Logs a summary of loaded items per tier.
+     */
+    private void logLoadingSummary() {
+        Map<String, Integer> itemsPerTier = new HashMap<>();
+        for (ChestItem item : chestItems) {
+            itemsPerTier.merge(item.getTier(), 1, Integer::sum);
+        }
+        
+        logger.info("Chest items loaded - Summary:");
+        for (Map.Entry<String, Integer> entry : itemsPerTier.entrySet()) {
+            logger.info("Tier " + entry.getKey() + ": " + entry.getValue() + " items");
+        }
+    }
+
+    /**
      * Loads chest items from the configuration file.
      *
      * @return A future that completes when the items are loaded
@@ -99,15 +196,6 @@ public class ChestManager {
     public @NotNull CompletableFuture<Void> loadChestItems() {
         return CompletableFuture.runAsync(() -> {
             try {
-                // Load chest configuration
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(chestFile);
-                ConfigurationSection itemsSection = config.getConfigurationSection("items");
-                
-                if (itemsSection == null) {
-                    logger.warn("No items section found in chest.yml");
-                    return;
-                }
-                
                 // Use write lock for clearing and adding items
                 itemsLock.writeLock().lock();
                 try {
@@ -115,52 +203,9 @@ public class ChestManager {
                     chestItems.clear();
                     logger.debug("Loading chest items from configuration...");
                     
-                    // Load items from the global items section
-                    for (String itemKey : itemsSection.getKeys(false)) {
-                        logger.debug("Processing item: " + itemKey);
-                        ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
-                        if (itemSection != null) {
-                            // Check if this item has tier-weights
-                            ConfigurationSection tierWeights = itemSection.getConfigurationSection("tier-weights");
-                            if (tierWeights != null) {
-                                // Create a ChestItem for each tier with appropriate weight
-                                for (String tier : tierWeights.getKeys(false)) {
-                                    double weight = tierWeights.getDouble(tier, 0.0);
-                                    if (weight > 0) {
-                                        logger.debug("Loading item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
-                                        
-                                        // Create a new section that includes the tier and weight as chance
-                                        YamlConfiguration enrichedSection = new YamlConfiguration();
-                                        enrichedSection.set("tier", tier);
-                                        enrichedSection.set("chance", weight);
-                                        
-                                        // Copy all item properties except tier-weights
-                                        for (String propertyKey : itemSection.getKeys(true)) {
-                                            if (!propertyKey.startsWith("tier-weights")) {
-                                                enrichedSection.set(propertyKey, itemSection.get(propertyKey));
-                                            }
-                                        }
-                                        
-                                        // Check if this is a Nexo item and handle it gracefully
-                                        if (enrichedSection.contains("nexo-item") && !plugin.getHookManager().isHookAvailable("Nexo")) {
-                                            logger.debug("Skipping Nexo item: " + itemKey + " because Nexo plugin is not available");
-                                            continue;
-                                        }
-                                        
-                                        ChestItem item = ChestItem.fromConfig(plugin, enrichedSection, itemKey);
-                                        if (item != null) {
-                                            chestItems.add(item);
-                                            logger.debug("Successfully loaded item: " + itemKey + " for tier: " + tier + " with weight: " + weight);
-                                        } else {
-                                            logger.warn("Failed to create item: " + itemKey + " for tier: " + tier);
-                                        }
-                                    }
-                                }
-                            } else {
-                                logger.warn("Item " + itemKey + " has no tier-weights configuration - skipping");
-                            }
-                        }
-                    }
+                    // Load items using the configuration class
+                    List<ChestItem> loadedItems = configuration.loadItems();
+                    chestItems.addAll(loadedItems);
                 } finally {
                     itemsLock.writeLock().unlock();
                 }
@@ -168,15 +213,7 @@ public class ChestManager {
                 // Log the number of items loaded per tier (using read lock)
                 itemsLock.readLock().lock();
                 try {
-                    Map<String, Integer> itemsPerTier = new HashMap<>();
-                    for (ChestItem item : chestItems) {
-                        itemsPerTier.merge(item.getTier(), 1, Integer::sum);
-                    }
-                    
-                    logger.info("Chest items loaded - Summary:");
-                    for (Map.Entry<String, Integer> entry : itemsPerTier.entrySet()) {
-                        logger.info("Tier " + entry.getKey() + ": " + entry.getValue() + " items");
-                    }
+                    logLoadingSummary();
                 } finally {
                     itemsLock.readLock().unlock();
                 }
