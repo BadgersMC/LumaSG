@@ -314,15 +314,12 @@ public class ExplosiveBehavior implements Listener {
     }
     
     /**
-     * Creates poison cloud particle effects.
+     * Creates a poison cloud effect at the specified location.
      */
     private void createPoisonCloud(@NotNull Location center, int radius) {
         World world = center.getWorld();
-        if (world == null) {
-            return;
-        }
+        if (world == null) return;
         
-        // Create lingering poison cloud effect
         new BukkitRunnable() {
             int ticks = 0;
             final int maxTicks = 100; // 5 seconds
@@ -345,8 +342,10 @@ public class ExplosiveBehavior implements Listener {
                     double z = r * Math.sin(angle2) * Math.sin(angle1);
                     
                     Location particleLocation = center.clone().add(x, y, z);
-                    world.spawnParticle(Particle.ENTITY_EFFECT, particleLocation, 1, 
-                                      0.4, 0.2, 0.4, 0);
+                    
+                    // Use DUST particles with green color for poison effect
+                    Particle.DustOptions dustOptions = new Particle.DustOptions(Color.fromRGB(0, 150, 0), 1.0f);
+                    world.spawnParticle(Particle.DUST, particleLocation, 1, dustOptions);
                 }
                 
                 ticks++;
@@ -452,7 +451,11 @@ public class ExplosiveBehavior implements Listener {
         
         // Spawn poison particles
         world.spawnParticle(Particle.EXPLOSION, location, 1);
-        world.spawnParticle(Particle.ENTITY_EFFECT, location, radius * 15, radius, 1, radius, 0.1);
+        
+        // Use DUST particles with green color for poison effect
+        Particle.DustOptions dustOptions = new Particle.DustOptions(Color.fromRGB(0, 150, 0), 1.5f);
+        world.spawnParticle(Particle.DUST, location, radius * 15, radius, 1, radius, 0.1);
+        
         world.spawnParticle(Particle.SMOKE, location, radius * 8, radius, 2, radius, 0.1);
     }
     

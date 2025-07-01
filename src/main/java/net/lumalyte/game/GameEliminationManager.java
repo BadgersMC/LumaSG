@@ -4,6 +4,7 @@ import net.lumalyte.LumaSG;
 import net.lumalyte.util.DebugLogger;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -161,6 +162,30 @@ public class GameEliminationManager {
                 stats.getKills(), stats.getDamageDealt(), stats.getDamageTaken(),
                 stats.getChestsOpened(), gameTimeSeconds);
         }
+    }
+    
+    /**
+     * Handles a player's death and elimination from the game.
+     */
+    public void handlePlayerDeath(@NotNull Player victim, @Nullable Player killer) {
+        // Record death statistics if enabled
+        if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
+            plugin.getStatisticsManager().recordDeath(victim.getUniqueId());
+        }
+        
+        // Record kill for killer if applicable
+        if (killer != null && playerManager.getPlayers().contains(killer.getUniqueId())) {
+            playerManager.incrementKills(killer.getUniqueId());
+        }
+        
+        // Send death message
+        Game game = plugin.getGameManager().getGameByPlayer(victim);
+        if (game != null) {
+            game.getDeathMessageManager().broadcastDeathMessage(victim, killer);
+        }
+        
+        // Eliminate the player (this will automatically check if game should end)
+        eliminatePlayer(victim);
     }
     
     // Getters

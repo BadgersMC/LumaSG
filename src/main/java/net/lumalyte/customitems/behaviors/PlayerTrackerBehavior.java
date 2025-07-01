@@ -159,14 +159,27 @@ public class PlayerTrackerBehavior {
             return;
         }
         
+        // Collect offline players to remove after iteration
+        List<UUID> offlinePlayers = new ArrayList<>();
+        
         for (Map.Entry<UUID, TrackerData> entry : activeTrackers.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player != null && player.isOnline()) {
-                updateTracker(player, entry.getValue());
+                try {
+                    updateTracker(player, entry.getValue());
+                } catch (Exception e) {
+                    logger.warn("Error updating tracker for player " + player.getName(), e);
+                    offlinePlayers.add(entry.getKey()); // Remove problematic trackers
+                }
             } else {
-                // Remove offline players
-                activeTrackers.remove(entry.getKey());
+                // Mark offline players for removal
+                offlinePlayers.add(entry.getKey());
             }
+        }
+        
+        // Remove offline or problematic players
+        for (UUID playerId : offlinePlayers) {
+            activeTrackers.remove(playerId);
         }
     }
     
@@ -177,21 +190,36 @@ public class PlayerTrackerBehavior {
      * @param data The tracker configuration data
      */
     private void updateTracker(@NotNull Player player, @NotNull TrackerData data) {
-        // Check if player is in a game
-        Game game = plugin.getGameManager().getGameByPlayer(player);
-        if (game == null) {
-            return;
+        try {
+            // Check if player is in a game
+            Game game = plugin.getGameManager().getGameByPlayer(player);
+            if (game == null) {
+                return;
+            }
+            
+            // Check if player still has the tracker item
+            if (!hasTrackerInInventory(player)) {
+                unregisterTracker(player);
+                return;
+            }
+            
+            // Validate player location
+            Location playerLocation = player.getLocation();
+            if (playerLocation == null || playerLocation.getWorld() == null) {
+                logger.debug("Invalid player location for tracker update: " + player.getName());
+                return;
+            }
+            
+            // Generate and display the compass
+            Component compass = generateCompass(player, game, data);
+            if (compass != null) {
+                player.sendActionBar(compass);
+            }
+        } catch (Exception e) {
+            logger.warn("Error updating tracker for player " + player.getName() + ": " + e.getMessage());
+            // Don't spam the logs with full stack traces, but log the error
+            logger.debug("Full tracker update error for " + player.getName(), e);
         }
-        
-        // Check if player still has the tracker item
-        if (!hasTrackerInInventory(player)) {
-            unregisterTracker(player);
-            return;
-        }
-        
-        // Generate and display the compass
-        Component compass = generateCompass(player, game, data);
-        player.sendActionBar(compass);
     }
     
     /**
@@ -222,10 +250,18 @@ public class PlayerTrackerBehavior {
      */
     private @NotNull Component generateCompass(@NotNull Player player, @NotNull Game game, @NotNull TrackerData data) {
         Location playerLocation = player.getLocation();
+        if (playerLocation == null || playerLocation.getWorld() == null) {
+            logger.debug("Invalid player location in generateCompass for " + player.getName());
+            return Component.text("Tracker Error", NamedTextColor.RED);
+        }
+        
         float playerYaw = playerLocation.getYaw();
         
         // Get all trackable targets
         List<TrackableTarget> targets = getTrackableTargets(player, game, data);
+        if (targets == null) {
+            targets = new ArrayList<>(); // Fallback to empty list
+        }
         
         // Create compass array
         Component[] compassElements = new Component[COMPASS_WIDTH];
@@ -237,6 +273,8 @@ public class PlayerTrackerBehavior {
         
         // Place targets on compass
         for (TrackableTarget target : targets) {
+            if (target == null) continue; // Skip null targets
+            
             int position = calculateCompassPosition(playerYaw, target.angle);
             if (position >= 0 && position < COMPASS_WIDTH) {
                 compassElements[position] = Component.text(target.symbol, target.color);
@@ -248,7 +286,11 @@ public class PlayerTrackerBehavior {
             .append(Component.text("[", COMPASS_COLOR));
         
         for (Component element : compassElements) {
-            compassBuilder.append(element);
+            if (element != null) {
+                compassBuilder.append(element);
+            } else {
+                compassBuilder.append(Component.text(COMPASS_BAR, COMPASS_COLOR));
+            }
         }
         
         compassBuilder.append(Component.text("]", COMPASS_COLOR));
@@ -396,15 +438,35 @@ public class PlayerTrackerBehavior {
      * @return The angle in degrees
      */
     private double calculateAngle(@NotNull Location from, @NotNull Location to) {
-        double deltaX = to.getX() - from.getX();
-        double deltaZ = to.getZ() - from.getZ();
-        
-        double angle = Math.toDegrees(Math.atan2(deltaZ, deltaX));
-        
-        // Normalize to 0-360 degrees
-        if (angle < 0) {
-            angle += 360;
+        // Validate inputs
+        if (from == null || to == null || from.getWorld() == null || to.getWorld() == null) {
+            return 0.0; // Default to north
         }
+        
+        if (!from.getWorld().equals(to.getWorld())) {
+            return 0.0; // Different worlds, can't calculate angle
+        }
+        
+        // Get vector between points
+        double dx = to.getX() - from.getX();
+        double dz = to.getZ() - from.getZ();
+        
+        // Handle edge case where positions are identical
+        if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) {
+            return 0.0; // Same position, default to north
+        }
+        
+        // Calculate angle in degrees (0° is North, increases clockwise)
+        double angle = Math.toDegrees(Math.atan2(-dx, dz));
+        
+        // Validate the result
+        if (Double.isNaN(angle) || Double.isInfinite(angle)) {
+            logger.debug("Invalid angle calculated between " + from + " and " + to + ": " + angle);
+            return 0.0; // Default to north
+        }
+        
+        // Normalize to 0-360
+        angle = (angle % 360 + 360) % 360;
         
         return angle;
     }
@@ -417,24 +479,29 @@ public class PlayerTrackerBehavior {
      * @return The position on the compass (0 to COMPASS_WIDTH-1)
      */
     private int calculateCompassPosition(float playerYaw, double targetAngle) {
-        // Normalize player yaw to 0-360
-        double normalizedYaw = ((playerYaw % 360) + 360) % 360;
+        // Normalize player yaw to 0-360 (Minecraft yaw is -180 to +180)
+        double normalizedYaw = (playerYaw % 360 + 360) % 360;
         
-        // Calculate relative angle
-        double relativeAngle = targetAngle - normalizedYaw;
+        // Calculate relative angle (how far target is from player's view direction)
+        double relativeAngle = (targetAngle - normalizedYaw + 360) % 360;
         
-        // Normalize to -180 to 180
-        while (relativeAngle > 180) relativeAngle -= 360;
-        while (relativeAngle < -180) relativeAngle += 360;
+        // Convert to -180 to +180 range for compass display
+        if (relativeAngle > 180) {
+            relativeAngle -= 360;
+        }
         
-        // Map to compass position (-90 to 90 degrees visible)
-        if (relativeAngle < -90 || relativeAngle > 90) {
+        // Only show targets within the compass field of view (±90 degrees)
+        if (Math.abs(relativeAngle) > 90) {
             return -1; // Not visible on compass
         }
         
-        // Map to compass width
+        // Map to compass position (0 to COMPASS_WIDTH-1)
+        // relativeAngle ranges from -90 to +90, map to 0 to COMPASS_WIDTH-1
         double normalizedPosition = (relativeAngle + 90) / 180.0; // 0 to 1
-        return (int) (normalizedPosition * (COMPASS_WIDTH - 1));
+        int position = (int) Math.round(normalizedPosition * (COMPASS_WIDTH - 1));
+        
+        // Ensure we stay within bounds
+        return Math.max(0, Math.min(COMPASS_WIDTH - 1, position));
     }
     
     /**

@@ -162,13 +162,14 @@ public class PlayerListener implements Listener {
                     // Player died in an active game
                     event.setCancelled(true); // Prevent normal death handling
                     
-                    // Record death statistics if enabled
-                    if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
-                        plugin.getStatisticsManager().recordDeath(player.getUniqueId());
+                    // Determine killer
+                    Player killer = null;
+                    if (player.getKiller() != null) {
+                        killer = player.getKiller();
                     }
                     
-                    // Handle player elimination
-                    game.eliminatePlayer(player);
+                    // Handle player death (includes death message and elimination)
+                    game.getEliminationManager().handlePlayerDeath(player, killer);
                     
                     // Clear death drops
                     event.getDrops().clear();

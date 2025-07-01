@@ -138,6 +138,62 @@ messages:
   game-end: "<green>The game has ended! <gray><player> <green>is the winner!"
   countdown: "<yellow>Game starting in <gray><time> <yellow>seconds!"
   
+  # Death message configuration
+  death-messages:
+    enabled: true
+    # Message format for regular deaths
+    format: "<dark_red>☠ <red><victim> <gray>was <action> <gray>by <killer><gray>! <yellow><remaining> players remain!"
+    # Message format for final 2 players
+    final-two-format: |
+      <dark_red>
+      ⚔ FINAL BATTLE ⚔
+      <victim> vs <killer>
+      <gray>Only one will survive!
+    # Message format for the winner
+    winner-format: |
+      <gold>
+      ⚔ VICTORY ⚔
+      <winner> is victorious!
+    # Different death message variations by weapon type
+    actions:
+      sword:
+        - "stabbed"
+        - "sliced"
+        - "shanked"
+        - "skewered"
+      axe:
+        - "butchered"
+        - "chopped"
+        - "cleaved"
+        - "hacked"
+      bow:
+        - "sniped"
+        - "shot"
+        - "bullseyed"
+        - "skewered"
+      crossbow:
+        - "sniped"
+        - "shot"
+        - "bullseyed"
+        - "skewered"
+      trident:
+        - "impaled"
+        - "speared"
+        - "harpooned"
+      explosive:
+        - "blew up"
+        - "'sploded"
+        - "detonated"
+        - "bombed"
+      fist:
+        - "punched"
+        - "knocked out"
+        - "defeated"
+      other:
+        - "eliminated"
+        - "destroyed"
+        - "defeated"
+  
   # Deathmatch reminder settings
   # Sends warning messages to players before the deathmatch phase begins
   # This gives players advance notice to prepare for the final battle

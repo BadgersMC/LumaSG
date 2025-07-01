@@ -13,6 +13,7 @@ import okhttp3.Response;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -46,6 +47,9 @@ public class GameCelebrationManager {
     
     // Skin caching to reduce API calls and improve performance
     private final @NotNull Map<UUID, CachedSkinData> skinCache = new ConcurrentHashMap<>();
+    
+    // Store the final kill message for winner celebration
+    private @Nullable Component finalKillMessage;
     
     /**
      * Cached skin data with timestamp for expiration.
@@ -83,6 +87,16 @@ public class GameCelebrationManager {
      * Handles the celebration for a game winner.
      */
     public void celebrateWinner(@NotNull Player winner) {
+        celebrateWinner(winner, null);
+    }
+    
+    /**
+     * Handles the celebration for a game winner with an optional death message.
+     * 
+     * @param winner The winning player
+     * @param deathMessage Optional death message to display (for final kill)
+     */
+    public void celebrateWinner(@NotNull Player winner, @Nullable Component deathMessage) {
         // Get winner announcement configuration
         boolean usePixelArt = plugin.getConfig().getBoolean("rewards.winner-announcement.use-pixel-art", true);
         String titleFormat = plugin.getConfig().getString("rewards.winner-announcement.title", 
@@ -150,7 +164,9 @@ public class GameCelebrationManager {
         
         // Show pixel art if enabled
         if (usePixelArt && plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.enabled", true)) {
-            showWinnerPixelArt(winner);
+            // Use the stored final kill message if available, otherwise use the parameter
+            Component messageToShow = finalKillMessage != null ? finalKillMessage : deathMessage;
+            showWinnerPixelArt(winner, messageToShow);
         }
     }
     
@@ -160,6 +176,15 @@ public class GameCelebrationManager {
     public void celebrateNoWinner() {
         String noWinnerMsg = plugin.getConfig().getString("messages.game-end", "<red>Game Over! No winner!");
         broadcastMessage(MiniMessageUtils.parseMessage(noWinnerMsg));
+    }
+    
+    /**
+     * Sets the final kill message to be displayed during winner celebration.
+     * 
+     * @param deathMessage The death message from the final kill
+     */
+    public void setFinalKillMessage(@Nullable Component deathMessage) {
+        this.finalKillMessage = deathMessage;
     }
     
     /**
@@ -323,9 +348,9 @@ public class GameCelebrationManager {
      * Shows the winner's face as pixel art in chat.
      * Uses cached skin data or fetches from API with fallback support.
      */
-    private void showWinnerPixelArt(@NotNull Player winner) {
+    private void showWinnerPixelArt(@NotNull Player winner, @Nullable Component deathMessage) {
         int size = plugin.getConfig().getInt("rewards.winner-announcement.pixel-art.size", 8);
-        String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "██");
+        String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "⬛");
         
         logger.info("Attempting to show pixel art for " + winner.getName());
         
@@ -333,7 +358,7 @@ public class GameCelebrationManager {
         BufferedImage cachedImage = getCachedSkin(winner.getUniqueId());
         if (cachedImage != null) {
             logger.debug("Using cached skin for " + winner.getName());
-            displayPixelArt(winner, cachedImage, character, size);
+            displayPixelArt(winner, cachedImage, character, size, deathMessage);
             return;
         }
         
@@ -349,7 +374,7 @@ public class GameCelebrationManager {
                 
                 // Display the pixel art
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    displayPixelArt(winner, image, character, size);
+                    displayPixelArt(winner, image, character, size, deathMessage);
                 });
             } else {
                 logger.warn("Failed to fetch skin for " + winner.getName() + " - skipping pixel art");
@@ -463,7 +488,7 @@ public class GameCelebrationManager {
     /**
      * Displays pixel art from a BufferedImage.
      */
-    private void displayPixelArt(@NotNull Player winner, @NotNull BufferedImage image, @NotNull String character, int targetSize) {
+    private void displayPixelArt(@NotNull Player winner, @NotNull BufferedImage image, @NotNull String character, int targetSize, @Nullable Component deathMessage) {
         try {
             BufferedImage processedImage = image;
             
@@ -517,34 +542,87 @@ public class GameCelebrationManager {
             logger.debug("Displaying pixel art for " + winner.getName());
             broadcastMessage(Component.text("")); // Empty line before pixel art
             
-            // Calculate middle rows for message placement
-            int middleRow = targetSize / 2;
-            int bracketTopRow = middleRow - 1;
-            int messageRow = middleRow;
-            int bracketBottomRow = middleRow + 1;
+            // Calculate layout positions based on whether we have a death message
+            int winnerRow, deathMessageRow, configMessageRow;
+            Component winnerMessage, configuredMessage;
             
-            // Create winner message components
+            if (deathMessage != null) {
+                // With death message: move winner up, add death message, then configured message
+                winnerRow = targetSize / 2 - 2;
+                deathMessageRow = targetSize / 2;
+                configMessageRow = targetSize / 2 + 2;
+                
+                // Create messages
+                winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", 
+                    net.kyori.adventure.text.format.NamedTextColor.GOLD, 
+                    net.kyori.adventure.text.format.TextDecoration.BOLD);
+                
+                // Get configured winner message
+                String winMsg = plugin.getConfig().getString("rewards.winner-announcement.message", 
+                    "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!");
+                
+                // Create placeholders for the configured message
+                Map<String, String> placeholders = new HashMap<>();
+                placeholders.put("player", winner.getName());
+                placeholders.put("kills", String.valueOf(playerManager.getPlayerKills(winner.getUniqueId())));
+                placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
+                
+                configuredMessage = Component.text("   ").append(MiniMessageUtils.parseMessage(winMsg, placeholders));
+            } else {
+                // Without death message: centered winner message
+                winnerRow = targetSize / 2;
+                deathMessageRow = -1; // Not used
+                configMessageRow = -1; // Not used
+                
+                winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", 
+                    net.kyori.adventure.text.format.NamedTextColor.GOLD, 
+                    net.kyori.adventure.text.format.TextDecoration.BOLD);
+                configuredMessage = null;
+            }
+            
+            // Create bracket components for winner message
             Component topBracket = Component.text("   ╔══════════════════╗", net.kyori.adventure.text.format.NamedTextColor.GOLD);
-            Component winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", net.kyori.adventure.text.format.NamedTextColor.GOLD, net.kyori.adventure.text.format.TextDecoration.BOLD);
             Component bottomBracket = Component.text("   ╚══════════════════╝", net.kyori.adventure.text.format.NamedTextColor.GOLD);
             
-            // Display pixel art with winner message positioned to the right
+            // Display pixel art with messages positioned to the right
             for (int y = 0; y < targetSize; y++) {
                 Component line = pixelArt[y];
                 
-                if (y == bracketTopRow) {
-                    // Add top bracket to the right of the pixel art
-                    line = line.append(topBracket);
-                } else if (y == messageRow) {
-                    // Add winner message to the right of the pixel art
-                    line = line.append(winnerMessage);
-                } else if (y == bracketBottomRow) {
-                    // Add bottom bracket to the right of the pixel art
-                    line = line.append(bottomBracket);
+                if (deathMessage != null) {
+                    // Layout with death message
+                    if (y == winnerRow - 1) {
+                        // Top bracket for winner
+                        line = line.append(topBracket);
+                    } else if (y == winnerRow) {
+                        // Winner message
+                        line = line.append(winnerMessage);
+                    } else if (y == winnerRow + 1) {
+                        // Bottom bracket for winner
+                        line = line.append(bottomBracket);
+                    } else if (y == deathMessageRow) {
+                        // Death message with spacing
+                        line = line.append(Component.text("   ").append(deathMessage));
+                    } else if (y == configMessageRow && configuredMessage != null) {
+                        // Configured message
+                        line = line.append(configuredMessage);
+                    }
+                } else {
+                    // Layout without death message (original centered layout)
+                    if (y == winnerRow - 1) {
+                        // Top bracket
+                        line = line.append(topBracket);
+                    } else if (y == winnerRow) {
+                        // Winner message
+                        line = line.append(winnerMessage);
+                    } else if (y == winnerRow + 1) {
+                        // Bottom bracket
+                        line = line.append(bottomBracket);
+                    }
                 }
                 
                 broadcastMessage(line);
             }
+            
             broadcastMessage(Component.text("")); // Empty line after pixel art
             
             // Dispose of scaled image if we created one
@@ -557,8 +635,6 @@ public class GameCelebrationManager {
             // Skip pixel art display if there's an error
         }
     }
-    
-
     
     /**
      * Cleans up all resources used by this celebration manager.

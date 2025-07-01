@@ -79,6 +79,7 @@ public class Game {
     private final @NotNull GameScoreboardManager scoreboardManager;
     private final @NotNull GameCelebrationManager celebrationManager;
     private final @NotNull GameEliminationManager eliminationManager;
+    private final GameDeathMessageManager deathMessageManager;
     
     // Memory management: Track async operations for cleanup
     private final @NotNull Set<CompletableFuture<?>> activeFutures = ConcurrentHashMap.newKeySet();
@@ -157,6 +158,7 @@ public class Game {
         this.scoreboardManager = new GameScoreboardManager(plugin, arena, gameId, playerManager, timerManager);
         this.celebrationManager = new GameCelebrationManager(plugin, playerManager);
         this.eliminationManager = new GameEliminationManager(plugin, gameId.toString(), playerManager);
+        this.deathMessageManager = new GameDeathMessageManager(plugin, gameId.toString(), playerManager);
         
         logger.info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
     }
@@ -1439,5 +1441,17 @@ public class Game {
         taskIdRef[0] = gameEndCheckTask.getTaskId();
         activeTasks.put(gameEndCheckTask.getTaskId(), gameEndCheckTask);
         logger.debug("Started periodic game end checking (every 5 seconds)");
+    }
+
+    public @NotNull GameDeathMessageManager getDeathMessageManager() {
+        return deathMessageManager;
+    }
+    
+    public @NotNull GameEliminationManager getEliminationManager() {
+        return eliminationManager;
+    }
+    
+    public @NotNull GameCelebrationManager getCelebrationManager() {
+        return celebrationManager;
     }
 } 

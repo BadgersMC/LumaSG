@@ -125,6 +125,13 @@ public class CustomItemListener implements Listener {
      * Handles airdrop flare interactions.
      */
     private void handleAirdropFlare(@NotNull Player player, @NotNull CustomItem customItem, @NotNull PlayerInteractEvent event) {
+        // Check if player already has an active airdrop to prevent duplicates
+        UUID playerId = player.getUniqueId();
+        if (activeAirdrops.containsKey(playerId)) {
+            logger.debug("Player " + player.getName() + " already has an active airdrop, ignoring duplicate activation");
+            return;
+        }
+        
         // Get the exact location where the flare was activated
         Location dropLocation;
         if (event.getClickedBlock() != null) {
@@ -146,12 +153,20 @@ public class CustomItemListener implements Listener {
         
         // Create new airdrop behavior instance for this activation
         AirdropBehavior airdropBehavior = new AirdropBehavior(plugin, dropLocation, spawnLocation, player);
-        UUID airdropId = UUID.randomUUID();
-        activeAirdrops.put(airdropId, airdropBehavior);
+        activeAirdrops.put(playerId, airdropBehavior);
         
         // Activate the flare
         airdropBehavior.activateAirdropFlare(player, customItem, event);
         event.setCancelled(true); // Prevent normal torch behavior
+        
+        // Schedule cleanup of this airdrop after reasonable time (10 minutes)
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            AirdropBehavior removed = activeAirdrops.remove(playerId);
+            if (removed != null) {
+                removed.cleanup();
+                logger.debug("Cleaned up airdrop for player " + player.getName());
+            }
+        }, 12000L); // 10 minutes
     }
     
     /**
@@ -238,36 +253,50 @@ public class CustomItemListener implements Listener {
     }
     
     /**
-     * Handles when a player quits the server.
+     * Handles player disconnection cleanup.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(@NotNull PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
         
-        // Clean up any active custom item behaviors for this player
+        // Clean up player tracker
         playerTrackerBehavior.unregisterTracker(player);
         
-        logger.debug("Cleaned up custom item behaviors for player: " + player.getName());
+        // Clean up any active airdrops for this player
+        AirdropBehavior airdrop = activeAirdrops.remove(playerId);
+        if (airdrop != null) {
+            airdrop.cleanup();
+            logger.debug("Cleaned up airdrop for disconnecting player " + player.getName());
+        }
     }
     
     /**
-     * Shuts down the custom item listener and all behavior handlers.
+     * Shuts down the custom item listener and cleans up resources.
      */
     public void shutdown() {
-        playerTrackerBehavior.shutdown();
-        explosiveBehavior.shutdown();
-        // Shutdown all active airdrops
-        for (AirdropBehavior airdropBehavior : activeAirdrops.values()) {
-            airdropBehavior.shutdown();
+        // Shutdown behavior handlers
+        if (playerTrackerBehavior != null) {
+            playerTrackerBehavior.shutdown();
+        }
+        
+        if (explosiveBehavior != null) {
+            explosiveBehavior.shutdown();
+        }
+        
+        // Clean up all active airdrops
+        for (AirdropBehavior airdrop : activeAirdrops.values()) {
+            airdrop.cleanup();
         }
         activeAirdrops.clear();
-        logger.info("Custom item listener shut down");
+        
+        logger.debug("CustomItemListener shutdown complete");
     }
     
     /**
      * Gets the locations of all active airdrops.
      * 
-     * @return Map of airdrop IDs to their locations
+     * @return Map of airdrop IDs to their drop locations
      */
     public Map<UUID, Location> getActiveAirdropLocations() {
         Map<UUID, Location> locations = new HashMap<>();
