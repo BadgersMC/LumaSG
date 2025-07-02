@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 
+import net.lumalyte.util.TestUtils;
+
 /**
  * COMPREHENSIVE PERFORMANCE VALIDATION FOR LUMASG OPTIMIZATION SYSTEM
  * 
@@ -600,59 +602,21 @@ public class LumaSGPerformanceValidation {
      * Simulates chest filling operation with specified duration
      */
     private void simulateChestFill(double durationMs) {
-        if (durationMs >= 1.0) {
-            try {
-                Thread.sleep((long) durationMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        } else {
-            // For sub-millisecond operations, use busy waiting
-            long nanos = (long) (durationMs * 1_000_000);
-            long start = System.nanoTime();
-            while (System.nanoTime() - start < nanos) {
-                // Busy wait to simulate very fast operations
-            }
-        }
+        TestUtils.simulateChestFill(durationMs);
     }
     
     /**
      * Simulates expensive data generation (like loot table computation)
      */
     private String simulateExpensiveDataGeneration(String key) {
-        // Simulate computation time
-        try {
-            Thread.sleep(10); // 10ms computation
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        return "generated-data-for-" + key + "-" + System.nanoTime();
+        return TestUtils.simulateExpensiveDataGeneration(key);
     }
     
     /**
      * Generates realistic cache keys based on LumaSG access patterns
      */
     private String generateRealisticCacheKey(int operation, int uniqueKeys) {
-        // Simulate realistic access patterns:
-        // - 70% loot tier access (5 tiers, heavily biased toward tier 1-3)
-        // - 20% player data access
-        // - 10% world/arena data access
-        
-        int pattern = operation % 10;
-        if (pattern < 7) {
-            // Loot tier access (biased toward lower tiers)
-            int tier = (operation % 100 < 60) ? 1 : 
-                      (operation % 100 < 85) ? 2 : 
-                      (operation % 100 < 95) ? 3 : 
-                      (operation % 100 < 99) ? 4 : 5;
-            return "loot-tier-" + tier;
-        } else if (pattern < 9) {
-            // Player data access
-            return "player-" + (operation % (uniqueKeys / 2));
-        } else {
-            // World/arena data access
-            return "world-arena-" + (operation % 10);
-        }
+        return TestUtils.generateRealisticCacheKey(operation, uniqueKeys);
     }
     
     /**

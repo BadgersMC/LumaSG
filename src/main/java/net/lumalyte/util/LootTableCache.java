@@ -173,43 +173,86 @@ public class LootTableCache {
      */
     @Nullable
     private static PreGeneratedChest generateSingleChest(@NotNull List<ChestItem> tierItems, @NotNull String tier) {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
+        int itemCount = generateRandomItemCount();
+        List<Integer> availableSlots = generateShuffledSlots();
         
-        // Determine number of items
-        int itemCount = random.nextInt(MIN_ITEMS_PER_CHEST, MAX_ITEMS_PER_CHEST + 1);
+        ChestContents contents = populateChestContents(tierItems, itemCount, availableSlots);
         
-        // Generate available slots
-        List<Integer> availableSlots = new ArrayList<>();
+        return contents.isEmpty() ? null : new PreGeneratedChest(contents.items, contents.slots);
+    }
+    
+    /**
+     * Generates a random number of items for a chest
+     */
+    private static int generateRandomItemCount() {
+        return ThreadLocalRandom.current().nextInt(MIN_ITEMS_PER_CHEST, MAX_ITEMS_PER_CHEST + 1);
+    }
+    
+    /**
+     * Generates a shuffled list of available chest slots
+     */
+    private static List<Integer> generateShuffledSlots() {
+        List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < CHEST_SIZE; i++) {
-            availableSlots.add(i);
+            slots.add(i);
         }
-        Collections.shuffle(availableSlots);
-        
+        Collections.shuffle(slots);
+        return slots;
+    }
+    
+    /**
+     * Populates chest contents with items and their slots
+     */
+    private static ChestContents populateChestContents(List<ChestItem> tierItems, int itemCount, List<Integer> availableSlots) {
         List<ItemStack> items = new ArrayList<>();
         List<Integer> selectedSlots = new ArrayList<>();
         
         for (int i = 0; i < Math.min(itemCount, availableSlots.size()); i++) {
-            ChestItem randomItem = getRandomWeightedItem(tierItems);
-            if (randomItem == null) {
-                continue;
-            }
-            
-            ItemStack itemStack = randomItem.getItemStack(pluginInstance);
+            ItemStack itemStack = generateRandomItemStack(tierItems);
             if (itemStack != null) {
-                // Set random amount within item's range
-                int amount = random.nextInt(randomItem.getMinAmount(), randomItem.getMaxAmount() + 1);
-                itemStack.setAmount(amount);
-                
-                items.add(itemStack.clone());
+                items.add(itemStack);
                 selectedSlots.add(availableSlots.get(i));
             }
         }
         
-        if (items.isEmpty()) {
+        return new ChestContents(items, selectedSlots);
+    }
+    
+    /**
+     * Generates a random ItemStack from the tier items
+     */
+    @Nullable
+    private static ItemStack generateRandomItemStack(List<ChestItem> tierItems) {
+        ChestItem randomItem = getRandomWeightedItem(tierItems);
+        if (randomItem == null) {
             return null;
         }
         
-        return new PreGeneratedChest(items, selectedSlots);
+        ItemStack itemStack = randomItem.getItemStack(pluginInstance);
+        if (itemStack != null) {
+            int amount = ThreadLocalRandom.current().nextInt(randomItem.getMinAmount(), randomItem.getMaxAmount() + 1);
+            itemStack.setAmount(amount);
+            return itemStack.clone();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Helper class to hold chest contents during generation
+     */
+    private static class ChestContents {
+        private final List<ItemStack> items;
+        private final List<Integer> slots;
+        
+        ChestContents(List<ItemStack> items, List<Integer> slots) {
+            this.items = items;
+            this.slots = slots;
+        }
+        
+        boolean isEmpty() {
+            return items.isEmpty();
+        }
     }
     
     /**
@@ -284,50 +327,89 @@ public class LootTableCache {
     public static CompletableFuture<Boolean> applyPreGeneratedChest(@NotNull org.bukkit.inventory.Inventory inventory, 
                                                                    @NotNull PreGeneratedChest chest) {
         return CompletableFuture.supplyAsync(() -> {
-            // Clear inventory first
-            inventory.clear();
-            
-            List<ItemStack> items = chest.getItems();
-            List<Integer> slots = chest.getSlots();
-            
-            if (items.size() != slots.size()) {
-                if (logger != null) {
-                    logger.error("Mismatch between items and slots in pre-generated chest");
-                }
+            if (!validateChestData(chest)) {
                 return false;
             }
             
-            // Apply items to inventory on main thread
-            CompletableFuture<Boolean> mainThreadApplication = new CompletableFuture<>();
-            
-            org.bukkit.Bukkit.getScheduler().runTask(pluginInstance, () -> {
-                try {
-                    for (int i = 0; i < items.size(); i++) {
-                        ItemStack item = items.get(i);
-                        int slot = slots.get(i);
-                        
-                        if (slot >= 0 && slot < inventory.getSize()) {
-                            inventory.setItem(slot, item.clone());
-                        }
-                    }
-                    mainThreadApplication.complete(true);
-                } catch (Exception e) {
-                    if (logger != null) {
-                        logger.error("Error applying pre-generated chest to inventory", e);
-                    }
-                    mainThreadApplication.complete(false);
-                }
-            });
-            
+            return applyChestToInventoryOnMainThread(inventory, chest);
+        });
+    }
+    
+    /**
+     * Validates that chest data is consistent
+     */
+    private static boolean validateChestData(PreGeneratedChest chest) {
+        List<ItemStack> items = chest.getItems();
+        List<Integer> slots = chest.getSlots();
+        
+        if (items.size() != slots.size()) {
+            if (logger != null) {
+                logger.error("Mismatch between items and slots in pre-generated chest");
+            }
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Applies chest contents to inventory on the main thread
+     */
+    private static boolean applyChestToInventoryOnMainThread(org.bukkit.inventory.Inventory inventory, PreGeneratedChest chest) {
+        CompletableFuture<Boolean> mainThreadApplication = new CompletableFuture<>();
+        
+        org.bukkit.Bukkit.getScheduler().runTask(pluginInstance, () -> {
             try {
-                return mainThreadApplication.get(5, TimeUnit.SECONDS);
+                inventory.clear();
+                fillInventoryWithChestContents(inventory, chest);
+                mainThreadApplication.complete(true);
             } catch (Exception e) {
                 if (logger != null) {
-                    logger.error("Timeout applying pre-generated chest", e);
+                    logger.error("Error applying pre-generated chest to inventory", e);
                 }
-                return false;
+                mainThreadApplication.complete(false);
             }
         });
+        
+        return waitForMainThreadCompletion(mainThreadApplication);
+    }
+    
+    /**
+     * Fills inventory with chest contents
+     */
+    private static void fillInventoryWithChestContents(org.bukkit.inventory.Inventory inventory, PreGeneratedChest chest) {
+        List<ItemStack> items = chest.getItems();
+        List<Integer> slots = chest.getSlots();
+        
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack item = items.get(i);
+            int slot = slots.get(i);
+            
+            if (isValidSlot(slot, inventory)) {
+                inventory.setItem(slot, item.clone());
+            }
+        }
+    }
+    
+    /**
+     * Checks if a slot is valid for the given inventory
+     */
+    private static boolean isValidSlot(int slot, org.bukkit.inventory.Inventory inventory) {
+        return slot >= 0 && slot < inventory.getSize();
+    }
+    
+    /**
+     * Waits for main thread operation to complete with timeout
+     */
+    private static boolean waitForMainThreadCompletion(CompletableFuture<Boolean> future) {
+        try {
+            return future.get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            if (logger != null) {
+                logger.error("Timeout applying pre-generated chest", e);
+            }
+            return false;
+        }
     }
     
     /**

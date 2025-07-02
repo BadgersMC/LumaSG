@@ -20,6 +20,9 @@ import net.lumalyte.game.Game;
 import net.lumalyte.arena.Arena;
 import net.lumalyte.util.GameInstancePool;
 import net.lumalyte.util.ArenaWorldCache;
+import net.lumalyte.util.TestUtils;
+import net.lumalyte.util.TestUtils.MockLocation;
+import net.lumalyte.util.TestUtils.PerformanceResult;
 
 /**
  * Comprehensive performance benchmark suite for LumaSG
@@ -30,42 +33,6 @@ import net.lumalyte.util.ArenaWorldCache;
 public class LumaSGPerformanceBenchmark {
 
     @Mock private LumaSG plugin;
-    
-    // Mock location class to replace Bukkit Location
-    private static class MockLocation {
-        private final String world;
-        private final int x, y, z;
-        
-        public MockLocation(String world, int x, int y, int z) {
-            this.world = world;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-        
-        public String getWorld() { return world; }
-        public int getX() { return x; }
-        public int getY() { return y; }
-        public int getZ() { return z; }
-        
-        @Override
-        public String toString() {
-            return world + ":" + x + "," + y + "," + z;
-        }
-        
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof MockLocation)) return false;
-            MockLocation other = (MockLocation) obj;
-            return Objects.equals(world, other.world) && x == other.x && y == other.y && z == other.z;
-        }
-        
-        @Override
-        public int hashCode() {
-            return Objects.hash(world, x, y, z);
-        }
-    }
 
     @BeforeEach
     void setUp() {
@@ -523,38 +490,17 @@ public class LumaSGPerformanceBenchmark {
     // Helper methods
 
     private Game createMockGame(String gameId, String arenaName) {
-        Game game = mock(Game.class);
-        when(game.getGameId()).thenReturn(UUID.fromString(gameId));
-        Arena arena = mock(Arena.class);
-        when(arena.getName()).thenReturn(arenaName);
-        when(game.getArena()).thenReturn(arena);
-        return game;
+        return TestUtils.createMockGame(gameId, arenaName);
     }
 
     private List<MockLocation> createMockChestLocations(String world, int count) {
-        List<MockLocation> locations = new ArrayList<>();
-        Random random = new Random();
-        
-        for (int i = 0; i < count; i++) {
-            int x = random.nextInt(1000);
-            int y = 64 + random.nextInt(64);
-            int z = random.nextInt(1000);
-            locations.add(new MockLocation(world, x, y, z));
-        }
-        
-        return locations;
+        return TestUtils.createMockChestLocations(world, count);
     }
 
     private void simulateChestFilling(List<MockLocation> chests, String gameId) {
         // Simulate chest filling operation
         for (MockLocation chest : chests) {
-            // Simulate some processing time
-            try {
-                Thread.sleep(1); // 1ms per chest
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+            TestUtils.simulateChestFill(1.0);
         }
     }
 }

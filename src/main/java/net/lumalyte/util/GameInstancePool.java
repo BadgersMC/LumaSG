@@ -86,29 +86,50 @@ public class GameInstancePool {
      */
     public static CompletableFuture<Game> getOrCreateGame(@NotNull Arena arena) {
         return CompletableFuture.supplyAsync(() -> {
-            // First, try to find an existing available game in this arena
-            Set<UUID> arenaGameIds = ARENA_GAMES.getIfPresent(arena.getName());
-            if (arenaGameIds != null) {
-                for (UUID gameId : arenaGameIds) {
-                    Game existingGame = ACTIVE_GAMES.getIfPresent(gameId);
-                    if (existingGame != null && isGameAvailable(existingGame)) {
-                        return existingGame;
-                    }
-                }
+            Game existingGame = findAvailableGameInArena(arena.getName());
+            if (existingGame != null) {
+                return existingGame;
             }
             
-            // Create new game instance
-            try {
-                Game newGame = new Game(pluginInstance, arena);
-                registerGame(newGame);
-                return newGame;
-            } catch (Exception e) {
-                if (logger != null) {
-                    logger.error("Failed to create game instance for arena: " + arena.getName(), e);
-                }
-                return null;
-            }
+            return createNewGameInstance(arena);
         });
+    }
+    
+    /**
+     * Finds an available game in the specified arena
+     */
+    @Nullable
+    private static Game findAvailableGameInArena(String arenaName) {
+        Set<UUID> arenaGameIds = ARENA_GAMES.getIfPresent(arenaName);
+        if (arenaGameIds == null) {
+            return null;
+        }
+        
+        for (UUID gameId : arenaGameIds) {
+            Game existingGame = ACTIVE_GAMES.getIfPresent(gameId);
+            if (existingGame != null && isGameAvailable(existingGame)) {
+                return existingGame;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Creates a new game instance for the arena
+     */
+    @Nullable
+    private static Game createNewGameInstance(Arena arena) {
+        try {
+            Game newGame = new Game(pluginInstance, arena);
+            registerGame(newGame);
+            return newGame;
+        } catch (Exception e) {
+            if (logger != null) {
+                logger.error("Failed to create game instance for arena: " + arena.getName(), e);
+            }
+            return null;
+        }
     }
     
     /**

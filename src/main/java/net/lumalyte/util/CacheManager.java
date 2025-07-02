@@ -1,17 +1,18 @@
 package net.lumalyte.util;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import net.lumalyte.LumaSG;
-import org.jetbrains.annotations.NotNull;
-
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.jetbrains.annotations.NotNull;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import net.lumalyte.LumaSG;
 
 /**
  * Centralized cache management system for LumaSG
@@ -191,10 +192,24 @@ public class CacheManager {
             
             // Clean up cold tier and persistent cache
             COLD_CACHE.cleanUp();
-            PERSISTENT_CACHE.entrySet().removeIf(entry -> 
-                entry.getKey().startsWith("temp:") && // Remove temporary persistent entries
-                System.currentTimeMillis() - (Long) entry.getValue() > Duration.ofHours(24).toMillis()
-            );
+            PERSISTENT_CACHE.entrySet().removeIf(entry -> {
+                if (!entry.getKey().startsWith("temp:")) {
+                    return false; // Keep non-temp entries
+                }
+                
+                // Safely check if value is a Long timestamp
+                Object value = entry.getValue();
+                if (!(value instanceof Long)) {
+                    // Remove invalid temp entries that aren't timestamps
+                    logger.warn("Found invalid temp cache entry with non-Long value: " + entry.getKey() + 
+                               " (type: " + (value != null ? value.getClass().getSimpleName() : "null") + ")");
+                    return true;
+                }
+                
+                // Remove expired temp entries
+                long timestamp = (Long) value;
+                return System.currentTimeMillis() - timestamp > Duration.ofHours(24).toMillis();
+            });
             
             // Update cache metadata
             updateCacheMetadata();
