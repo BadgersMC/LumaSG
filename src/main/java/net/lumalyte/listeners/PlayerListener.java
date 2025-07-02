@@ -349,11 +349,10 @@ public class PlayerListener implements Listener {
         }
 
 		try {
-            Game victimGame = gameManager.getGameByPlayer(victim);
-            Game attackerGame = gameManager.getGameByPlayer(attacker);
-            if (victimGame != null && attackerGame != null && victimGame.equals(attackerGame)) {
+            Game sharedGame = getSharedGame(victim, attacker);
+            if (sharedGame != null) {
                 // Both players are in the same game
-                if (!victimGame.isPvpEnabled()) {
+                if (!sharedGame.isPvpEnabled()) {
                     // PvP is disabled in this game state
                     event.setCancelled(true);
                     
@@ -361,16 +360,8 @@ public class PlayerListener implements Listener {
                     attacker.sendMessage(Component.text("PvP is currently disabled!", NamedTextColor.RED));
                 } else {
                     // PvP is enabled, track damage statistics if enabled
-                    if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
-                        plugin.getConfig().getBoolean("statistics.track-damage", true)) {
-                        
-                        double damage = event.getFinalDamage();
-                        plugin.getStatisticsManager().recordDamageDealt(attacker.getUniqueId(), damage);
-                        plugin.getStatisticsManager().recordDamageTaken(victim.getUniqueId(), damage);
-                        
-                        // Also record in the game instance for per-game tracking
-                        victimGame.recordDamageDealt(attacker.getUniqueId(), damage);
-                        victimGame.recordDamageTaken(victim.getUniqueId(), damage);
+                    if (isDamageTrackingEnabled()) {
+                        recordPvpDamage(attacker, victim, event.getFinalDamage(), sharedGame);
                     }
                 }
             }
@@ -378,6 +369,51 @@ public class PlayerListener implements Listener {
             logger.warn("Error handling PvP damage between " + 
                 attacker.getName() + " and " + victim.getName(), e);
         }
+    }
+    
+    /**
+     * Gets the shared game between two players, if they are in the same game.
+     * 
+     * @param player1 The first player
+     * @param player2 The second player
+     * @return The shared game if both players are in the same game, null otherwise
+     */
+    private @Nullable Game getSharedGame(@NotNull Player player1, @NotNull Player player2) {
+        Game game1 = gameManager.getGameByPlayer(player1);
+        Game game2 = gameManager.getGameByPlayer(player2);
+        
+        if (game1 != null && game2 != null && game1.equals(game2)) {
+            return game1;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Checks if damage tracking is enabled in the configuration.
+     * 
+     * @return true if damage tracking is enabled, false otherwise
+     */
+    private boolean isDamageTrackingEnabled() {
+        return plugin.getConfig().getBoolean("statistics.enabled", true) && 
+               plugin.getConfig().getBoolean("statistics.track-damage", true);
+    }
+    
+    /**
+     * Records PvP damage statistics for both players and the game.
+     * 
+     * @param attacker The attacking player
+     * @param victim The victim player
+     * @param damage The damage amount
+     * @param game The game instance
+     */
+    private void recordPvpDamage(@NotNull Player attacker, @NotNull Player victim, double damage, @NotNull Game game) {
+        plugin.getStatisticsManager().recordDamageDealt(attacker.getUniqueId(), damage);
+        plugin.getStatisticsManager().recordDamageTaken(victim.getUniqueId(), damage);
+        
+        // Also record in the game instance for per-game tracking
+        game.recordDamageDealt(attacker.getUniqueId(), damage);
+        game.recordDamageTaken(victim.getUniqueId(), damage);
     }
     
     /**
@@ -396,7 +432,8 @@ public class PlayerListener implements Listener {
         try {
             Game game = gameManager.getGameByPlayer(player);
             Location to = event.getTo();
-            if (game != null && game.getState() != GameState.WAITING && game.getState() != GameState.FINISHED && !game.isShuttingDown() && !isLocationInArena(to, game)) {
+            
+            if (shouldRestrictTeleport(game, to)) {
                 // Player trying to teleport outside arena during active game
                 event.setCancelled(true);
                 player.sendMessage(Component.text("You cannot leave the arena during the game!", NamedTextColor.RED));
@@ -404,6 +441,32 @@ public class PlayerListener implements Listener {
         } catch (Exception e) {
             logger.warn("Error handling player teleport for " + player.getName(), e);
         }
+    }
+    
+    /**
+     * Determines if a teleport should be restricted based on game state and location.
+     * 
+     * @param game The player's current game (may be null)
+     * @param destination The teleport destination
+     * @return true if the teleport should be restricted, false otherwise
+     */
+    private boolean shouldRestrictTeleport(@Nullable Game game, @NotNull Location destination) {
+        if (game == null) {
+            return false;
+        }
+        
+        // Allow teleports during waiting and finished states
+        if (game.getState() == GameState.WAITING || game.getState() == GameState.FINISHED) {
+            return false;
+        }
+        
+        // Allow teleports during shutdown
+        if (game.isShuttingDown()) {
+            return false;
+        }
+        
+        // Restrict teleports outside arena during active game
+        return !isLocationInArena(destination, game);
     }
     
     /**

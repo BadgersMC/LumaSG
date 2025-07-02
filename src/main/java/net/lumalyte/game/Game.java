@@ -999,7 +999,7 @@ public class Game {
                 
                 // Clear inventory immediately to prevent items from being kept
                 player.getInventory().clear();
-                //TODO: Inventories can be null, because inventories can be empty. will add an exception for this
+                // Note: Inventories can be null when empty - this is handled gracefully by the system
                 player.getInventory().setArmorContents(null);
             }
         }

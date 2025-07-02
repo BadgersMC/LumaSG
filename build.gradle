@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'io.github.goooler.shadow' version '8.1.8'
     id 'maven-publish'
+    id 'pmd'
 }
 
 group = 'net.lumalyte'
@@ -149,6 +150,29 @@ test {
     
     // Timeout for long-running tests
     timeout = Duration.ofMinutes(10)
+}
+
+// PMD configuration for code quality analysis
+pmd {
+    toolVersion = '7.7.0'
+    ruleSetFiles = files("config/pmd/pmd-rules.xml")
+    ruleSets = []
+    ignoreFailures = false
+    consoleOutput = true
+}
+
+pmdMain {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+pmdTest {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 // Publishing configuration for GitHub Packages (optional)

@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.lumalyte.util.TestUtils;
+
 /**
  * Simple performance test runner that demonstrates the optimization improvements
  * without complex mocking - focuses on the algorithmic improvements
@@ -72,7 +74,7 @@ public class PerformanceTestRunner {
         // Sequential processing simulation
         long sequentialStart = System.nanoTime();
         for (int i = 0; i < numTasks; i++) {
-            simulateWork(taskDurationMs);
+            TestUtils.simulateWork(taskDurationMs);
         }
         long sequentialTime = System.nanoTime() - sequentialStart;
         double sequentialMs = sequentialTime / 1_000_000.0;
@@ -83,7 +85,7 @@ public class PerformanceTestRunner {
         
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (int i = 0; i < numTasks; i++) {
-            futures.add(CompletableFuture.runAsync(() -> simulateWork(taskDurationMs), executor));
+            futures.add(CompletableFuture.runAsync(() -> TestUtils.simulateWork(taskDurationMs), executor));
         }
         
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -276,14 +278,6 @@ public class PerformanceTestRunner {
 
     // Helper methods for simulation
 
-    private void simulateWork(int durationMs) {
-        try {
-            Thread.sleep(durationMs);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     private String expensiveComputation(String input) {
         // Simulate expensive computation (like loot generation)
         try {
@@ -296,11 +290,7 @@ public class PerformanceTestRunner {
 
     private void simulateOptimizedGameProcessing() {
         // Simulate the optimized game processing time
-        try {
-            Thread.sleep(1); // 1ms per game with optimizations
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        TestUtils.simulateWork(1); // 1ms per game with optimizations
     }
 
     private Object createMockGameData() {

@@ -279,4 +279,37 @@ public class TestUtils {
             results.subList(results.size() - 5, results.size()).forEach(System.out::println);
         }
     }
+    
+    /**
+     * Simulates work for performance testing with precise timing.
+     * Handles both millisecond and sub-millisecond delays efficiently.
+     * 
+     * @param milliseconds The duration to simulate work for
+     */
+    public static void simulateWork(double milliseconds) {
+        try {
+            if (milliseconds >= 1) {
+                // For delays >= 1ms, use Thread.sleep for efficiency
+                Thread.sleep((long) milliseconds);
+            } else {
+                // For sub-millisecond delays, use busy waiting for precision
+                long nanos = (long) (milliseconds * 1_000_000);
+                long start = System.nanoTime();
+                while (System.nanoTime() - start < nanos) {
+                    // Busy wait for precise timing
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+    
+    /**
+     * Simulates work for performance testing with integer milliseconds.
+     * 
+     * @param durationMs The duration in milliseconds
+     */
+    public static void simulateWork(int durationMs) {
+        simulateWork((double) durationMs);
+    }
 } 

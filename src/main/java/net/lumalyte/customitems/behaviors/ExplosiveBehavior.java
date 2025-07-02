@@ -364,7 +364,7 @@ public class ExplosiveBehavior implements Listener {
         }
         
         for (Player player : world.getPlayers()) {
-            if (!damagesThrower && thrower != null && player.equals(thrower)) {
+            if (shouldSkipPlayerForThrowerDamage(player, thrower, damagesThrower)) {
                 continue;
             }
             
@@ -399,7 +399,7 @@ public class ExplosiveBehavior implements Listener {
         }
         
         for (Player player : world.getPlayers()) {
-            if (!damagesThrower && thrower != null && player.equals(thrower)) {
+            if (shouldSkipPlayerForThrowerDamage(player, thrower, damagesThrower)) {
                 continue;
             }
             
@@ -415,6 +415,18 @@ public class ExplosiveBehavior implements Listener {
                 }
             }
         }
+    }
+    
+    /**
+     * Determines if a player should be skipped for thrower damage protection.
+     * 
+     * @param player The player to check
+     * @param thrower The player who threw the explosive (may be null)
+     * @param damagesThrower Whether the explosive should damage its thrower
+     * @return true if the player should be skipped, false otherwise
+     */
+    private boolean shouldSkipPlayerForThrowerDamage(@NotNull Player player, @Nullable Player thrower, boolean damagesThrower) {
+        return !damagesThrower && thrower != null && player.equals(thrower);
     }
     
     /**
