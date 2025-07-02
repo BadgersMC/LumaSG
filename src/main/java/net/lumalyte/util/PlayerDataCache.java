@@ -344,7 +344,7 @@ public class PlayerDataCache {
             String permission = parts[1];
             
             Player player = plugin.getServer().getPlayer(uuid);
-            return player != null ? player.hasPermission(permission) : false;
+            return player != null && player.hasPermission(permission);
         } catch (Exception e) {
             logger.warn("Failed to load permission: " + permissionKey, e);
             return false;
@@ -368,7 +368,7 @@ public class PlayerDataCache {
     
     private static long estimateMemoryUsage() {
         // Rough estimation of memory usage in KB
-        long statsSize = STATS_CACHE.synchronous().estimatedSize() * 1; // ~1KB per PlayerStats
+        long statsSize = STATS_CACHE.synchronous().estimatedSize(); // ~1KB per PlayerStats
         long permissionSize = PERMISSION_CACHE.estimatedSize() * 0; // ~50 bytes per permission
         long displayNameSize = DISPLAY_NAME_CACHE.estimatedSize() * 0; // ~100 bytes per name
         long attachmentSize = PERMISSION_ATTACHMENT_CACHE.estimatedSize() * 0; // ~200 bytes per attachment

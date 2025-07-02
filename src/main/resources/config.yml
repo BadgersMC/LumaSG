@@ -230,9 +230,29 @@ statistics:
   track-damage: true          # Track damage dealt and taken
   track-chests: true          # Track chests opened
 
+# Performance Settings
+# These settings control various performance optimizations
+# Do not touch unless you know what you're doing.
+performance:
+  # Chest filling thread pool configuration
+  chest-filling:
+    # Thread pool size override (0 = auto-calculate based on CPU cores)
+    # Auto-calculation formula: CPU Cores * 0.75 * (1 + 4.0) = CPU Cores * 3.75
+    # This accounts for I/O bound operations with 75% CPU utilization target
+    # Recommended to keep at 0
+    thread-pool-size: 0
+    # Minimum and maximum thread limits (safety bounds)
+    min-threads: 2
+    max-threads: 16
+    # Target CPU utilization (0.1 to 1.0, where 1.0 = 100%)
+    target-cpu-utilization: 0.75
+    # I/O blocking coefficient (wait time / service time ratio)
+    # Higher values = more I/O bound operations, allows more threads
+    blocking-coefficient: 4.0
+
 # Debug Settings
 debug:
-  enabled: false  # Set to false by default for production. This shit will spam the console, but you wont miss a thing. Turn it on if Badger told you to.
+  enabled: false  # Set to false by default for production. This will spam the console, but you wont miss a thing. Turn it on if Badger told you to.
   log-level: "INFO"
 
 # Queue system settings

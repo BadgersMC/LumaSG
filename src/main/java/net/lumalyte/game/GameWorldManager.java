@@ -389,7 +389,7 @@ public class GameWorldManager {
             }
         }
         barrierBlocks.clear();
-        
+
         if (removedCount > 0) {
             logger.info("Removed " + removedCount + " tracked barrier blocks");
         }
@@ -433,7 +433,7 @@ public class GameWorldManager {
         if (!arena.getSpawnPoints().isEmpty()) {
             return arena.getSpawnPoints().getFirst();
         }
-        
+
         return null;
     }
     
@@ -446,20 +446,20 @@ public class GameWorldManager {
     private int scanAreaForBarriers(@NotNull Location center) {
         final int HORIZONTAL_RADIUS = 100;
         final int VERTICAL_RADIUS = 50;
-        int barrierBlocksFound = 0;
-        
+            int barrierBlocksFound = 0;
+            
         for (int x = -HORIZONTAL_RADIUS; x <= HORIZONTAL_RADIUS; x++) {
             for (int y = -VERTICAL_RADIUS; y <= VERTICAL_RADIUS; y++) {
                 for (int z = -HORIZONTAL_RADIUS; z <= HORIZONTAL_RADIUS; z++) {
-                    Location loc = center.clone().add(x, y, z);
-                    if (loc.getBlock().getType() == Material.BARRIER) {
-                        loc.getBlock().setType(Material.AIR);
-                        barrierBlocksFound++;
+                        Location loc = center.clone().add(x, y, z);
+                        if (loc.getBlock().getType() == Material.BARRIER) {
+                            loc.getBlock().setType(Material.AIR);
+                            barrierBlocksFound++;
+                        }
                     }
                 }
             }
-        }
-        
+            
         return barrierBlocksFound;
     }
     

@@ -1,12 +1,19 @@
 package net.lumalyte;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
-import net.lumalyte.game.TeamQueueManager;
 import net.lumalyte.chest.ChestManager;
 import net.lumalyte.commands.SGCommand;
 import net.lumalyte.customitems.CustomItemsManager;
 import net.lumalyte.game.GameManager;
+import net.lumalyte.game.TeamQueueManager;
 import net.lumalyte.gui.MenuUtils;
 import net.lumalyte.hooks.HookManager;
 import net.lumalyte.listeners.AdminWandListener;
@@ -16,21 +23,12 @@ import net.lumalyte.listeners.FishingListener;
 import net.lumalyte.listeners.PlayerListener;
 import net.lumalyte.statistics.StatisticsManager;
 import net.lumalyte.util.AdminWand;
+import net.lumalyte.util.CacheManager;
 import net.lumalyte.util.ConfigurationManager;
 import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ValidationUtils;
-import net.lumalyte.util.SkinCache;
-import net.lumalyte.util.PlayerDataCache;
-import net.lumalyte.util.InvitationManager;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.PluginManager;
-import org.jetbrains.annotations.NotNull;
-import xyz.xenondevs.invui.InvUI;
-import net.lumalyte.util.CacheManager;
 import net.lumalyte.util.PerformanceProfiler;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import net.lumalyte.util.ValidationUtils;
+import xyz.xenondevs.invui.InvUI;
 
 /**
  * Main plugin class for LumaSG (Survival Games).
@@ -85,6 +83,9 @@ public class LumaSG extends JavaPlugin {
         teamQueueManager = new TeamQueueManager(this);
         
         // Validate managers were created successfully
+        // I imagine someone will look at this one day and ask "why..?"
+        // Because i felt like it. Thats why.
+
         ValidationUtils.requireNonNull(configManager, "Configuration Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
@@ -118,6 +119,9 @@ public class LumaSG extends JavaPlugin {
         // Load chest items AFTER custom items are initialized
         chestManager.loadChestItems();
         
+        // Initialize chest optimization systems after chest manager is ready
+        initializeChestOptimizations();
+        
         // Register commands
         registerCommands();
         
@@ -143,7 +147,8 @@ public class LumaSG extends JavaPlugin {
             debugLogger.warn("PlaceholderAPI not found. Placeholders will not be available.");
             debugLogger.warn("Download PlaceholderAPI from: https://www.spigotmc.org/resources/placeholderapi.6245/");
         }
-        
+
+        // IT'S.... ALIIIIVEE! 
         debugLogger.startup("LumaSG has been enabled!");
     }
     
@@ -152,6 +157,15 @@ public class LumaSG extends JavaPlugin {
         try {
             // Shutdown caching systems first to ensure data persistence
             debugLogger.info("Shutting down advanced caching systems...");
+            
+            // Shutdown scaling optimization systems
+            net.lumalyte.util.GameInstancePool.shutdown();
+            net.lumalyte.util.ArenaWorldCache.shutdown();
+            net.lumalyte.util.ConcurrentChestFiller.shutdown();
+            net.lumalyte.util.LootTableCache.shutdown();
+            debugLogger.info("Scaling optimization systems shutdown completed");
+            
+            // Shutdown core caching systems
             CacheManager.shutdown();
             debugLogger.info("Cache systems shutdown completed");
             
@@ -304,7 +318,7 @@ public class LumaSG extends JavaPlugin {
     
     /**
      * Initializes all advanced caching systems for optimal performance
-     * Features enterprise-level multi-tier caching with Caffeine
+     * Features enterprise-level multi-tier caching with Caffeine optimized for multiple concurrent games
      */
     private void initializeCachingSystems() {
         try {
@@ -316,6 +330,13 @@ public class LumaSG extends JavaPlugin {
             PerformanceProfiler.initialize(this);
             getDebugLogger().info("Initialized PerformanceProfiler with atomic counters and metrics");
             
+            // Initialize scaling optimization systems
+            net.lumalyte.util.GameInstancePool.initialize(this);
+            net.lumalyte.util.ArenaWorldCache.initialize(this);
+            getDebugLogger().info("Initialized scaling systems for 15-20 concurrent games:");
+            getDebugLogger().info("  ✓ GameInstancePool - Caffeine-based game lifecycle management");
+            getDebugLogger().info("  ✓ ArenaWorldCache - Multi-world arena caching system");
+            
             // Initialize core caching systems (already handled by CacheManager)
             getDebugLogger().info("Initialized comprehensive caching architecture:");
             getDebugLogger().info("  ✓ PlayerDataCache - Advanced async loading with write-through");
@@ -326,9 +347,42 @@ public class LumaSG extends JavaPlugin {
             
             getDebugLogger().info("All enterprise caching systems initialized successfully");
             getDebugLogger().info("ExpiringMap dependency eliminated - using pure Caffeine architecture");
+            getDebugLogger().info("System optimized for high-concurrency server environments");
         } catch (Exception e) {
             getDebugLogger().error("Failed to initialize advanced caching systems", e);
             throw new RuntimeException("Critical cache initialization failure", e);
+        }
+    }
+    
+    /**
+     * Initializes chest optimization systems for concurrent game support
+     */
+    private void initializeChestOptimizations() {
+        try {
+            // Initialize concurrent chest filler with the chest manager
+            net.lumalyte.util.ConcurrentChestFiller.initialize(this, chestManager);
+            
+            // Initialize loot table cache for pre-generated loot
+            net.lumalyte.util.LootTableCache.initialize(this, chestManager);
+            
+            // Pre-generate loot tables asynchronously
+            net.lumalyte.util.LootTableCache.preGenerateLootTables().thenRun(() -> {
+                debugLogger.info("Pre-generated loot tables for all tiers completed");
+            });
+            
+            // Pre-cache tier loot for concurrent chest filler
+            net.lumalyte.util.ConcurrentChestFiller.precacheTierLoot().thenRun(() -> {
+                debugLogger.info("Pre-cached tier loot for concurrent chest filling");
+            });
+            
+            debugLogger.info("Chest optimization systems initialized:");
+            debugLogger.info("  ✓ ConcurrentChestFiller - Adaptive thread pool (" + 
+                net.lumalyte.util.ConcurrentChestFiller.getCurrentThreadPoolSize() + " threads, " +
+                (net.lumalyte.util.ConcurrentChestFiller.isUsingAutoCalculation() ? "auto-calculated" : "configured") + ")");
+            debugLogger.info("  ✓ LootTableCache - Pre-generated loot tables (50 chests per tier)");
+            debugLogger.info("  ✓ Tier caching - Optimized loot distribution system");
+        } catch (Exception e) {
+            debugLogger.error("Failed to initialize chest optimization systems", e);
         }
     }
 } 

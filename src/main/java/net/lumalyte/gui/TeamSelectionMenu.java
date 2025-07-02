@@ -371,8 +371,8 @@ public class TeamSelectionMenu {
      * Handles the click action for joining a team
      */
     private void handleTeamJoinClick(Player player, Game game, Team team) {
-        player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-        
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                    
         TeamJoinResult joinResult = validateTeamJoin(player, game, team);
         
         if (!joinResult.canJoin()) {
@@ -397,39 +397,39 @@ public class TeamSelectionMenu {
      * Validates if a player can join a team
      */
     private TeamJoinResult validateTeamJoin(Player player, Game game, Team team) {
-        int teamSize = team.getMemberCount();
-        int maxSize = game.getGameMode().getTeamSize();
-        boolean isFull = teamSize >= maxSize;
-        boolean isInviteOnly = team.isInviteOnly();
-        boolean hasInvite = queueManager.hasInvitation(player.getUniqueId(), team);
-        
-        if (isFull) {
+                    int teamSize = team.getMemberCount();
+                    int maxSize = game.getGameMode().getTeamSize();
+                    boolean isFull = teamSize >= maxSize;
+                    boolean isInviteOnly = team.isInviteOnly();
+                    boolean hasInvite = queueManager.hasInvitation(player.getUniqueId(), team);
+                    
+                    if (isFull) {
             return new TeamJoinResult(false, false, "§cThis team is full!");
-        }
-        
-        if (isInviteOnly && !hasInvite) {
+                    }
+                    
+                    if (isInviteOnly && !hasInvite) {
             return new TeamJoinResult(false, false, "§cYou need an invitation to join this team!");
-        }
-        
+                    }
+                    
         return new TeamJoinResult(true, hasInvite, "");
     }
-    
+                    
     /**
      * Executes the team join action
      */
     private void executeTeamJoin(Player player, Team team, boolean hasInvitation) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            boolean success = queueManager.joinTeam(player, team);
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        boolean success = queueManager.joinTeam(player, team);
             
-            if (success) {
-                player.sendMessage(Component.text("§aJoined Team " + team.getDisplayNumber() + "!", NamedTextColor.GREEN));
-                
+                        if (success) {
+                            player.sendMessage(Component.text("§aJoined Team " + team.getDisplayNumber() + "!", NamedTextColor.GREEN));
+                            
                 if (hasInvitation) {
-                    queueManager.removeInvitation(player.getUniqueId());
-                }
-            } else {
-                player.sendMessage(Component.text("§cFailed to join team!", NamedTextColor.RED));
-            }
-        });
+                                queueManager.removeInvitation(player.getUniqueId());
+                            }
+                        } else {
+                            player.sendMessage(Component.text("§cFailed to join team!", NamedTextColor.RED));
+                        }
+                    });
     }
 } 

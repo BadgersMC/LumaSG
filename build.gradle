@@ -50,8 +50,18 @@ dependencies {
 
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
 
-    // Caching - Advanced Caffeine-based caching system
-    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.1'
+    // Caching
+    shadow 'com.github.ben-manes.caffeine:caffeine:3.2.1'
+    
+    // Testing dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testImplementation 'org.mockito:mockito-core:5.8.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
+    
+    // Test runtime dependencies
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 def targetJavaVersion = 21
@@ -109,6 +119,36 @@ sourceSets {
             srcDirs = ['src/main/resources']
         }
     }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
+        }
+    }
+}
+
+// Test configuration
+test {
+    useJUnitPlatform()
+    
+    // Performance test configuration
+    systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
+    systemProperty 'junit.jupiter.execution.parallel.mode.default', 'concurrent'
+    
+    // Memory settings for performance tests
+    jvmArgs '-Xmx2g', '-XX:+UseG1GC'
+    
+    // Test reporting
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = false
+    }
+    
+    // Timeout for long-running tests
+    timeout = Duration.ofMinutes(10)
 }
 
 // Publishing configuration for GitHub Packages (optional)
