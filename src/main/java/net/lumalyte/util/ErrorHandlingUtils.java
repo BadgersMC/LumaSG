@@ -1,19 +1,20 @@
 package net.lumalyte.util;
 
-import net.lumalyte.exception.LumaSGException;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.function.Predicate;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.exception.LumaSGException;
 
 /**
  * Utility class for advanced error handling, retry mechanisms, and error classification.
@@ -432,12 +433,12 @@ public final class ErrorHandlingUtils {
         private T handleError(Throwable throwable, int currentAttempt) {
             if (currentAttempt >= maxRetries) {
                 logger.log(Level.SEVERE, "All async retry attempts failed for " + operationName, throwable);
-                throw new RuntimeException("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, throwable);
+                throw new IllegalStateException("Operation failed after " + (maxRetries + 1) + " attempts: " + operationName, throwable);
             }
             
             if (!isRecoverableError(throwable)) {
                 logger.log(Level.SEVERE, "Non-recoverable error in async " + operationName + ", aborting retries", throwable);
-                throw new RuntimeException("Non-recoverable error: " + operationName, throwable);
+                throw new IllegalStateException("Non-recoverable error: " + operationName, throwable);
             }
             
             logger.log(Level.WARNING, "Recoverable error in async " + operationName + " (attempt " + (currentAttempt + 1) + "), will retry", throwable);

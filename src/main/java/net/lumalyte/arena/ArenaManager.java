@@ -1,14 +1,5 @@
 package net.lumalyte.arena;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -16,19 +7,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.LumaSG;
+import net.lumalyte.util.BaseManager;
+import net.lumalyte.util.ErrorHandlingUtils;
+
 /**
  * Manages Survival Games arenas, including loading, saving, and providing access to all arenas.
  * Handles asynchronous disk operations for arena persistence.
  */
-public class ArenaManager {
-    /**
-     * Reference to the main plugin instance.
-     */
-    private final @NotNull LumaSG plugin;
-    /**
-     * Debug logger instance for arena management.
-     */
-    private final @NotNull DebugLogger.ContextualLogger logger;
+public class ArenaManager extends BaseManager {
     /**
      * List of all loaded arenas.
      */
@@ -48,8 +42,8 @@ public class ArenaManager {
      * @param plugin The main plugin instance
      */
     public ArenaManager(@NotNull LumaSG plugin) {
-        this.plugin = plugin;
-        this.logger = plugin.getDebugLogger().forContext("ArenaManager");
+        super(plugin, "ArenaManager");
+        
         this.arenas = new CopyOnWriteArrayList<>();
         this.arenaFolder = new File(plugin.getDataFolder(), "arenas");
         
@@ -161,67 +155,25 @@ public class ArenaManager {
      * Loads an arena with retry mechanism for recoverable errors.
      */
     private @Nullable Arena loadArenaWithRetry(@NotNull YamlConfiguration config, @NotNull String arenaName) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                Arena arena = Arena.fromConfig(plugin, config, arenaName);
-                if (arena != null) {
+        try {
+            return ErrorHandlingUtils.executeWithRetry(
+                () -> {
+                    Arena arena = Arena.fromConfig(plugin, config, arenaName);
+                    if (arena == null) {
+                        throw new RuntimeException("Arena.fromConfig returned null for " + arenaName);
+                    }
                     return arena;
-                }
-                
-                if (attempt < 3) {
-                    logger.debug("Arena loading attempt " + attempt + " failed for " + arenaName + ", retrying...");
-                    
-                    // Brief delay before retry
-                    try {
-                        Thread.sleep(100 * attempt); // Exponential backoff
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
-                
-            } catch (Exception e) {
-                if (isRecoverableError(e)) {
-                    if (attempt < 3) {
-                        logger.warn("Recoverable error loading arena " + arenaName + 
-                            " (attempt " + attempt + "/" + 3 + "): " + e.getMessage());
-                        
-                        try {
-                            Thread.sleep(200 * attempt);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                    } else {
-                        logger.severe("Arena " + arenaName + " failed to load after " + 3 + " attempts: " + e.getMessage());
-                    }
-                } else {
-                    // Non-recoverable error, don't retry
-                    logger.severe("Non-recoverable error loading arena " + arenaName + ": " + e.getMessage(), e);
-                    break;
-                }
-            }
+                },
+                3, // maxRetries
+                100L, // initialDelayMs
+                2.0, // backoffMultiplier
+                plugin.getLogger(),
+                "Arena Loading: " + arenaName
+            );
+        } catch (Exception e) {
+            logger.severe("Failed to load arena " + arenaName + " after all retry attempts: " + e.getMessage());
+            return null;
         }
-        
-        return null;
-    }
-    
-    /**
-     * Determines if an error is recoverable and should trigger a retry.
-     */
-    private boolean isRecoverableError(@NotNull Throwable error) {
-        String message = error.getMessage();
-        if (message == null) {
-            return false;
-        }
-        
-        // World loading errors might be temporary
-        if (message.contains("world") || message.contains("location")) {
-            return true;
-        }
-        
-        // IO errors might be temporary
-        return error instanceof java.io.IOException;
     }
     
     /**

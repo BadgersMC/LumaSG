@@ -1,14 +1,15 @@
 package net.lumalyte.util;
 
-import net.lumalyte.LumaSG;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+
+import net.lumalyte.LumaSG;
 
 /**
  * Advanced performance profiling system for LumaSG
@@ -30,7 +31,6 @@ public class PerformanceProfiler {
     private static final LongAdder totalOperations = new LongAdder();
     private static final LongAdder cacheOperations = new LongAdder();
     private static final LongAdder databaseOperations = new LongAdder();
-    private static final AtomicLong averageResponseTime = new AtomicLong(0);
     
     // Concurrent performance tracking
     private static final ConcurrentHashMap<String, PerformanceMetric> operationMetrics = new ConcurrentHashMap<>();

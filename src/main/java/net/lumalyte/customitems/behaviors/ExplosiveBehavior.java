@@ -1,12 +1,18 @@
 package net.lumalyte.customitems.behaviors;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.customitems.CustomItemBehavior;
-import net.lumalyte.game.Game;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
-import org.bukkit.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
@@ -23,8 +29,12 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import net.lumalyte.LumaSG;
+import net.lumalyte.customitems.CustomItem;
+import net.lumalyte.customitems.CustomItemBehavior;
+import net.lumalyte.game.Game;
+import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.MiniMessageUtils;
 
 /**
  * Handles explosive custom item behaviors including fire bombs and poison bombs.
@@ -364,7 +374,7 @@ public class ExplosiveBehavior implements Listener {
         }
         
         for (Player player : world.getPlayers()) {
-            if (!damagesThrower && thrower != null && player.equals(thrower)) {
+            if (shouldSkipPlayerForThrowerDamage(player, thrower, damagesThrower)) {
                 continue;
             }
             
@@ -399,7 +409,7 @@ public class ExplosiveBehavior implements Listener {
         }
         
         for (Player player : world.getPlayers()) {
-            if (!damagesThrower && thrower != null && player.equals(thrower)) {
+            if (shouldSkipPlayerForThrowerDamage(player, thrower, damagesThrower)) {
                 continue;
             }
             
@@ -415,6 +425,18 @@ public class ExplosiveBehavior implements Listener {
                 }
             }
         }
+    }
+    
+    /**
+     * Determines if a player should be skipped for thrower damage protection.
+     * 
+     * @param player The player to check
+     * @param thrower The player who threw the explosive (may be null)
+     * @param damagesThrower Whether the explosive should damage its thrower
+     * @return true if the player should be skipped, false otherwise
+     */
+    private boolean shouldSkipPlayerForThrowerDamage(@NotNull Player player, @Nullable Player thrower, boolean damagesThrower) {
+        return !damagesThrower && thrower != null && player.equals(thrower);
     }
     
     /**

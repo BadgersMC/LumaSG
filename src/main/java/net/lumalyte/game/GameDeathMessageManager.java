@@ -1,23 +1,5 @@
 package net.lumalyte.game;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.title.Title;
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import org.bukkit.Material;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,6 +10,26 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import javax.imageio.ImageIO;
+
+import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
+import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.MiniMessageUtils;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * Handles death message formatting and display in games.
@@ -139,15 +141,61 @@ public class GameDeathMessageManager {
         }
         
         Material type = weapon.getType();
-        if (type.name().endsWith("_SWORD")) return "sword";
-        if (type.name().endsWith("_AXE")) return "axe";
-        if (type == Material.BOW) return "bow";
-        if (type == Material.CROSSBOW) return "crossbow";
-        if (type == Material.TRIDENT) return "trident";
-        if (type == Material.TNT || type.name().contains("TNT") || 
-            type.name().contains("EXPLOSIVE")) return "explosive";
+        String materialName = type.name();
+        
+        // Check weapon types using helper methods for clarity
+        if (isSwordType(materialName)) return "sword";
+        if (isAxeType(materialName)) return "axe";
+        if (isBowType(type)) return "bow";
+        if (isCrossbowType(type)) return "crossbow";
+        if (isTridentType(type)) return "trident";
+        if (isExplosiveType(type, materialName)) return "explosive";
         
         return "other";
+    }
+    
+    /**
+     * Checks if the material is a sword type.
+     */
+    private boolean isSwordType(@NotNull String materialName) {
+        return materialName.endsWith("_SWORD");
+    }
+    
+    /**
+     * Checks if the material is an axe type.
+     */
+    private boolean isAxeType(@NotNull String materialName) {
+        return materialName.endsWith("_AXE");
+    }
+    
+    /**
+     * Checks if the material is a bow.
+     */
+    private boolean isBowType(@NotNull Material type) {
+        return type == Material.BOW;
+    }
+    
+    /**
+     * Checks if the material is a crossbow.
+     */
+    private boolean isCrossbowType(@NotNull Material type) {
+        return type == Material.CROSSBOW;
+    }
+    
+    /**
+     * Checks if the material is a trident.
+     */
+    private boolean isTridentType(@NotNull Material type) {
+        return type == Material.TRIDENT;
+    }
+    
+    /**
+     * Checks if the material is an explosive type.
+     */
+    private boolean isExplosiveType(@NotNull Material type, @NotNull String materialName) {
+        return type == Material.TNT || 
+               materialName.contains("TNT") || 
+               materialName.contains("EXPLOSIVE");
     }
     
     /**

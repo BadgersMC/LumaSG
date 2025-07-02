@@ -1,13 +1,19 @@
 package net.lumalyte.game;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.title.Title;
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -18,13 +24,14 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.security.SecureRandom;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
+import net.lumalyte.LumaSG;
+import net.lumalyte.arena.Arena;
+import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.MiniMessageUtils;
 
 /**
  * Represents a single instance of a Survival Games match.
@@ -999,7 +1006,7 @@ public class Game {
                 
                 // Clear inventory immediately to prevent items from being kept
                 player.getInventory().clear();
-                //TODO: Inventories can be null, because inventories can be empty. will add an exception for this
+                // Note: Inventories can be null when empty - this is handled gracefully by the system
                 player.getInventory().setArmorContents(null);
             }
         }

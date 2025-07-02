@@ -63,6 +63,24 @@ public class LumaSG extends JavaPlugin {
         // Initialize debug logger early
         debugLogger = new DebugLogger(this);
         
+        // Initialize core systems
+        initializeCoreComponents();
+        
+        // Initialize and start managers
+        initializeAndStartManagers();
+        
+        // Setup periodic tasks and integrations
+        setupPeriodicTasks();
+        setupExternalIntegrations();
+
+        // IT'S.... ALIIIIVEE! 
+        debugLogger.startup("LumaSG has been enabled!");
+    }
+    
+    /**
+     * Initializes core components including caching, configuration, and GUI systems.
+     */
+    private void initializeCoreComponents() {
         // Initialize caching systems
         initializeCachingSystems();
         
@@ -70,6 +88,14 @@ public class LumaSG extends JavaPlugin {
         configManager = new ConfigurationManager(this);
         configManager.updateAllConfigs();
         
+        // Initialize GUI system
+        MenuUtils.initialize(this);
+    }
+    
+    /**
+     * Initializes, validates, and starts all manager components.
+     */
+    private void initializeAndStartManagers() {
         // Initialize managers
         arenaManager = new ArenaManager(this);
         gameManager = new GameManager(this);
@@ -83,23 +109,7 @@ public class LumaSG extends JavaPlugin {
         teamQueueManager = new TeamQueueManager(this);
         
         // Validate managers were created successfully
-        // I imagine someone will look at this one day and ask "why..?"
-        // Because i felt like it. Thats why.
-
-        ValidationUtils.requireNonNull(configManager, "Configuration Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(chestManager, "Chest Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(customItemsManager, "Custom Items Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(hookManager, "Hook Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(statisticsManager, "Statistics Manager", "Plugin Initialization");
-        ValidationUtils.requireNonNull(adminWandListener, "Admin Wand Listener", "Plugin Initialization");
-        ValidationUtils.requireNonNull(customItemListener, "Custom Item Listener", "Plugin Initialization");
-        ValidationUtils.requireNonNull(adminWand, "Admin Wand", "Plugin Initialization");
-        ValidationUtils.requireNonNull(teamQueueManager, "Team Queue Manager", "Plugin Initialization");
-        
-        // Initialize GUI system
-        MenuUtils.initialize(this);
+        validateManagers();
         
         // Start managers
         arenaManager.start();
@@ -122,12 +132,34 @@ public class LumaSG extends JavaPlugin {
         // Initialize chest optimization systems after chest manager is ready
         initializeChestOptimizations();
         
-        // Register commands
+        // Register commands and event listeners
         registerCommands();
-        
-        // Register event listeners
         registerListeners();
-        
+    }
+    
+    /**
+     * Validates that all manager instances were created successfully.
+     */
+    private void validateManagers() {
+        // I imagine someone will look at this one day and ask "why..?"
+        // Because i felt like it. Thats why.
+        ValidationUtils.requireNonNull(configManager, "Configuration Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(chestManager, "Chest Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(customItemsManager, "Custom Items Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(hookManager, "Hook Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(statisticsManager, "Statistics Manager", "Plugin Initialization");
+        ValidationUtils.requireNonNull(adminWandListener, "Admin Wand Listener", "Plugin Initialization");
+        ValidationUtils.requireNonNull(customItemListener, "Custom Item Listener", "Plugin Initialization");
+        ValidationUtils.requireNonNull(adminWand, "Admin Wand", "Plugin Initialization");
+        ValidationUtils.requireNonNull(teamQueueManager, "Team Queue Manager", "Plugin Initialization");
+    }
+    
+    /**
+     * Sets up periodic cleanup and maintenance tasks.
+     */
+    private void setupPeriodicTasks() {
         // Start periodic cleanup task for orphaned games (every 5 minutes)
         getServer().getScheduler().runTaskTimer(this, () -> {
             try {
@@ -139,7 +171,12 @@ public class LumaSG extends JavaPlugin {
                 debugLogger.error("Error during periodic game cleanup", e);
             }
         }, 6000L, 6000L); // First run after 5 minutes, then every 5 minutes
-        
+    }
+    
+    /**
+     * Sets up integrations with external plugins.
+     */
+    private void setupExternalIntegrations() {
         // Check for PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             debugLogger.startup("PlaceholderAPI found! Registering placeholders...");
@@ -147,9 +184,6 @@ public class LumaSG extends JavaPlugin {
             debugLogger.warn("PlaceholderAPI not found. Placeholders will not be available.");
             debugLogger.warn("Download PlaceholderAPI from: https://www.spigotmc.org/resources/placeholderapi.6245/");
         }
-
-        // IT'S.... ALIIIIVEE! 
-        debugLogger.startup("LumaSG has been enabled!");
     }
     
     @Override
@@ -219,7 +253,7 @@ public class LumaSG extends JavaPlugin {
     
     private void registerCommands() {
         // Register the SG command using Paper's command system
-        SGCommand sgCommand = new SGCommand(this);
+        new SGCommand(this);
         // The command will be registered via the LumaSGBootstrap class
         debugLogger.debug("Created 'sg' command using Paper's command system");
     }
@@ -350,7 +384,7 @@ public class LumaSG extends JavaPlugin {
             getDebugLogger().info("System optimized for high-concurrency server environments");
         } catch (Exception e) {
             getDebugLogger().error("Failed to initialize advanced caching systems", e);
-            throw new RuntimeException("Critical cache initialization failure", e);
+            throw new IllegalStateException("Critical cache initialization failure", e);
         }
     }
     

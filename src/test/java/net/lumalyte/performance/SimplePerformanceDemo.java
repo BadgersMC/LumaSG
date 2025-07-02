@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.lumalyte.util.TestUtils;
+
 /**
  * Standalone performance demonstration that validates our optimization algorithms
  * without requiring Bukkit APIs or complex mocking
@@ -62,7 +64,7 @@ public class SimplePerformanceDemo {
         // Sequential execution
         Instant sequentialStart = Instant.now();
         for (int i = 0; i < taskCount; i++) {
-            simulateWork(taskDurationMs);
+            TestUtils.simulateWork(taskDurationMs);
         }
         Duration sequentialTime = Duration.between(sequentialStart, Instant.now());
         
@@ -72,7 +74,7 @@ public class SimplePerformanceDemo {
         
         Instant concurrentStart = Instant.now();
         for (int i = 0; i < taskCount; i++) {
-            futures.add(CompletableFuture.runAsync(() -> simulateWork(taskDurationMs), executor));
+            futures.add(CompletableFuture.runAsync(() -> TestUtils.simulateWork(taskDurationMs), executor));
         }
         
         // Wait for all tasks to complete
@@ -171,7 +173,7 @@ public class SimplePerformanceDemo {
                 for (int chestId = 0; chestId < chestsPerGame; chestId++) {
                     chestFutures.add(CompletableFuture.runAsync(() -> {
                         // Simulate optimized chest processing (0.1ms instead of 5ms due to caching)
-                        simulateWork(0.1);
+                        TestUtils.simulateWork(0.1);
                         totalChestsProcessed.incrementAndGet();
                     }, chestExecutor));
                 }
@@ -182,7 +184,7 @@ public class SimplePerformanceDemo {
                 // Simulate player processing
                 for (int playerId = 0; playerId < playersPerGame; playerId++) {
                     // Simulate cached player data access (0.01ms instead of 1ms)
-                    simulateWork(0.01);
+                    TestUtils.simulateWork(0.01);
                     totalPlayersProcessed.incrementAndGet();
                 }
                 
@@ -274,26 +276,9 @@ public class SimplePerformanceDemo {
         return "Enterprise Server (" + cores + " cores)";
     }
     
-    private void simulateWork(double milliseconds) {
-        try {
-            if (milliseconds >= 1) {
-                Thread.sleep((long) milliseconds);
-            } else {
-                // For sub-millisecond delays, use busy waiting
-                long nanos = (long) (milliseconds * 1_000_000);
-                long start = System.nanoTime();
-                while (System.nanoTime() - start < nanos) {
-                    // Busy wait
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-    
     private String simulateExpensiveComputation(String key) {
         // Simulate 1ms computation
-        simulateWork(1);
+        TestUtils.simulateWork(1);
         return "computed-" + key + "-" + ThreadLocalRandom.current().nextInt(1000);
     }
 } 

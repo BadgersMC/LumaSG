@@ -1,11 +1,8 @@
 package net.lumalyte.listeners;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.chest.ChestManager;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.game.GameState;
-import net.lumalyte.util.DebugLogger;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -21,9 +18,12 @@ import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import net.lumalyte.LumaSG;
+import net.lumalyte.chest.ChestManager;
+import net.lumalyte.game.Game;
+import net.lumalyte.game.GameManager;
+import net.lumalyte.game.GameState;
+import net.lumalyte.util.DebugLogger;
 
 /**
  * Handles all chest-related events in Survival Games.
@@ -70,8 +70,6 @@ public class ChestListener implements Listener {
         this.gameManager = plugin.getGameManager();
         this.logger = plugin.getDebugLogger().forContext("ChestListener");
         this.openedChests = new HashSet<>();
-		// For future use
-		Random random = new Random();
     }
     
     /**

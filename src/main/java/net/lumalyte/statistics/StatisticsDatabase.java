@@ -1,13 +1,12 @@
 package net.lumalyte.statistics;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.StatisticsColumnMapper;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -16,6 +15,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.StatisticsColumnMapper;
 
 /**
  * Manages SQLite database operations for player statistics.
@@ -119,7 +125,7 @@ public class StatisticsDatabase {
                 logger.info("Statistics database initialized successfully");
             } catch (SQLException e) {
                 logger.severe("Failed to initialize statistics database", e);
-                throw new RuntimeException("Database initialization failed", e);
+                throw new IllegalStateException("Database initialization failed", e);
             }
         }, executorService);
     }
@@ -178,7 +184,7 @@ public class StatisticsDatabase {
                 logger.debug("Saved statistics for player: " + stats.getPlayerName());
             } catch (SQLException e) {
                 logger.severe("Failed to save player statistics for " + stats.getPlayerName(), e);
-                throw new RuntimeException("Failed to save player statistics", e);
+                throw new IllegalStateException("Failed to save player statistics", e);
             }
         }, executorService);
     }
@@ -205,7 +211,7 @@ public class StatisticsDatabase {
                 return null; // Player not found
             } catch (SQLException e) {
                 logger.severe("Failed to load player statistics for " + playerId, e);
-                throw new RuntimeException("Failed to load player statistics", e);
+                throw new IllegalStateException("Failed to load player statistics", e);
             }
         }, executorService);
     }
@@ -239,7 +245,7 @@ public class StatisticsDatabase {
                 }
             } catch (SQLException e) {
                 logger.severe("Failed to load leaderboard for " + statType, e);
-                throw new RuntimeException("Failed to load leaderboard", e);
+                throw new IllegalStateException("Failed to load leaderboard", e);
             }
             
             return leaderboard;
@@ -263,7 +269,7 @@ public class StatisticsDatabase {
                 return 0;
             } catch (SQLException e) {
                 logger.severe("Failed to get total player count", e);
-                throw new RuntimeException("Failed to get total player count", e);
+                throw new IllegalStateException("Failed to get total player count", e);
             }
         }, executorService);
     }

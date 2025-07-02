@@ -912,142 +912,12 @@ public class GameCelebrationManager {
      */
     private void displayPixelArt(@NotNull Player winner, @NotNull BufferedImage image, @NotNull String character, int targetSize, @Nullable Component deathMessage) {
         try {
-            BufferedImage processedImage = image;
+            BufferedImage processedImage = scaleImageIfNeeded(image, targetSize);
+            Component[] pixelArt = convertImageToPixelArt(processedImage, character, targetSize);
             
-            // Scale image to desired size if needed
-            if (image.getWidth() != targetSize || image.getHeight() != targetSize) {
-                logger.debug("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + targetSize + "x" + targetSize);
-                processedImage = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_ARGB);
-                java.awt.Graphics2D g2d = processedImage.createGraphics();
-                try {
-                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                    g2d.drawImage(image, 0, 0, targetSize, targetSize, null);
-                } finally {
-                    g2d.dispose();
-                }
-            }
+            displayPixelArtWithMessages(pixelArt, winner, deathMessage, targetSize);
             
-            // Convert image to components with consistent character usage
-            Component[] pixelArt = new Component[targetSize];
-            String pixelChar = character.isEmpty() ? "⬛" : character;
-            
-            for (int y = 0; y < targetSize; y++) {
-                Component row = Component.text("");
-                for (int x = 0; x < targetSize; x++) {
-                    int rgba = processedImage.getRGB(x, y);
-                    int alpha = (rgba >> 24) & 0xFF;
-                    
-                    // Handle transparent pixels with consistent character
-                    if (alpha < 128) {
-                        row = row.append(Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.BLACK));
-                        continue;
-                    }
-                    
-                    int r = (rgba >> 16) & 0xFF;
-                    int g = (rgba >> 8) & 0xFF;
-                    int b = rgba & 0xFF;
-                    
-                    // Create hex color string
-                    String hexColor = String.format("#%02x%02x%02x", r, g, b);
-                    try {
-                        net.kyori.adventure.text.format.TextColor color = net.kyori.adventure.text.format.TextColor.fromHexString(hexColor);
-                        row = row.append(Component.text(pixelChar).color(color));
-                    } catch (Exception e) {
-                        // Fallback to white if color parsing fails
-                        row = row.append(Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.WHITE));
-                    }
-                }
-                pixelArt[y] = row;
-            }
-            
-            // Show pixel art in chat with winner message positioned to the right
-            logger.debug("Displaying pixel art for " + winner.getName());
-            broadcastMessage(Component.text("")); // Empty line before pixel art
-            
-            // Calculate layout positions based on whether we have a death message
-            int winnerRow, deathMessageRow, configMessageRow;
-            Component winnerMessage, configuredMessage;
-            
-            if (deathMessage != null) {
-                // With death message: move winner up, add death message, then configured message
-                winnerRow = targetSize / 2 - 2;
-                deathMessageRow = targetSize / 2;
-                configMessageRow = targetSize / 2 + 2;
-                
-                // Create messages
-                winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", 
-                    net.kyori.adventure.text.format.NamedTextColor.GOLD, 
-                    net.kyori.adventure.text.format.TextDecoration.BOLD);
-                
-                // Get configured winner message
-                String winMsg = plugin.getConfig().getString("rewards.winner-announcement.message", 
-                    "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!");
-                
-                // Create placeholders for the configured message
-                Map<String, String> placeholders = new HashMap<>();
-                placeholders.put("player", winner.getName());
-                placeholders.put("kills", String.valueOf(playerManager.getPlayerKills(winner.getUniqueId())));
-                placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
-                
-                configuredMessage = Component.text("   ").append(MiniMessageUtils.parseMessage(winMsg, placeholders));
-            } else {
-                // Without death message: centered winner message
-                winnerRow = targetSize / 2;
-                deathMessageRow = -1; // Not used
-                configMessageRow = -1; // Not used
-                
-                winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", 
-                    net.kyori.adventure.text.format.NamedTextColor.GOLD, 
-                    net.kyori.adventure.text.format.TextDecoration.BOLD);
-                configuredMessage = null;
-            }
-            
-            // Create bracket components for winner message
-            Component topBracket = Component.text("   ╔══════════════════╗", net.kyori.adventure.text.format.NamedTextColor.GOLD);
-            Component bottomBracket = Component.text("   ╚══════════════════╝", net.kyori.adventure.text.format.NamedTextColor.GOLD);
-            
-            // Display pixel art with messages positioned to the right
-            for (int y = 0; y < targetSize; y++) {
-                Component line = pixelArt[y];
-                
-                if (deathMessage != null) {
-                    // Layout with death message
-                    if (y == winnerRow - 1) {
-                        // Top bracket for winner
-                        line = line.append(topBracket);
-                    } else if (y == winnerRow) {
-                        // Winner message
-                        line = line.append(winnerMessage);
-                    } else if (y == winnerRow + 1) {
-                        // Bottom bracket for winner
-                        line = line.append(bottomBracket);
-                    } else if (y == deathMessageRow) {
-                        // Death message with spacing
-                        line = line.append(Component.text("   ").append(deathMessage));
-                    } else if (y == configMessageRow && configuredMessage != null) {
-                        // Configured message
-                        line = line.append(configuredMessage);
-                    }
-                } else {
-                    // Layout without death message (original centered layout)
-                    if (y == winnerRow - 1) {
-                        // Top bracket
-                        line = line.append(topBracket);
-                    } else if (y == winnerRow) {
-                        // Winner message
-                        line = line.append(winnerMessage);
-                    } else if (y == winnerRow + 1) {
-                        // Bottom bracket
-                        line = line.append(bottomBracket);
-                    }
-                }
-                
-                broadcastMessage(line);
-            }
-            
-            broadcastMessage(Component.text("")); // Empty line after pixel art
-            
-            // Dispose of scaled image if we created one
+            // Clean up scaled image if we created one
             if (processedImage != image) {
                 processedImage.flush();
             }
@@ -1055,6 +925,168 @@ public class GameCelebrationManager {
         } catch (Exception e) {
             logger.warn("Error displaying pixel art: " + e.getMessage());
             // Skip pixel art display if there's an error
+        }
+    }
+    
+    /**
+     * Scales an image to the target size if needed.
+     */
+    private BufferedImage scaleImageIfNeeded(@NotNull BufferedImage image, int targetSize) {
+        if (image.getWidth() == targetSize && image.getHeight() == targetSize) {
+            return image;
+        }
+        
+        logger.debug("Scaling image from " + image.getWidth() + "x" + image.getHeight() + " to " + targetSize + "x" + targetSize);
+        BufferedImage scaledImage = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g2d = scaledImage.createGraphics();
+        try {
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g2d.drawImage(image, 0, 0, targetSize, targetSize, null);
+        } finally {
+            g2d.dispose();
+        }
+        return scaledImage;
+    }
+    
+    /**
+     * Converts a BufferedImage to pixel art components.
+     */
+    private Component[] convertImageToPixelArt(@NotNull BufferedImage image, @NotNull String character, int targetSize) {
+        Component[] pixelArt = new Component[targetSize];
+        String pixelChar = character.isEmpty() ? "⬛" : character;
+        
+        for (int y = 0; y < targetSize; y++) {
+            Component row = Component.text("");
+            for (int x = 0; x < targetSize; x++) {
+                row = row.append(createPixelComponent(image.getRGB(x, y), pixelChar));
+            }
+            pixelArt[y] = row;
+        }
+        return pixelArt;
+    }
+    
+    /**
+     * Creates a single pixel component with appropriate color.
+     */
+    private Component createPixelComponent(int rgba, @NotNull String pixelChar) {
+        int alpha = (rgba >> 24) & 0xFF;
+        
+        // Handle transparent pixels
+        if (alpha < 128) {
+            return Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.BLACK);
+        }
+        
+        int r = (rgba >> 16) & 0xFF;
+        int g = (rgba >> 8) & 0xFF;
+        int b = rgba & 0xFF;
+        
+        String hexColor = String.format("#%02x%02x%02x", r, g, b);
+        try {
+            net.kyori.adventure.text.format.TextColor color = net.kyori.adventure.text.format.TextColor.fromHexString(hexColor);
+            return Component.text(pixelChar).color(color);
+        } catch (Exception e) {
+            return Component.text(pixelChar, net.kyori.adventure.text.format.NamedTextColor.WHITE);
+        }
+    }
+    
+    /**
+     * Displays pixel art with winner messages positioned appropriately.
+     */
+    private void displayPixelArtWithMessages(@NotNull Component[] pixelArt, @NotNull Player winner, @Nullable Component deathMessage, int targetSize) {
+        broadcastMessage(Component.text("")); // Empty line before pixel art
+        
+        MessageLayout layout = createMessageLayout(winner, deathMessage, targetSize);
+        
+        for (int y = 0; y < targetSize; y++) {
+            Component line = pixelArt[y];
+            Component messageComponent = layout.getMessageForRow(y);
+            
+            if (messageComponent != null) {
+                line = line.append(messageComponent);
+            }
+            
+            broadcastMessage(line);
+        }
+        
+        broadcastMessage(Component.text("")); // Empty line after pixel art
+    }
+    
+    /**
+     * Creates a message layout for displaying alongside pixel art.
+     */
+    private MessageLayout createMessageLayout(@NotNull Player winner, @Nullable Component deathMessage, int targetSize) {
+        Component winnerMessage = Component.text("   ║ 👑 WINNER: " + winner.getName() + " 👑 ║", 
+            net.kyori.adventure.text.format.NamedTextColor.GOLD, 
+            net.kyori.adventure.text.format.TextDecoration.BOLD);
+        Component topBracket = Component.text("   ╔══════════════════╗", net.kyori.adventure.text.format.NamedTextColor.GOLD);
+        Component bottomBracket = Component.text("   ╚══════════════════╝", net.kyori.adventure.text.format.NamedTextColor.GOLD);
+        
+        if (deathMessage != null) {
+            return createLayoutWithDeathMessage(winnerMessage, topBracket, bottomBracket, deathMessage, winner, targetSize);
+        } else {
+            return createSimpleLayout(winnerMessage, topBracket, bottomBracket, targetSize);
+        }
+    }
+    
+    /**
+     * Creates a layout that includes death message.
+     */
+    private MessageLayout createLayoutWithDeathMessage(@NotNull Component winnerMessage, @NotNull Component topBracket, 
+            @NotNull Component bottomBracket, @NotNull Component deathMessage, @NotNull Player winner, int targetSize) {
+        
+        int winnerRow = targetSize / 2 - 2;
+        int deathMessageRow = targetSize / 2;
+        int configMessageRow = targetSize / 2 + 2;
+        
+        // Get configured winner message
+        String winMsg = plugin.getConfig().getString("rewards.winner-announcement.message", 
+            "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!");
+        
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("player", winner.getName());
+        placeholders.put("kills", String.valueOf(playerManager.getPlayerKills(winner.getUniqueId())));
+        placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
+        
+        Component configuredMessage = Component.text("   ").append(MiniMessageUtils.parseMessage(winMsg, placeholders));
+        
+        MessageLayout layout = new MessageLayout();
+        layout.addMessage(winnerRow - 1, topBracket);
+        layout.addMessage(winnerRow, winnerMessage);
+        layout.addMessage(winnerRow + 1, bottomBracket);
+        layout.addMessage(deathMessageRow, Component.text("   ").append(deathMessage));
+        layout.addMessage(configMessageRow, configuredMessage);
+        
+        return layout;
+    }
+    
+    /**
+     * Creates a simple centered layout without death message.
+     */
+    private MessageLayout createSimpleLayout(@NotNull Component winnerMessage, @NotNull Component topBracket, 
+            @NotNull Component bottomBracket, int targetSize) {
+        
+        int winnerRow = targetSize / 2;
+        
+        MessageLayout layout = new MessageLayout();
+        layout.addMessage(winnerRow - 1, topBracket);
+        layout.addMessage(winnerRow, winnerMessage);
+        layout.addMessage(winnerRow + 1, bottomBracket);
+        
+        return layout;
+    }
+    
+    /**
+     * Helper class to manage message positioning in pixel art display.
+     */
+    private static class MessageLayout {
+        private final Map<Integer, Component> messages = new HashMap<>();
+        
+        void addMessage(int row, @NotNull Component message) {
+            messages.put(row, message);
+        }
+        
+        @Nullable Component getMessageForRow(int row) {
+            return messages.get(row);
         }
     }
     

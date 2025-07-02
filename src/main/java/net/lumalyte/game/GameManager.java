@@ -1,15 +1,5 @@
 package net.lumalyte.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.exception.LumaSGException;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ErrorHandlingUtils;
-import net.lumalyte.util.ValidationUtils;
-import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +8,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.LumaSG;
+import net.lumalyte.arena.Arena;
+import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.util.BaseManager;
+import net.lumalyte.util.ErrorHandlingUtils;
+import net.lumalyte.util.ValidationUtils;
 
 /**
  * Manages all active games and game lifecycle operations.
@@ -34,10 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @version 1.0
  * @since 1.0
  */
-public class GameManager {
-    
-    /** The plugin instance for logging and configuration access */
-    private final @NotNull LumaSG plugin;
+public class GameManager extends BaseManager {
     
     /** Registry of all currently active games, mapped by game ID */
     private final @NotNull Map<String, Game> activeGames;
@@ -47,9 +45,6 @@ public class GameManager {
     
     /** Circuit breaker for game creation failures */
     private final @NotNull ErrorHandlingUtils.CircuitBreaker gameCreationCircuitBreaker;
-    
-    /** The debug logger instance for this game manager */
-    private final @NotNull DebugLogger.ContextualLogger logger;
 
     /**
      * Constructs a new GameManager instance.
@@ -57,13 +52,11 @@ public class GameManager {
      * @param plugin The plugin instance
 	 */
     public GameManager(@NotNull LumaSG plugin) {
-        ValidationUtils.requireNonNull(plugin, "Plugin Instance", "GameManager Creation");
+        super(plugin, "GameManager");
         
-        this.plugin = plugin;
         this.activeGames = new ConcurrentHashMap<>();
         this.allGames = new CopyOnWriteArrayList<>();
         this.gameCreationCircuitBreaker = new ErrorHandlingUtils.CircuitBreaker(5, 60000L); // 5 failures, 1 minute reset
-        this.logger = plugin.getDebugLogger().forContext("GameManager");
         
         logger.info("GameManager initialized successfully");
     }
@@ -89,14 +82,14 @@ public class GameManager {
                         try {
                             return createGameInternal(arena);
                         } catch (LumaSGException e) {
-                            throw new RuntimeException("Game creation failed", e);
+                            throw new IllegalStateException("Game creation failed", e);
                         }
                     }, plugin.getLogger(), "Game Creation in Arena: " + arena.getName());
                 } catch (Exception e) {
                     if (e.getCause() instanceof LumaSGException) {
-                        throw new RuntimeException("Game creation failed", e.getCause());
+                        throw new IllegalStateException("Game creation failed", e.getCause());
                     }
-                    throw new RuntimeException("Game creation failed", e);
+                    throw new IllegalStateException("Game creation failed", e);
                 }
             }, plugin.getLogger(), "Game Creation Circuit Breaker");
             
@@ -198,8 +191,25 @@ public class GameManager {
      * @throws LumaSGException if the game state is invalid
      */
     private void validateGameState(@NotNull Game game) throws LumaSGException {
-
-		// Additional state validation can be added here
+        // Validate that the game was properly initialized
+        if (game.getGameId() == null) {
+            throw LumaSGException.gameError("Game created without a valid game ID");
+        }
+        
+        if (game.getArena() == null) {
+            throw LumaSGException.gameError("Game created without a valid arena");
+        }
+        
+        if (game.getState() == null) {
+            throw LumaSGException.gameError("Game created without a valid initial state");
+        }
+        
+        // Ensure the game starts in the correct state
+        if (game.getState() != GameState.WAITING) {
+            throw LumaSGException.gameError("Newly created game should be in WAITING state, but is in " + game.getState());
+        }
+        
+        // Additional state validation can be added here as needed
     }
 
     /**

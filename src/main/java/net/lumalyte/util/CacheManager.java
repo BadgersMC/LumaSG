@@ -126,7 +126,7 @@ public class CacheManager {
             logger.info("All cache subsystems initialized successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize cache subsystems", e);
-            throw new RuntimeException("Cache initialization failed", e);
+            throw new IllegalStateException("Cache initialization failed", e);
         }
     }
     
