@@ -7,7 +7,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
 /**
@@ -23,7 +23,7 @@ public class HookManager {
     
     public HookManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
-        this.hooks = new HashMap<>();
+        this.hooks = new ConcurrentHashMap<>();
         this.logger = plugin.getDebugLogger().forContext("HookManager");
     }
     

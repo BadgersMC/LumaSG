@@ -19,10 +19,15 @@ import net.lumalyte.util.AdminWand;
 import net.lumalyte.util.ConfigurationManager;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
+import net.lumalyte.util.SkinCache;
+import net.lumalyte.util.PlayerDataCache;
+import net.lumalyte.util.InvitationManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.InvUI;
+import net.lumalyte.util.CacheManager;
+import net.lumalyte.util.PerformanceProfiler;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,6 +64,9 @@ public class LumaSG extends JavaPlugin {
         
         // Initialize debug logger early
         debugLogger = new DebugLogger(this);
+        
+        // Initialize caching systems
+        initializeCachingSystems();
         
         // Initialize configuration manager and update configs
         configManager = new ConfigurationManager(this);
@@ -287,5 +295,36 @@ public class LumaSG extends JavaPlugin {
      */
     public @NotNull ConfigurationManager getConfigManager() {
         return configManager;
+    }
+    
+    /**
+     * Initializes all caching systems for optimal performance
+     */
+    private void initializeCachingSystems() {
+        try {
+            // Initialize centralized cache manager
+            CacheManager.initialize(this);
+            getDebugLogger().info("Initialized CacheManager with multi-tier Caffeine caching");
+            
+            // Initialize performance profiler
+            PerformanceProfiler.initialize(this);
+            getDebugLogger().info("Initialized PerformanceProfiler with thread-safe metrics");
+            
+            // Initialize skin caching system
+            SkinCache.initialize(this);
+            getDebugLogger().info("Initialized SkinCache with Caffeine");
+            
+            // Initialize player data caching system
+            PlayerDataCache.initialize(this);
+            getDebugLogger().info("Initialized PlayerDataCache with Caffeine");
+            
+            // Initialize invitation management system
+            InvitationManager.initialize(this);
+            getDebugLogger().info("Initialized InvitationManager with Caffeine");
+            
+            getDebugLogger().info("All caching systems initialized successfully");
+        } catch (Exception e) {
+            getDebugLogger().error("Failed to initialize caching systems", e);
+        }
     }
 } 

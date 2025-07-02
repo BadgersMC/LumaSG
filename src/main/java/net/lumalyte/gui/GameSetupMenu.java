@@ -21,9 +21,9 @@ import xyz.xenondevs.invui.item.impl.AbstractItem;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Menu for ranked players to configure and set up new games.
@@ -34,7 +34,7 @@ public class GameSetupMenu {
     private final TeamQueueManager queueManager;
     
     // Configuration storage for the setup process
-    private final Map<UUID, GameSetupConfig> setupConfigs = new HashMap<>();
+    private final Map<UUID, GameSetupConfig> setupConfigs = new ConcurrentHashMap<>();
     
     /**
      * Configuration class to store player's setup choices.

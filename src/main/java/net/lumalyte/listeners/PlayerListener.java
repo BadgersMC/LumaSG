@@ -6,6 +6,8 @@ import net.lumalyte.game.GameManager;
 import net.lumalyte.game.GameState;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MessageUtils;
+import net.lumalyte.util.PlayerDataCache;
+import net.lumalyte.util.SkinCache;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
@@ -79,6 +81,9 @@ public class PlayerListener implements Listener {
         Player player = event.getPlayer();
         
         try {
+            // Preload caching systems for better performance
+            preloadPlayerCaches(player);
+            
             // Preload player statistics if enabled
             if (plugin.getConfig().getBoolean("statistics.enabled", true) && 
                 plugin.getConfig().getBoolean("statistics.preload-on-join", true)) {
@@ -93,6 +98,25 @@ public class PlayerListener implements Listener {
             }
         } catch (Exception e) {
             logger.warn("Error handling player join for " + player.getName(), e);
+        }
+    }
+    
+    /**
+     * Preloads caching systems for a player to improve performance
+     * 
+     * @param player The player to preload caches for
+     */
+    private void preloadPlayerCaches(@NotNull Player player) {
+        try {
+            // Preload skin cache for better GUI performance
+            SkinCache.preloadSkin(player);
+            
+            // Preload player data cache for better game performance
+            PlayerDataCache.preloadPlayerData(player);
+            
+            logger.debug("Preloaded caches for player: " + player.getName());
+        } catch (Exception e) {
+            logger.warn("Failed to preload caches for player: " + player.getName(), e);
         }
     }
     

@@ -37,6 +37,10 @@ import net.lumalyte.util.MiniMessageUtils;
 import java.util.List;
 import net.lumalyte.game.Team;
 import net.lumalyte.game.TeamQueueManager;
+import net.lumalyte.util.SkinCache;
+import net.lumalyte.util.PlayerDataCache;
+import net.lumalyte.util.InvitationManager;
+import net.lumalyte.util.CacheManager;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.
@@ -210,13 +214,19 @@ public class SGCommand {
             .then(Commands.literal("help")
                 .executes(this::showHelp))
             .then(Commands.literal("debug")
-                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.debug"))
-                .then(Commands.literal("skippvp")
-                    .executes(this::debugSkipPvP))
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.admin"))
+                .then(Commands.literal("skip-pvp")
+                    .then(Commands.argument("arena", StringArgumentType.word())
+                        .suggests(this::suggestActiveArenas)
+                        .executes(this::debugSkipPvP)))
                 .then(Commands.literal("kingdomsx")
                     .executes(this::debugKingdomsX))
                 .then(Commands.literal("meteor")
-                    .executes(this::debugSpawnMeteor)))
+                    .then(Commands.argument("arena", StringArgumentType.word())
+                        .suggests(this::suggestActiveArenas)
+                        .executes(this::debugSpawnMeteor)))
+                .then(Commands.literal("cache-stats")
+                    .executes(this::showCacheStats)))
             .then(Commands.literal("create")
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.admin"))
                 .then(Commands.argument("name", StringArgumentType.word())
@@ -228,17 +238,6 @@ public class SGCommand {
                     .then(Commands.argument("arena", StringArgumentType.word())
                         .suggests(this::suggestArenas)
                         .executes(this::selectArena))));
-    }
-    
-    /**
-     * Registers the command with the server's command dispatcher.
-     * 
-     * @param dispatcher The command dispatcher
-     * @deprecated Use createCommandNode() instead for proper Paper integration
-     */
-    @Deprecated
-    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(createCommandBuilder());
     }
     
     /**
@@ -1339,6 +1338,56 @@ public class SGCommand {
         }
 
         getPlugin().getTeamQueueManager().toggleMute(player);
+        return 1;
+    }
+
+    /**
+     * Handles showing cache stats.
+     */
+    private int showCacheStats(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        try {
+            player.sendMessage(Component.text("=== LumaSG Cache Performance Stats ===", NamedTextColor.GOLD));
+            
+            // Multi-tier cache manager stats
+            String cacheManagerStats = CacheManager.getDetailedStats();
+            player.sendMessage(Component.text("Cache Manager: " + cacheManagerStats, NamedTextColor.AQUA));
+            
+            // Skin cache stats
+            String skinStats = SkinCache.getCacheStats();
+            player.sendMessage(Component.text("Skin Cache: " + skinStats, NamedTextColor.GREEN));
+            
+            // Player data cache stats
+            String playerDataStats = PlayerDataCache.getCacheStats();
+            player.sendMessage(Component.text("Player Data: " + playerDataStats, NamedTextColor.GREEN));
+            
+            // Invitation manager stats
+            String invitationStats = InvitationManager.getStats();
+            player.sendMessage(Component.text("Invitations: " + invitationStats, NamedTextColor.GREEN));
+            
+            // JVM memory stats
+            Runtime runtime = Runtime.getRuntime();
+            long totalMemory = runtime.totalMemory() / 1024 / 1024; // MB
+            long freeMemory = runtime.freeMemory() / 1024 / 1024; // MB
+            long usedMemory = totalMemory - freeMemory;
+            
+            player.sendMessage(Component.text(String.format("Memory: %dMB used / %dMB total", usedMemory, totalMemory), NamedTextColor.YELLOW));
+            
+            player.sendMessage(Component.text("=====================================", NamedTextColor.GOLD));
+            
+        } catch (Exception e) {
+            player.sendMessage(Component.text("Error retrieving cache stats: " + e.getMessage(), NamedTextColor.RED));
+            logger.error("Error showing cache stats", e);
+        }
+        
         return 1;
     }
 } 

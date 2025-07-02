@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import org.bukkit.Bukkit;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles all interactions with the SG Admin Wand.
@@ -45,7 +46,7 @@ public class AdminWandListener implements Listener {
         this.adminWand = new AdminWand(plugin);
         this.arenaManager = plugin.getArenaManager();
         this.logger = plugin.getDebugLogger().forContext("AdminWandListener");
-        this.selectedArenas = new HashMap<>();
+        this.selectedArenas = new ConcurrentHashMap<>();
         this.playersHoldingWand = new HashSet<>();
     }
     

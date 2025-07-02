@@ -10,7 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,7 +30,7 @@ public class ConfigurationManager {
     public ConfigurationManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
         this.logger = plugin.getDebugLogger().forContext("ConfigurationManager");
-        this.defaultConfigs = new HashMap<>();
+        this.defaultConfigs = new ConcurrentHashMap<>();
         
         // Load default configurations from resources
         loadDefaultConfigs("config.yml");

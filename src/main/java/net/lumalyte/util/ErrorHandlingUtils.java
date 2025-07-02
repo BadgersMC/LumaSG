@@ -13,7 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.function.Predicate;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Utility class for advanced error handling, retry mechanisms, and error classification.
@@ -462,7 +462,7 @@ class ErrorClassifier {
     private final Map<Class<? extends Throwable>, Predicate<Throwable>> errorClassifiers;
     
     ErrorClassifier() {
-        errorClassifiers = new HashMap<>();
+        errorClassifiers = new ConcurrentHashMap<>();
         initializeClassifiers();
     }
     
