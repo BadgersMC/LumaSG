@@ -127,7 +127,9 @@ rewards:
     use-pixel-art: true
     title: "<gradient:gold:yellow:gold><bold>WINNER!</bold></gradient>"
     subtitle: "<gradient:#FFFF00:#FFA500:#FF4500><bold><player></bold></gradient>"
-    message: "<green>The game has ended! <gray><player> </gray> is the winner and has been awarded <yellow>1000 Mob Coins</yellow></green>!"
+    message: "<green>The game has ended! <gray><player> </gray> is the winner!</green>"
+    # Team victory message (available placeholders: <members>, <teamname>, <teamsize>, <kills>)
+    team-message: "<green>The game has ended! Team <yellow><members> <green>is victorious!</green>"
     fireworks: true
     firework-count: 20
     pixel-art:

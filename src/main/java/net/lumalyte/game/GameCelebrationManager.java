@@ -1,21 +1,5 @@
 package net.lumalyte.game;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.title.Title;
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +11,24 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.imageio.ImageIO;
+
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
+import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.MiniMessageUtils;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * Manages celebration and winner announcement functionality for a game instance.
@@ -146,13 +148,12 @@ public class GameCelebrationManager {
         
         // Get and format the winner message
         String winMsg = plugin.getConfig().getString("rewards.winner-announcement.message", 
-            "<green>The game has ended! <gray><player> <green>is the winner and has been awarded <yellow>1000 Mob Coins<green>!");
+            "<green>The game has ended! <gray><player> <green>is the winner!");
         
         // Create placeholders for the message
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("player", winner.getName());
         placeholders.put("kills", String.valueOf(playerManager.getPlayerKills(winner.getUniqueId())));
-        placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
         
         Component message = MiniMessageUtils.parseMessage(winMsg, placeholders);
         broadcastMessage(message);
@@ -245,13 +246,12 @@ public class GameCelebrationManager {
         
         // Create team victory message
         String teamWinMsg = plugin.getConfig().getString("rewards.winner-announcement.team-message", 
-            "<green>The game has ended! Team <yellow><members> <green>is victorious and each member has been awarded <yellow><mobcoins> Mob Coins<green>!");
+            "<green>The game has ended! Team <yellow><members> <green>is victorious!");
         
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("members", memberNames);
         placeholders.put("teamname", winningTeam.getDisplayName());
         placeholders.put("teamsize", String.valueOf(winners.size()));
-        placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
         
         // Calculate total kills for the team
         int totalKills = winners.stream()
