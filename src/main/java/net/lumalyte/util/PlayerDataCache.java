@@ -1,19 +1,21 @@
 package net.lumalyte.util;
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import net.lumalyte.LumaSG;
-import net.lumalyte.statistics.PlayerStats;
-import org.bukkit.entity.Player;
-import org.bukkit.permissions.PermissionAttachment;
-
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+
+import org.bukkit.entity.Player;
+import org.bukkit.permissions.PermissionAttachment;
+
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+
+import net.lumalyte.LumaSG;
+import net.lumalyte.statistics.PlayerStats;
 
 /**
  * Advanced high-performance player data caching system using Caffeine
@@ -368,12 +370,12 @@ public class PlayerDataCache {
     
     private static long estimateMemoryUsage() {
         // Rough estimation of memory usage in KB
-        long statsSize = STATS_CACHE.synchronous().estimatedSize(); // ~1KB per PlayerStats
-        long permissionSize = PERMISSION_CACHE.estimatedSize() * 0; // ~50 bytes per permission
-        long displayNameSize = DISPLAY_NAME_CACHE.estimatedSize() * 0; // ~100 bytes per name
-        long attachmentSize = PERMISSION_ATTACHMENT_CACHE.estimatedSize() * 0; // ~200 bytes per attachment
-        long rankingSize = PLAYER_RANKING_CACHE.synchronous().estimatedSize() * 0; // ~50 bytes per ranking
+        long statsSize = STATS_CACHE.synchronous().estimatedSize() * 1024; // ~1KB per PlayerStats (convert to bytes)
+        long permissionSize = PERMISSION_CACHE.estimatedSize() * 50; // ~50 bytes per permission
+        long displayNameSize = DISPLAY_NAME_CACHE.estimatedSize() * 100; // ~100 bytes per name
+        long attachmentSize = PERMISSION_ATTACHMENT_CACHE.estimatedSize() * 200; // ~200 bytes per attachment
+        long rankingSize = PLAYER_RANKING_CACHE.synchronous().estimatedSize() * 50; // ~50 bytes per ranking
         
-        return statsSize + (permissionSize + displayNameSize + attachmentSize + rankingSize) / 1024;
+        return (statsSize + permissionSize + displayNameSize + attachmentSize + rankingSize) / 1024;
     }
 } 
