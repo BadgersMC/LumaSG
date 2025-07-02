@@ -17,11 +17,11 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -167,6 +167,112 @@ public class GameCelebrationManager {
             // Use the stored final kill message if available, otherwise use the parameter
             Component messageToShow = finalKillMessage != null ? finalKillMessage : deathMessage;
             showWinnerPixelArt(winner, messageToShow);
+        }
+    }
+    
+    /**
+     * Handles the celebration for a team victory with multiple winners.
+     * 
+     * @param winningTeam The team that won the game
+     */
+    public void celebrateTeamWin(@NotNull Team winningTeam) {
+        celebrateTeamWin(winningTeam, null);
+    }
+    
+    /**
+     * Handles the celebration for a team victory with multiple winners and optional death message.
+     * 
+     * @param winningTeam The team that won the game
+     * @param deathMessage Optional death message to display (for final kill)
+     */
+    public void celebrateTeamWin(@NotNull Team winningTeam, @Nullable Component deathMessage) {
+        List<Player> winners = winningTeam.getOnlineMembers();
+        if (winners.isEmpty()) {
+            celebrateNoWinner();
+            return;
+        }
+        
+        // Get celebration configuration
+        boolean usePixelArt = plugin.getConfig().getBoolean("rewards.winner-announcement.use-pixel-art", true);
+        String titleFormat = plugin.getConfig().getString("rewards.winner-announcement.team-title", 
+            "<gradient:gold:yellow:gold><bold>TEAM VICTORY!</bold></gradient>");
+        
+        // Create subtitle with team members
+        String memberNames = winners.stream()
+            .map(Player::getName)
+            .collect(java.util.stream.Collectors.joining(", "));
+        
+        String subtitleFormat = plugin.getConfig().getString("rewards.winner-announcement.team-subtitle",
+            "<gradient:#FFFF00:#FFA500:#FF4500><bold><members></bold></gradient>")
+            .replace("<members>", memberNames);
+        
+        logger.debug("Parsing team victory title: " + titleFormat);
+        logger.debug("Parsing team victory subtitle: " + subtitleFormat);
+        
+        Component titleComponent;
+        Component subtitleComponent;
+        try {
+            titleComponent = MiniMessageUtils.parseMessage(titleFormat);
+            subtitleComponent = MiniMessageUtils.parseMessage(subtitleFormat);
+            
+            logger.debug("Successfully parsed team victory title and subtitle");
+        } catch (Exception e) {
+            logger.warn("Failed to parse MiniMessage for team victory title: " + e.getMessage());
+            titleComponent = Component.text("TEAM VICTORY!", NamedTextColor.GOLD, TextDecoration.BOLD);
+            subtitleComponent = Component.text(memberNames, NamedTextColor.YELLOW, TextDecoration.BOLD);
+        }
+        
+        Title winnerTitle = Title.title(
+            titleComponent,
+            subtitleComponent,
+            Title.Times.times(
+                Duration.ofMillis(1000),  // Fade in
+                Duration.ofMillis(3000),  // Stay
+                Duration.ofMillis(1000)   // Fade out
+            )
+        );
+        
+        // Show title to all players and spectators
+        showTitleToAll(winnerTitle);
+        
+        // Play victory sounds
+        playVictorySounds();
+        
+        // Start rainbow fireworks for the team if enabled
+        if (plugin.getConfig().getBoolean("rewards.winner-announcement.fireworks", true)) {
+            startTeamFireworks(winners);
+        }
+        
+        // Create team victory message
+        String teamWinMsg = plugin.getConfig().getString("rewards.winner-announcement.team-message", 
+            "<green>The game has ended! Team <yellow><members> <green>is victorious and each member has been awarded <yellow><mobcoins> Mob Coins<green>!");
+        
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("members", memberNames);
+        placeholders.put("teamname", winningTeam.getDisplayName());
+        placeholders.put("teamsize", String.valueOf(winners.size()));
+        placeholders.put("mobcoins", String.valueOf(plugin.getConfig().getInt("rewards.mob-coins", 1000)));
+        
+        // Calculate total kills for the team
+        int totalKills = winners.stream()
+            .mapToInt(player -> playerManager.getPlayerKills(player.getUniqueId()))
+            .sum();
+        placeholders.put("kills", String.valueOf(totalKills));
+        
+        Component message = MiniMessageUtils.parseMessage(teamWinMsg, placeholders);
+        broadcastMessage(message);
+        
+        // Handle rewards for all team members
+        if (plugin.getConfig().getBoolean("rewards.enabled", true)) {
+            for (Player winner : winners) {
+                giveWinnerRewards(winner);
+            }
+        }
+        
+        // Show team pixel art if enabled
+        if (usePixelArt && plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.enabled", true)) {
+            Component messageToShow = finalKillMessage != null ? finalKillMessage : deathMessage;
+            showTeamPixelArt(winners, messageToShow);
         }
     }
     
@@ -345,6 +451,99 @@ public class GameCelebrationManager {
     }
     
     /**
+     * Creates a rainbow fireworks display around all team members.
+     */
+    private void startTeamFireworks(@NotNull List<Player> winners) {
+        if (winners.isEmpty()) {
+            return;
+        }
+        
+        Random random = new Random();
+        AtomicInteger fireworkCount = new AtomicInteger(0);
+        int maxFireworks = plugin.getConfig().getInt("rewards.winner-announcement.firework-count", 20);
+        
+        // Firework colors and types
+        org.bukkit.Color[] colors = {
+            org.bukkit.Color.RED, org.bukkit.Color.BLUE, org.bukkit.Color.GREEN,
+            org.bukkit.Color.YELLOW, org.bukkit.Color.PURPLE, org.bukkit.Color.ORANGE,
+            org.bukkit.Color.AQUA, org.bukkit.Color.FUCHSIA, org.bukkit.Color.LIME
+        };
+        
+        org.bukkit.FireworkEffect.Type[] types = {
+            org.bukkit.FireworkEffect.Type.BALL, org.bukkit.FireworkEffect.Type.BALL_LARGE,
+            org.bukkit.FireworkEffect.Type.STAR, org.bukkit.FireworkEffect.Type.BURST,
+            org.bukkit.FireworkEffect.Type.CREEPER
+        };
+        
+        // Schedule fireworks to launch over 5 seconds
+        final int[] taskIdRef = new int[1];
+        BukkitTask fireworkTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (fireworkCount.get() >= maxFireworks) {
+                BukkitTask task = activeTasks.remove(taskIdRef[0]);
+                if (task != null) {
+                    task.cancel();
+                }
+                return;
+            }
+            
+            // Launch fireworks around each team member
+            int fireworksPerPlayer = Math.max(1, (maxFireworks / winners.size()) / 10); // Distribute over time
+            for (Player winner : winners) {
+                if (!winner.isOnline()) continue;
+                
+                for (int i = 0; i < fireworksPerPlayer && fireworkCount.get() < maxFireworks; i++) {
+                    // Random position around the player
+                    org.bukkit.Location fireworkLoc = winner.getLocation().clone().add(
+                        random.nextDouble() * 6 - 3, // X: -3 to +3
+                        random.nextDouble() * 4 + 2, // Y: 2 to 6 (above ground)
+                        random.nextDouble() * 6 - 3  // Z: -3 to +3
+                    );
+                    
+                    // Create firework
+                    org.bukkit.entity.Firework firework = fireworkLoc.getWorld().spawn(fireworkLoc, org.bukkit.entity.Firework.class);
+                    org.bukkit.inventory.meta.FireworkMeta meta = firework.getFireworkMeta();
+                    
+                    // Make firework non-damaging
+                    firework.setPersistent(false);
+                    firework.setMetadata("celebration_firework", new org.bukkit.metadata.FixedMetadataValue(plugin, true));
+                    
+                    // Random firework effect
+                    org.bukkit.Color color1 = colors[random.nextInt(colors.length)];
+                    org.bukkit.Color color2 = colors[random.nextInt(colors.length)];
+                    org.bukkit.FireworkEffect.Type type = types[random.nextInt(types.length)];
+                    
+                    org.bukkit.FireworkEffect effect = org.bukkit.FireworkEffect.builder()
+                        .withColor(color1)
+                        .withFade(color2)
+                        .with(type)
+                        .trail(random.nextBoolean())
+                        .flicker(random.nextBoolean())
+                        .build();
+                    
+                    meta.addEffect(effect);
+                    meta.setPower(random.nextInt(2) + 1);
+                    firework.setFireworkMeta(meta);
+                    
+                    fireworkCount.incrementAndGet();
+                }
+            }
+        }, 0L, 5L);
+        
+        taskIdRef[0] = fireworkTask.getTaskId();
+        activeTasks.put(taskIdRef[0], fireworkTask);
+        
+        // Cancel the task after 5 seconds
+        BukkitTask cancelTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            BukkitTask task = activeTasks.remove(taskIdRef[0]);
+            if (task != null) {
+                task.cancel();
+            }
+        }, 100L);
+        
+        activeTasks.put(cancelTask.getTaskId(), cancelTask);
+    }
+    
+    /**
      * Shows the winner's face as pixel art in chat.
      * Uses cached skin data or fetches from API with fallback support.
      */
@@ -382,6 +581,229 @@ public class GameCelebrationManager {
         });
         
         activeTasks.put(pixelArtTask.getTaskId(), pixelArtTask);
+    }
+    
+    /**
+     * Shows pixel art for team winners, displaying multiple heads horizontally.
+     */
+    private void showTeamPixelArt(@NotNull List<Player> winners, @Nullable Component deathMessage) {
+        if (!plugin.getConfig().getBoolean("rewards.winner-announcement.pixel-art.enabled", true)) {
+            return;
+        }
+        
+        // For teams, we'll show up to 3 player heads horizontally
+        int maxHeads = Math.min(3, winners.size());
+        List<Player> playersToShow = winners.subList(0, maxHeads);
+        
+        // Get the primary winner (first player) for the main message
+        Player primaryWinner = winners.get(0);
+        
+        // Create team names string
+        String teamNames = winners.stream()
+            .map(Player::getName)
+            .collect(java.util.stream.Collectors.joining(", "));
+        
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                List<BufferedImage> playerHeads = new ArrayList<>();
+                
+                // Fetch all player skins
+                for (Player player : playersToShow) {
+                    BufferedImage skin = fetchPlayerSkin(player.getUniqueId(), false);
+                    if (skin != null) {
+                        playerHeads.add(extractPlayerHead(skin));
+                    }
+                }
+                
+                // If we couldn't get any skins, fall back to text celebration
+                if (playerHeads.isEmpty()) {
+                    logger.warn("Could not fetch any player skins for team pixel art, falling back to text celebration");
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        showTeamTextCelebration(winners, deathMessage);
+                    });
+                    return;
+                }
+                
+                // Combine heads horizontally
+                BufferedImage combinedHeads = combineHeadsHorizontally(playerHeads);
+                
+                // Switch back to main thread for display
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    displayTeamPixelArt(winners, combinedHeads, deathMessage);
+                });
+                
+            } catch (Exception e) {
+                logger.warn("Error creating team pixel art: " + e.getMessage());
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    showTeamTextCelebration(winners, deathMessage);
+                });
+            }
+        });
+    }
+    
+    /**
+     * Combines multiple player heads into a single horizontal image.
+     */
+    private BufferedImage combineHeadsHorizontally(@NotNull List<BufferedImage> heads) {
+        if (heads.isEmpty()) {
+            throw new IllegalArgumentException("No heads to combine");
+        }
+        
+        int headSize = 8; // Standard head size
+        int combinedWidth = heads.size() * headSize;
+        int combinedHeight = headSize;
+        
+        BufferedImage combined = new BufferedImage(combinedWidth, combinedHeight, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g2d = combined.createGraphics();
+        
+        try {
+            for (int i = 0; i < heads.size(); i++) {
+                BufferedImage head = heads.get(i);
+                g2d.drawImage(head, i * headSize, 0, headSize, headSize, null);
+            }
+        } finally {
+            g2d.dispose();
+        }
+        
+        return combined;
+    }
+    
+    /**
+     * Extracts the player head from a Minecraft skin texture.
+     * 
+     * @param skin The complete skin texture
+     * @return The head portion of the skin as an 8x8 image
+     */
+    private BufferedImage extractPlayerHead(@NotNull BufferedImage skin) {
+        // Minecraft skin head is located at coordinates (8, 8) with size 8x8
+        // This extracts the front face of the head
+        return skin.getSubimage(8, 8, 8, 8);
+    }
+    
+    /**
+     * Displays team pixel art with multiple player heads.
+     */
+    private void displayTeamPixelArt(@NotNull List<Player> winners, @NotNull BufferedImage combinedHeads, @Nullable Component deathMessage) {
+        String character = plugin.getConfig().getString("rewards.winner-announcement.pixel-art.character", "⬛");
+        int targetSize = plugin.getConfig().getInt("rewards.winner-announcement.pixel-art.size", 8);
+        
+        // For team display, we might want a larger size to accommodate multiple heads
+        int teamTargetSize = Math.max(targetSize, 12);
+        
+        try {
+            BufferedImage processedImage = combinedHeads;
+            
+            // Scale image if needed
+            if (combinedHeads.getHeight() != teamTargetSize) {
+                int scaledWidth = (combinedHeads.getWidth() * teamTargetSize) / combinedHeads.getHeight();
+                processedImage = new BufferedImage(scaledWidth, teamTargetSize, BufferedImage.TYPE_INT_ARGB);
+                java.awt.Graphics2D g2d = processedImage.createGraphics();
+                try {
+                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g2d.drawImage(combinedHeads, 0, 0, scaledWidth, teamTargetSize, null);
+                } finally {
+                    g2d.dispose();
+                }
+            }
+            
+            // Create team names string
+            String teamNames = winners.stream()
+                .map(Player::getName)
+                .collect(java.util.stream.Collectors.joining(", "));
+            
+            // Convert to pixel art and display
+            Component[] pixelArt = new Component[teamTargetSize];
+            String pixelChar = character.isEmpty() ? "⬛" : character;
+            
+            for (int y = 0; y < teamTargetSize; y++) {
+                Component row = Component.text("");
+                for (int x = 0; x < processedImage.getWidth(); x++) {
+                    int rgba = processedImage.getRGB(x, y);
+                    int alpha = (rgba >> 24) & 0xFF;
+                    
+                    if (alpha < 128) {
+                        row = row.append(Component.text(pixelChar, NamedTextColor.BLACK));
+                        continue;
+                    }
+                    
+                    int r = (rgba >> 16) & 0xFF;
+                    int g = (rgba >> 8) & 0xFF;
+                    int b = rgba & 0xFF;
+                    
+                    String hexColor = String.format("#%02x%02x%02x", r, g, b);
+                    try {
+                        net.kyori.adventure.text.format.TextColor color = net.kyori.adventure.text.format.TextColor.fromHexString(hexColor);
+                        row = row.append(Component.text(pixelChar).color(color));
+                    } catch (Exception e) {
+                        row = row.append(Component.text(pixelChar, NamedTextColor.WHITE));
+                    }
+                }
+                pixelArt[y] = row;
+            }
+            
+            // Display with team victory messages
+            broadcastMessage(Component.text("")); // Empty line
+            
+            // Team victory message components
+            Component teamMessage = Component.text("   ║ 👑 TEAM VICTORY: " + teamNames + " 👑 ║", 
+                NamedTextColor.GOLD, TextDecoration.BOLD);
+            Component topBracket = Component.text("   ╔" + "═".repeat(Math.max(20, teamNames.length() + 8)) + "╗", NamedTextColor.GOLD);
+            Component bottomBracket = Component.text("   ╚" + "═".repeat(Math.max(20, teamNames.length() + 8)) + "╝", NamedTextColor.GOLD);
+            
+            int messageRow = teamTargetSize / 2;
+            
+            for (int y = 0; y < teamTargetSize; y++) {
+                Component line = pixelArt[y];
+                
+                if (y == messageRow - 1) {
+                    line = line.append(topBracket);
+                } else if (y == messageRow) {
+                    line = line.append(teamMessage);
+                } else if (y == messageRow + 1) {
+                    line = line.append(bottomBracket);
+                } else if (deathMessage != null && y == messageRow + 3) {
+                    line = line.append(Component.text("   ").append(deathMessage));
+                }
+                
+                broadcastMessage(line);
+            }
+            
+            broadcastMessage(Component.text("")); // Empty line
+            
+            // Clean up
+            if (processedImage != combinedHeads) {
+                processedImage.flush();
+            }
+            
+        } catch (Exception e) {
+            logger.warn("Error displaying team pixel art: " + e.getMessage());
+            showTeamTextCelebration(winners, deathMessage);
+        }
+    }
+    
+    /**
+     * Shows a text-based team celebration if pixel art fails.
+     */
+    private void showTeamTextCelebration(@NotNull List<Player> winners, @Nullable Component deathMessage) {
+        String teamNames = winners.stream()
+            .map(Player::getName)
+            .collect(java.util.stream.Collectors.joining(", "));
+        
+        Component celebration = Component.text()
+            .append(Component.text("═══════════════════════════════", NamedTextColor.GOLD))
+            .appendNewline()
+            .append(Component.text("👑 TEAM VICTORY! 👑", NamedTextColor.GOLD, TextDecoration.BOLD))
+            .appendNewline()
+            .append(Component.text(teamNames, NamedTextColor.YELLOW, TextDecoration.BOLD))
+            .appendNewline()
+            .append(Component.text("═══════════════════════════════", NamedTextColor.GOLD))
+            .build();
+        
+        broadcastMessage(celebration);
+        
+        if (deathMessage != null) {
+            broadcastMessage(deathMessage);
+        }
     }
     
     /**

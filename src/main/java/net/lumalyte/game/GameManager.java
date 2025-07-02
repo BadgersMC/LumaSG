@@ -16,7 +16,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -56,8 +55,7 @@ public class GameManager {
      * Constructs a new GameManager instance.
      * 
      * @param plugin The plugin instance
-     * @throws LumaSGException if plugin is null
-     */
+	 */
     public GameManager(@NotNull LumaSG plugin) {
         ValidationUtils.requireNonNull(plugin, "Plugin Instance", "GameManager Creation");
         
@@ -79,9 +77,8 @@ public class GameManager {
      * 
      * @param arena The arena where the game will be played
      * @return The newly created Game instance, or null if creation failed
-     * 
-     * @throws LumaSGException if arena is null
-     */
+     *
+	 */
     public @Nullable Game createGame(@NotNull Arena arena) {
         try {
             ValidationUtils.requireNonNull(arena, "Arena", "Game Creation");
@@ -201,19 +198,8 @@ public class GameManager {
      * @throws LumaSGException if the game state is invalid
      */
     private void validateGameState(@NotNull Game game) throws LumaSGException {
-        if (game.getGameId() == null) {
-            throw LumaSGException.gameError("Game has null ID");
-        }
-        
-        if (game.getArena() == null) {
-            throw LumaSGException.gameError("Game has null arena");
-        }
-        
-        if (game.getState() == null) {
-            throw LumaSGException.gameError("Game has null state");
-        }
-        
-        // Additional state validation can be added here
+
+		// Additional state validation can be added here
     }
 
     /**
@@ -221,8 +207,7 @@ public class GameManager {
      * 
      * @param gameId The game identifier
      * @return The Game instance, or null if not found
-     * @throws LumaSGException if gameId is null or empty
-     */
+	 */
     public @Nullable Game getGame(@NotNull String gameId) {
         try {
             ValidationUtils.requireNonEmpty(gameId, "Game ID", "Game Retrieval");
@@ -249,12 +234,8 @@ public class GameManager {
         
         try {
             // Basic validation
-            if (game.getGameId() == null || game.getArena() == null || game.getState() == null) {
-                corruptedGameIds.add(game.getGameId() != null ? game.getGameId().toString() : "unknown");
-                return;
-            }
-            
-            // Additional integrity checks can be added here
+
+			// Additional integrity checks can be added here
             
         } catch (Exception e) {
             logger.warn("Game integrity validation failed for game: " + game.getGameId(), e);
@@ -262,13 +243,7 @@ public class GameManager {
         }
         
         // Remove corrupted games
-        if (!corruptedGameIds.isEmpty()) {
-            logger.warn("Removing " + corruptedGameIds.size() + " corrupted games: " + corruptedGameIds);
-            for (String corruptedId : corruptedGameIds) {
-                activeGames.remove(corruptedId);
-            }
-        }
-    }
+	}
 
     /**
      * Gets all currently active games.
@@ -287,8 +262,7 @@ public class GameManager {
      * 
      * @param arena The arena to search for available games
      * @return An available Game instance, or null if none found
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public @Nullable Game findAvailableGame(@NotNull Arena arena) {
         ValidationUtils.requireNonNull(arena, "Arena", "Find Available Game");
         
@@ -314,8 +288,7 @@ public class GameManager {
      * 
      * @param player The player to search for
      * @return The Game instance the player is in, or null if not in any game
-     * @throws LumaSGException if player is null
-     */
+	 */
     public @Nullable Game getGameByPlayer(@NotNull Player player) {
         try {
             ValidationUtils.requireNonNull(player, "Player", "Find Game by Player");
@@ -333,12 +306,12 @@ public class GameManager {
                 
                 // Return the most recently created game (last in the list)
                 // and log this for debugging
-                Game mostRecentGame = playerGames.get(playerGames.size() - 1);
+                Game mostRecentGame = playerGames.getLast();
                 logger.warn("Returning most recent game for player " + player.getName() + ": " + mostRecentGame.getGameId());
                 return mostRecentGame;
             }
             
-            return playerGames.isEmpty() ? null : playerGames.get(0);
+            return playerGames.isEmpty() ? null : playerGames.getFirst();
             
         } catch (Exception e) {
             logger.warn("Failed to find game for player: " + player.getName(), e);
@@ -351,8 +324,7 @@ public class GameManager {
      * 
      * @param arena The arena to search for games
      * @return A list of games in the arena (never null)
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public @NotNull List<Game> findGamesByArena(@NotNull Arena arena) {
         try {
             ValidationUtils.requireNonNull(arena, "Arena", "Find Games by Arena");
@@ -372,8 +344,7 @@ public class GameManager {
      * 
      * @param arena The arena to search
      * @return The first Game instance found, or null if none
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public @Nullable Game getGameByArena(@NotNull Arena arena) {
         ValidationUtils.requireNonNull(arena, "Arena", "Get Game by Arena");
         
@@ -385,12 +356,10 @@ public class GameManager {
 
     /**
      * Removes a game from the active games registry.
-     * 
+     *
      * @param game The game to remove
-     * @return True if the game was removed, false if it wasn't found
-     * @throws LumaSGException if game is null
      */
-    public boolean removeGame(@NotNull Game game) {
+    public void removeGame(@NotNull Game game) {
         try {
             ValidationUtils.requireNonNull(game, "Game", "Game Removal");
             
@@ -400,19 +369,15 @@ public class GameManager {
             if (removedGame != null) {
                 if (removedGame.equals(game)) {
                     logger.info("Successfully removed game: " + gameId);
-                    return true;
                 } else {
                     logger.warn("Removed game instance differs from requested game for ID: " + gameId);
-                    return true; // Still consider it successful since something was removed
                 }
             } else {
                 logger.warn("Attempted to remove non-existent game: " + gameId);
-                return false;
             }
             
         } catch (Exception e) {
             logger.warn("Failed to remove game: " + game.getGameId(), e);
-            return false;
         }
     }
 
@@ -439,8 +404,7 @@ public class GameManager {
      * 
      * @param player The player to check
      * @return True if the player is in a game, false otherwise
-     * @throws LumaSGException if player is null
-     */
+	 */
     public boolean isPlayerInGame(@NotNull Player player) {
         return getGameByPlayer(player) != null;
     }
@@ -450,8 +414,7 @@ public class GameManager {
      * 
      * @param arena The arena to count games for
      * @return The number of active games in the arena
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public int getActiveGameCountInArena(@NotNull Arena arena) {
         return findGamesByArena(arena).size();
     }
@@ -461,8 +424,7 @@ public class GameManager {
      * 
      * @param arena The arena to check
      * @return True if the arena has active games, false otherwise
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public boolean hasActiveGames(@NotNull Arena arena) {
         return getActiveGameCountInArena(arena) > 0;
     }
@@ -498,8 +460,7 @@ public class GameManager {
      * 
      * @param arena The arena to get or create a game in
      * @return A Game instance, or null if creation failed
-     * @throws LumaSGException if arena is null
-     */
+	 */
     public @Nullable Game getOrCreateGame(@NotNull Arena arena) {
         Game game = findAvailableGame(arena);
         if (game == null) {
@@ -544,7 +505,7 @@ public class GameManager {
                 
                 // Keep the most recent game, remove the others
                 games.sort((g1, g2) -> g1.getGameId().toString().compareTo(g2.getGameId().toString()));
-                Game gameToKeep = games.get(games.size() - 1);
+                Game gameToKeep = games.getLast();
                 
                 for (int i = 0; i < games.size() - 1; i++) {
                     Game orphanedGame = games.get(i);

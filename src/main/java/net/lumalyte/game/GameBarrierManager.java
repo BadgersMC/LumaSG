@@ -24,10 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 1.0
  */
 public class GameBarrierManager {
-    /** The plugin instance for configuration and server access */
-    private final @NotNull LumaSG plugin;
-    
-    /** The debug logger instance for this manager */
+
+	/** The debug logger instance for this manager */
     private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** Map of locations to their original block materials */
@@ -43,8 +41,7 @@ public class GameBarrierManager {
      * @param gameId The ID of the game this manager is associated with
      */
     public GameBarrierManager(@NotNull LumaSG plugin, @NotNull String gameId) {
-        this.plugin = plugin;
-        this.logger = plugin.getDebugLogger().forContext("GameBarrierManager-" + gameId);
+		this.logger = plugin.getDebugLogger().forContext("GameBarrierManager-" + gameId);
     }
     
     /**

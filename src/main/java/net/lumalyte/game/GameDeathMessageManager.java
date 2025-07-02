@@ -19,10 +19,8 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +28,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Handles death message formatting and display in games.
@@ -45,15 +42,14 @@ public class GameDeathMessageManager {
     private final boolean enabled;
     private final String format;
     private final String finalTwoFormat;
-    private final String winnerFormat;
-    private final Map<String, List<String>> actionsByWeapon;
+	private final Map<String, List<String>> actionsByWeapon;
     
     private static final Title.Times TITLE_TIMES = Title.Times.times(
         Duration.ofMillis(500),  // Fade in
         Duration.ofMillis(2000), // Stay
         Duration.ofMillis(500)   // Fade out
     );
-    
+
     /**
      * Cached skin data with timestamp for expiration.
      */
@@ -66,8 +62,8 @@ public class GameDeathMessageManager {
             this.cachedAt = Instant.now();
         }
 
-        boolean isExpired(int cacheMinutes) {
-            return Instant.now().isAfter(cachedAt.plus(Duration.ofMinutes(cacheMinutes)));
+        boolean isExpired() {
+            return Instant.now().isAfter(cachedAt.plus(Duration.ofMinutes(30)));
         }
     }
     
@@ -85,11 +81,12 @@ public class GameDeathMessageManager {
             .build();
         
         ConfigurationSection config = plugin.getConfig().getConfigurationSection("messages.death-messages");
-        if (config == null) {
+		String winnerFormat;
+		if (config == null) {
             this.enabled = true;
             this.format = "<dark_red>☠ <red><victim> <gray>was <action> <gray>by <killer><gray>! <yellow><remaining> players remain!";
             this.finalTwoFormat = "<dark_red>\n⚔ FINAL BATTLE ⚔\n<victim> vs <killer>\n<gray>Only one will survive!";
-            this.winnerFormat = "<gold>\n⚔ VICTORY ⚔\n<winner> is victorious!";
+            winnerFormat = "<gold>\n⚔ VICTORY ⚔\n<winner> is victorious!";
             this.actionsByWeapon = createDefaultActions();
             logger.debug("Using default death message configuration");
             return;
@@ -98,7 +95,7 @@ public class GameDeathMessageManager {
         this.enabled = config.getBoolean("enabled", true);
         this.format = config.getString("format", "<dark_red>☠ <red><victim> <gray>was <action> <gray>by <killer><gray>! <yellow><remaining> players remain!");
         this.finalTwoFormat = config.getString("final-two-format", "<dark_red>\n⚔ FINAL BATTLE ⚔\n<victim> vs <killer>\n<gray>Only one will survive!");
-        this.winnerFormat = config.getString("winner-format", "<gold>\n⚔ VICTORY ⚔\n<winner> is victorious!");
+        winnerFormat = config.getString("winner-format", "<gold>\n⚔ VICTORY ⚔\n<winner> is victorious!");
         
         // Load weapon-specific actions
         Map<String, List<String>> tempActionsByWeapon = new HashMap<>();
@@ -204,8 +201,8 @@ public class GameDeathMessageManager {
     private void showDeathMessageWithHeads(@NotNull Player victim, @Nullable Player killer, @NotNull Component message) {
         // Pre-fetch skins asynchronously
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            BufferedImage victimSkin = fetchPlayerSkin(victim.getUniqueId(), false);
-            BufferedImage killerSkin = killer != null ? fetchPlayerSkin(killer.getUniqueId(), false) : null;
+            BufferedImage victimSkin = fetchPlayerSkin(victim.getUniqueId());
+            BufferedImage killerSkin = killer != null ? fetchPlayerSkin(killer.getUniqueId()) : null;
 
             // Once skins are fetched, display the message on the main thread
             plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -221,8 +218,8 @@ public class GameDeathMessageManager {
                                             @NotNull Component message, @Nullable BufferedImage victimSkin,
                                             @Nullable BufferedImage killerSkin) {
         int headSize = 8;
-        Component[] killerHead = createHeadDisplay(killerSkin, headSize, "⬛", "KILLER");
-        Component[] victimHead = createHeadDisplay(victimSkin, headSize, "⬛", "VICTIM");
+        Component[] killerHead = createHeadDisplay(killerSkin, headSize, "KILLER");
+        Component[] victimHead = createHeadDisplay(victimSkin, headSize, "VICTIM");
 
         // First send the labels
         Component labelLine = Component.empty()
@@ -255,7 +252,7 @@ public class GameDeathMessageManager {
     /**
      * Creates a display of a player head using pixel art characters.
      */
-    private Component[] createHeadDisplay(@Nullable BufferedImage image, int size, @NotNull String character, @NotNull String label) {
+    private Component[] createHeadDisplay(@Nullable BufferedImage image, int size, @NotNull String label) {
         Component[] lines = new Component[size + 1];
         
         // Add the label line first, in brackets
@@ -297,16 +294,14 @@ public class GameDeathMessageManager {
     /**
      * Fetches a player's skin from the configured API.
      */
-    private BufferedImage fetchPlayerSkin(@NotNull UUID playerId, boolean forceRefresh) {
+    private BufferedImage fetchPlayerSkin(@NotNull UUID playerId) {
         // Check cache first if not forcing refresh
-        if (!forceRefresh) {
-            BufferedImage cached = getCachedSkin(playerId);
-            if (cached != null) {
-                return cached;
-            }
-        }
+		BufferedImage cached = getCachedSkin(playerId);
+		if (cached != null) {
+			return cached;
+		}
 
-        String apiUrl = "https://crafatar.com/avatars/" + playerId.toString() + "?size=8&overlay";
+		String apiUrl = "https://crafatar.com/avatars/" + playerId.toString() + "?size=8&overlay";
         logger.debug("Fetching skin for " + playerId + " from: " + apiUrl);
 
         try {
@@ -321,7 +316,8 @@ public class GameDeathMessageManager {
                     return null;
                 }
 
-                BufferedImage image = ImageIO.read(response.body().byteStream());
+				assert response.body() != null;
+				BufferedImage image = ImageIO.read(response.body().byteStream());
                 if (image != null) {
                     skinCache.put(playerId, new CachedSkinData(image));
                 }
@@ -342,7 +338,7 @@ public class GameDeathMessageManager {
             return null;
         }
 
-        if (cached.isExpired(30)) { // Cache for 30 minutes
+        if (cached.isExpired()) { // Cache for 30 minutes
             skinCache.remove(playerId);
             return null;
         }
@@ -425,7 +421,7 @@ public class GameDeathMessageManager {
             if (player != null) {
                 // Cache skin asynchronously in background
                 plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-                    fetchPlayerSkin(player.getUniqueId(), false);
+                    fetchPlayerSkin(player.getUniqueId());
                 });
             }
         }
@@ -439,9 +435,7 @@ public class GameDeathMessageManager {
         skinCache.clear();
 
         // Shutdown HTTP client
-        if (httpClient != null) {
-            httpClient.dispatcher().executorService().shutdown();
-            httpClient.connectionPool().evictAll();
-        }
-    }
+		httpClient.dispatcher().executorService().shutdown();
+		httpClient.connectionPool().evictAll();
+	}
 } 

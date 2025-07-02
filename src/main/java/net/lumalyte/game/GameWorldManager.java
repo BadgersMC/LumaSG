@@ -100,7 +100,7 @@ public class GameWorldManager {
             // Set initial world border
             Location center = arena.getCenter() != null ? arena.getCenter() : 
                              (arena.getLobbySpawn() != null ? arena.getLobbySpawn() : 
-                             (!arena.getSpawnPoints().isEmpty() ? arena.getSpawnPoints().get(0) : null));
+                             (!arena.getSpawnPoints().isEmpty() ? arena.getSpawnPoints().getFirst() : null));
             
             if (center != null) {
                 WorldBorder worldBorder = arenaWorld.getWorldBorder();
@@ -124,7 +124,7 @@ public class GameWorldManager {
             center = arena.getCenter();
         }
         if (center == null && !arena.getSpawnPoints().isEmpty()) {
-            center = arena.getSpawnPoints().get(0);
+            center = arena.getSpawnPoints().getFirst();
         }
         
         if (center != null && center.getWorld() != null) {
@@ -168,7 +168,7 @@ public class GameWorldManager {
                 center = arena.getLobbySpawn();
             }
             if (center == null && !arena.getSpawnPoints().isEmpty()) {
-                center = arena.getSpawnPoints().get(0);
+                center = arena.getSpawnPoints().getFirst();
             }
             
             if (center != null) {
@@ -313,7 +313,7 @@ public class GameWorldManager {
             center = arena.getLobbySpawn();
         }
         if (center == null && !arena.getSpawnPoints().isEmpty()) {
-            center = arena.getSpawnPoints().get(0);
+            center = arena.getSpawnPoints().getFirst();
         }
         
         if (center == null) {
@@ -332,9 +332,8 @@ public class GameWorldManager {
         int dropsCleared = 0;
         
         for (Entity entity : arenaWorld.getEntities()) {
-            if (entity instanceof Item) {
-                Item item = (Item) entity;
-                if (item.getLocation().distance(center) <= radius) {
+            if (entity instanceof Item item) {
+				if (item.getLocation().distance(center) <= radius) {
                     item.remove();
                     dropsCleared++;
                 }
@@ -385,7 +384,7 @@ public class GameWorldManager {
             center = arena.getLobbySpawn();
         }
         if (center == null && !arena.getSpawnPoints().isEmpty()) {
-            center = arena.getSpawnPoints().get(0);
+            center = arena.getSpawnPoints().getFirst();
         }
 
         if (center != null) {

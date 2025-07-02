@@ -1,7 +1,5 @@
 package net.lumalyte.game;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Record to hold player game statistics.
  * 

@@ -6,6 +6,7 @@ import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.InventoryUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -27,9 +28,8 @@ import java.util.stream.Collectors;
 public class GamePlayerManager {
     private final @NotNull LumaSG plugin;
     private final @NotNull Arena arena;
-    private final @NotNull UUID gameId;
-    
-    /** Debug logger instance for game player management */
+
+	/** Debug logger instance for game player management */
     private final @NotNull DebugLogger.ContextualLogger logger;
     
     /** Set of all players currently participating in the game */
@@ -83,9 +83,8 @@ public class GamePlayerManager {
     public GamePlayerManager(@NotNull LumaSG plugin, @NotNull Arena arena, @NotNull UUID gameId) {
         this.plugin = plugin;
         this.arena = arena;
-        this.gameId = gameId;
-        
-        // Initialize player collections with thread-safe implementations
+
+		// Initialize player collections with thread-safe implementations
         this.players = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.spectators = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.playerLocations = new ConcurrentHashMap<>();
@@ -452,8 +451,7 @@ public class GamePlayerManager {
                 player.removePotionEffect(effect.getType()));
             
             // Apply stored effects
-            deserializePotionEffects(serializedEffects).forEach(effect -> 
-                player.addPotionEffect(effect));
+            deserializePotionEffects(serializedEffects).forEach(player::addPotionEffect);
         }
     }
     
@@ -527,7 +525,7 @@ public class GamePlayerManager {
             if (type == null) return null;
             
             org.bukkit.potion.PotionEffectType effectType = org.bukkit.Registry.POTION_EFFECT_TYPE.get(
-                org.bukkit.NamespacedKey.fromString(type)
+					Objects.requireNonNull(NamespacedKey.fromString(type))
             );
             if (effectType == null) return null;
             
@@ -613,7 +611,7 @@ public class GamePlayerManager {
      * Teleports a player to the lobby if enabled.
      */
     private void teleportToLobby(@NotNull Player player) {
-        if (player == null || !player.isOnline()) {
+        if (!player.isOnline()) {
             logger.warn("Attempted to teleport null or offline player to lobby");
             return;
         }

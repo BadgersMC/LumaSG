@@ -1,22 +1,15 @@
 package net.lumalyte.customitems.behaviors;
 
 import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
 import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.customitems.CustomItemBehavior;
 import net.lumalyte.game.Game;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MiniMessageUtils;
 import net.lumalyte.exception.LumaSGException;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.block.Chest;
 import org.bukkit.entity.*;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.EntityBlockFormEvent;
-import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -76,9 +69,7 @@ public class AirdropBehavior implements Listener {
     private static final int CHUNK_LOAD_INTERVAL = 32; // Increased interval to reduce initial load time
     
     private final Location targetLocation;
-    private final Location spawnLocation;
-    private final Player player;
-    private final BukkitTask protectionTask;
+	private final BukkitTask protectionTask;
     private final Set<Block> protectedBlocks = new HashSet<>();
     private BukkitTask cleanupTask;
     
@@ -93,9 +84,7 @@ public class AirdropBehavior implements Listener {
         this.playerCooldowns = new ConcurrentHashMap<>();
         this.activeAirdrops = new ConcurrentHashMap<>();
         this.targetLocation = targetLocation;
-        this.spawnLocation = spawnLocation;
-        this.player = player;
-        this.protectionTask = null;
+		this.protectionTask = null;
         
         // Register as listener
         plugin.getServer().getPluginManager().registerEvents(this, plugin);

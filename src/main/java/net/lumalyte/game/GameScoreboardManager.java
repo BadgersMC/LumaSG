@@ -263,7 +263,7 @@ public class GameScoreboardManager {
      * Removes a specific player from the game scoreboard and resets them to server default.
      */
     public void removePlayerFromScoreboard(@NotNull Player player) {
-        if (player != null && player.isOnline()) {
+        if (player.isOnline()) {
             // Remove from team if they're in it
             removePlayerFromTeam(player);
             

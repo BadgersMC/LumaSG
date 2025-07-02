@@ -6,11 +6,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
 import net.lumalyte.arena.Arena;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.customitems.CustomItemBehavior;
-import net.lumalyte.customitems.CustomItemsManager;
-import net.lumalyte.customitems.behaviors.AirdropBehavior;
-import net.lumalyte.listeners.CustomItemListener;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.MiniMessageUtils;
 import org.bukkit.Bukkit;
@@ -18,7 +13,6 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -80,6 +74,8 @@ public class Game {
     private final @NotNull GameCelebrationManager celebrationManager;
     private final @NotNull GameEliminationManager eliminationManager;
     private final GameDeathMessageManager deathMessageManager;
+    private final GameNameplateManager gameNameplateManager;
+    private final @NotNull GameTeamManager teamManager;
     
     // Memory management: Track async operations for cleanup
     private final @NotNull Set<CompletableFuture<?>> activeFutures = ConcurrentHashMap.newKeySet();
@@ -130,8 +126,8 @@ public class Game {
     /**
      * Constructs a new Game instance in the specified arena.
      * 
-     * <p>The game starts in WAITING state and must be manually started by calling
-     * startCountdown() when enough players have joined.</p>
+     * <p>The game starts in INACTIVE state and must be manually configured and 
+     * started by calling activateGame() when ready to accept players.</p>
      * 
      * @param plugin The plugin instance
      * @param arena The arena where the game will be played
@@ -142,7 +138,7 @@ public class Game {
         this.plugin = plugin;
         this.arena = arena;
         this.gameId = UUID.randomUUID();
-        this.state = GameState.WAITING;
+        this.state = GameState.INACTIVE; // Start in INACTIVE state for ranked player setup
         
         // Initialize contextual logger for this game
         this.logger = plugin.getDebugLogger().forContext("Game-" + arena.getName());
@@ -159,6 +155,8 @@ public class Game {
         this.celebrationManager = new GameCelebrationManager(plugin, playerManager);
         this.eliminationManager = new GameEliminationManager(plugin, gameId.toString(), playerManager);
         this.deathMessageManager = new GameDeathMessageManager(plugin, gameId.toString(), playerManager);
+        this.gameNameplateManager = new GameNameplateManager(plugin, arena, gameId, playerManager);
+        this.teamManager = new GameTeamManager(plugin, this, net.lumalyte.game.GameMode.SOLO); // Default to solo mode
         
         logger.info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
     }
@@ -1316,6 +1314,15 @@ public class Game {
         return state;
     }
     
+    /**
+     * Gets the current game mode.
+     * 
+     * @return The current game mode
+     */
+    public @NotNull net.lumalyte.game.GameMode getGameMode() {
+        return teamManager.getGameMode();
+    }
+    
     public Set<UUID> getPlayers() {
         return playerManager.getPlayers();
     }
@@ -1380,6 +1387,7 @@ public class Game {
         playerManager.cleanup();
         scoreboardManager.cleanup();
         celebrationManager.cleanup();
+        teamManager.cleanup();
         
         // Remove from game manager
         plugin.getGameManager().removeGame(this);
@@ -1453,5 +1461,37 @@ public class Game {
     
     public @NotNull GameCelebrationManager getCelebrationManager() {
         return celebrationManager;
+    }
+    
+    public @NotNull GameTeamManager getTeamManager() {
+        return teamManager;
+    }
+    
+    /**
+     * Activates the game, transitioning from INACTIVE to WAITING state.
+     * This allows players to join the game.
+     * 
+     * @param gameMode The game mode to set for this game
+     */
+    public void activateGame(@NotNull net.lumalyte.game.GameMode gameMode) {
+        if (state != GameState.INACTIVE) {
+            logger.warn("Cannot activate game - current state is " + state);
+            return;
+        }
+        
+        // Set the game mode
+        teamManager.setGameMode(gameMode);
+        
+        // Transition to WAITING state
+        state = GameState.WAITING;
+        scoreboardManager.setCurrentGameState(state);
+        timerManager.setCurrentGameState(state);
+        
+        logger.info("Game activated with mode: " + gameMode.getDisplayName());
+        
+        // Start broadcasting this game
+        if (plugin.getTeamQueueManager() != null) {
+            plugin.getTeamQueueManager().updateGameBroadcast(this);
+        }
     }
 } 

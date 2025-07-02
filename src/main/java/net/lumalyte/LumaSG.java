@@ -2,6 +2,7 @@ package net.lumalyte;
 
 import net.lumalyte.arena.Arena;
 import net.lumalyte.arena.ArenaManager;
+import net.lumalyte.game.TeamQueueManager;
 import net.lumalyte.chest.ChestManager;
 import net.lumalyte.commands.SGCommand;
 import net.lumalyte.customitems.CustomItemsManager;
@@ -15,6 +16,7 @@ import net.lumalyte.listeners.FishingListener;
 import net.lumalyte.listeners.PlayerListener;
 import net.lumalyte.statistics.StatisticsManager;
 import net.lumalyte.util.AdminWand;
+import net.lumalyte.util.ConfigurationManager;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.ValidationUtils;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -44,6 +46,8 @@ public class LumaSG extends JavaPlugin {
     private CustomItemListener customItemListener;
     private DebugLogger debugLogger;
     private AdminWand adminWand;
+    private TeamQueueManager teamQueueManager;
+    private ConfigurationManager configManager;
     
     @Override
     public void onEnable() {
@@ -53,16 +57,12 @@ public class LumaSG extends JavaPlugin {
         // Set the plugin instance for InvUI
         InvUI.getInstance().setPlugin(this);
         
-        // Load configuration
-        saveDefaultConfig();
-        saveResource("chest.yml", false);
-        saveResource("fishing.yml", false);
-        saveResource("config.yml", false);
-        saveResource("custom-items.yml", false);
-        saveResource("placeholders.yml", false);
-        
         // Initialize debug logger early
         debugLogger = new DebugLogger(this);
+        
+        // Initialize configuration manager and update configs
+        configManager = new ConfigurationManager(this);
+        configManager.updateAllConfigs();
         
         // Initialize managers
         arenaManager = new ArenaManager(this);
@@ -74,8 +74,10 @@ public class LumaSG extends JavaPlugin {
         adminWandListener = new AdminWandListener(this);
         customItemListener = new CustomItemListener(this);
         adminWand = new AdminWand(this);
+        teamQueueManager = new TeamQueueManager(this);
         
         // Validate managers were created successfully
+        ValidationUtils.requireNonNull(configManager, "Configuration Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(chestManager, "Chest Manager", "Plugin Initialization");
@@ -85,6 +87,7 @@ public class LumaSG extends JavaPlugin {
         ValidationUtils.requireNonNull(adminWandListener, "Admin Wand Listener", "Plugin Initialization");
         ValidationUtils.requireNonNull(customItemListener, "Custom Item Listener", "Plugin Initialization");
         ValidationUtils.requireNonNull(adminWand, "Admin Wand", "Plugin Initialization");
+        ValidationUtils.requireNonNull(teamQueueManager, "Team Queue Manager", "Plugin Initialization");
         
         // Initialize GUI system
         MenuUtils.initialize(this);
@@ -169,6 +172,9 @@ public class LumaSG extends JavaPlugin {
         try {
             // Reload configuration
             reloadConfig();
+            
+            // Update configuration files with any new options
+            configManager.updateAllConfigs();
             
             // Stop and restart managers
             if (hookManager != null) hookManager.stop();
@@ -263,5 +269,23 @@ public class LumaSG extends JavaPlugin {
     
     public CustomItemListener getCustomItemListener() {
         return customItemListener;
+    }
+    
+    /**
+     * Gets the team queue manager instance.
+     * 
+     * @return The team queue manager
+     */
+    public @NotNull TeamQueueManager getTeamQueueManager() {
+        return teamQueueManager;
+    }
+    
+    /**
+     * Gets the configuration manager instance.
+     * 
+     * @return The configuration manager
+     */
+    public @NotNull ConfigurationManager getConfigManager() {
+        return configManager;
     }
 } 

@@ -6,13 +6,11 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.LumaSG;
 import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,13 +34,13 @@ public class GameTimerManager {
     private int countdown;
     
     /** Total game time in seconds */
-    private int gameTime;
+    private final int gameTime;
     
     /** Grace period duration in seconds (PvP disabled) */
-    private int gracePeriod;
+    private final int gracePeriod;
     
     /** Deathmatch duration in seconds */
-    private int deathmatchTime;
+    private final int deathmatchTime;
     
     /** Timestamp when the game started (for duration tracking) */
     private long startTime;

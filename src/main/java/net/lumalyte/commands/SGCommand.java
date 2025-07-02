@@ -34,6 +34,9 @@ import net.lumalyte.customitems.behaviors.AirdropData;
 import net.lumalyte.customitems.CustomItemsManager;
 import net.lumalyte.listeners.CustomItemListener;
 import net.lumalyte.util.MiniMessageUtils;
+import java.util.List;
+import net.lumalyte.game.Team;
+import net.lumalyte.game.TeamQueueManager;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.
@@ -140,6 +143,26 @@ public class SGCommand {
             .then(Commands.literal("leave")
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.leave"))
                 .executes(this::leaveGame))
+            .then(Commands.literal("invite")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.invite"))
+                .then(Commands.argument("player", StringArgumentType.word())
+                    .suggests(this::suggestOnlinePlayers)
+                    .executes(this::invitePlayer)))
+            .then(Commands.literal("accept")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.accept"))
+                .executes(this::acceptInvitation))
+            .then(Commands.literal("decline")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.decline"))
+                .executes(this::declineInvitation))
+            .then(Commands.literal("team")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.team"))
+                .then(Commands.literal("leave")
+                    .executes(this::leaveTeam))
+                .then(Commands.literal("list")
+                    .executes(this::listTeam)))
+            .then(Commands.literal("mute")
+                .requires(source -> source.getSender().hasPermission("lumasg.command.sg.mute"))
+                .executes(this::toggleQueueMute))
             .then(Commands.literal("start")
                 .requires(source -> source.getSender().hasPermission("lumasg.command.sg.start"))
                 .then(Commands.argument("arena", StringArgumentType.word())
@@ -954,6 +977,18 @@ public class SGCommand {
                 .append(Component.text(" - Join a game", NamedTextColor.GRAY)));
             sender.sendMessage(Component.text("/sg leave", NamedTextColor.YELLOW)
                 .append(Component.text(" - Leave current game", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg invite <player>", NamedTextColor.YELLOW)
+                .append(Component.text(" - Invite a player to your team", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg accept", NamedTextColor.YELLOW)
+                .append(Component.text(" - Accept a team invitation", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg decline", NamedTextColor.YELLOW)
+                .append(Component.text(" - Decline a team invitation", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg team leave", NamedTextColor.YELLOW)
+                .append(Component.text(" - Leave your current team", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg team list", NamedTextColor.YELLOW)
+                .append(Component.text(" - List your team members", NamedTextColor.GRAY)));
+            sender.sendMessage(Component.text("/sg mute", NamedTextColor.YELLOW)
+                .append(Component.text(" - Toggle queue broadcast muting", NamedTextColor.GRAY)));
             sender.sendMessage(Component.text("/sg info", NamedTextColor.YELLOW)
                 .append(Component.text(" - Show current game info", NamedTextColor.GRAY)));
         }
@@ -980,12 +1015,7 @@ public class SGCommand {
             sender.sendMessage(Component.text("/sg removeplayer <player>", NamedTextColor.YELLOW)
                 .append(Component.text(" - Remove player from game", NamedTextColor.GRAY)));
             sender.sendMessage(Component.text("/sg forcestart <arena>", NamedTextColor.YELLOW)
-                .append(Component.text(" - Force start game", NamedTextColor.GRAY)));
-        }
-        
-        if (sender.hasPermission("lumasg.command.sg.reload")) {
-            sender.sendMessage(Component.text("/sg reload", NamedTextColor.YELLOW)
-                .append(Component.text(" - Reload configuration", NamedTextColor.GRAY)));
+                .append(Component.text(" - Force start a game", NamedTextColor.GRAY)));
         }
         
         return 1;
@@ -1010,12 +1040,13 @@ public class SGCommand {
      */
     private NamedTextColor getStateColor(GameState state) {
         return switch (state) {
+            case INACTIVE -> NamedTextColor.GRAY;
             case WAITING -> NamedTextColor.YELLOW;
             case COUNTDOWN -> NamedTextColor.GOLD;
             case GRACE_PERIOD -> NamedTextColor.AQUA;
             case ACTIVE -> NamedTextColor.GREEN;
             case DEATHMATCH -> NamedTextColor.RED;
-            case FINISHED -> NamedTextColor.GRAY;
+            case FINISHED -> NamedTextColor.DARK_PURPLE;
         };
     }
 
@@ -1148,5 +1179,166 @@ public class SGCommand {
             MiniMessageUtils.sendMessage(player, "<red>Failed to spawn meteor: " + e.getMessage() + "</red>");
             return 0;
         }
+    }
+
+    /**
+     * Handles the invite command to invite a player to the sender's team.
+     */
+    private int invitePlayer(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        String playerName = StringArgumentType.getString(context, "player");
+        Player invitee = Bukkit.getPlayer(playerName);
+
+        if (invitee == null) {
+            player.sendMessage(Component.text("Player not found or offline!", NamedTextColor.RED));
+            return 0;
+        }
+
+        if (invitee.equals(player)) {
+            player.sendMessage(Component.text("You cannot invite yourself!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Check if player is in a game
+        Game game = gameManager.getGameByPlayer(player);
+        if (game == null) {
+            player.sendMessage(Component.text("You must be in a game to invite players!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Check if game allows invitations (WAITING state)
+        if (game.getState() != GameState.WAITING) {
+            player.sendMessage(Component.text("You can only invite players while the game is waiting!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Get player's team
+        Team playerTeam = game.getTeamManager().getPlayerTeam(player);
+        if (playerTeam == null) {
+            player.sendMessage(Component.text("You are not on a team!", NamedTextColor.RED));
+            return 0;
+        }
+
+        // Send invitation
+        boolean success = getPlugin().getTeamQueueManager().sendInvitation(player, invitee, playerTeam, game);
+        return success ? 1 : 0;
+    }
+    
+    /**
+     * Handles accepting a team invitation.
+     */
+    private int acceptInvitation(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        boolean success = getPlugin().getTeamQueueManager().acceptInvitation(player);
+        return success ? 1 : 0;
+    }
+    
+    /**
+     * Handles declining a team invitation.
+     */
+    private int declineInvitation(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        boolean success = getPlugin().getTeamQueueManager().declineInvitation(player);
+        return success ? 1 : 0;
+    }
+    
+    /**
+     * Handles leaving a team.
+     */
+    private int leaveTeam(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        boolean success = getPlugin().getTeamQueueManager().leaveTeam(player);
+        return success ? 1 : 0;
+    }
+    
+    /**
+     * Handles listing team members.
+     */
+    private int listTeam(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        Team team = getPlugin().getTeamQueueManager().getPlayerTeam(player);
+        if (team == null) {
+            player.sendMessage(Component.text("You are not in a team!", NamedTextColor.RED));
+            return 0;
+        }
+
+        player.sendMessage(Component.text("=== " + team.getDisplayName() + " ===", NamedTextColor.GOLD));
+        
+        List<Player> onlineMembers = team.getOnlineMembers();
+        if (onlineMembers.isEmpty()) {
+            player.sendMessage(Component.text("No online members", NamedTextColor.GRAY));
+        } else {
+            for (Player member : onlineMembers) {
+                Component memberLine = Component.text("• ", NamedTextColor.GRAY)
+                    .append(Component.text(member.getName(), NamedTextColor.GREEN));
+                
+                if (member.equals(player)) {
+                    memberLine = memberLine.append(Component.text(" (You)", NamedTextColor.YELLOW));
+                }
+                
+                player.sendMessage(memberLine);
+            }
+        }
+        
+        player.sendMessage(Component.text("Team size: " + team.getSize() + " players", NamedTextColor.GRAY));
+        
+        return 1;
+    }
+    
+    /**
+     * Handles toggling queue broadcast muting.
+     */
+    private int toggleQueueMute(CommandContext<CommandSourceStack> context) {
+        // Initialize managers if needed
+        initializeManagers();
+        
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            context.getSource().getSender().sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+            return 0;
+        }
+
+        getPlugin().getTeamQueueManager().toggleMute(player);
+        return 1;
     }
 } 

@@ -7,7 +7,7 @@ package net.lumalyte.game;
  * behaviors, and allowed actions. The game transitions through these states
  * in a specific order as the match progresses.</p>
  * 
- * <p>The typical state flow is: WAITING → COUNTDOWN → GRACE_PERIOD → ACTIVE → 
+ * <p>The typical state flow is: INACTIVE → WAITING → COUNTDOWN → GRACE_PERIOD → ACTIVE → 
  * DEATHMATCH → FINISHED. Each state has different implications for player
  * actions, PvP rules, and game mechanics.</p>
  * 
@@ -16,6 +16,25 @@ package net.lumalyte.game;
  * @since 1.0
  */
 public enum GameState {
+    
+    /**
+     * The game has been set up by a ranked player but is not yet accepting players.
+     * 
+     * <p>In this state, a ranked player has created a game instance and is configuring
+     * the game mode (solo/duos/trios), team settings, and privacy options. The game
+     * is visible in the queue system but players cannot join until it transitions
+     * to WAITING state.</p>
+     * 
+     * <p>Characteristics:
+     * <ul>
+     *   <li>Game is being configured by the creator</li>
+     *   <li>Players cannot join yet</li>
+     *   <li>Game mode is being selected</li>
+     *   <li>Privacy settings are being configured</li>
+     *   <li>Can be cancelled or transitioned to WAITING</li>
+     * </ul></p>
+     */
+    INACTIVE,
     
     /**
      * The game is waiting for players to join.

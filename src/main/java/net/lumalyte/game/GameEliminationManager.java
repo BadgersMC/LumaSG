@@ -209,4 +209,8 @@ public class GameEliminationManager {
     public @NotNull GameStatisticsManager getStatisticsManager() {
         return statisticsManager;
     }
-} 
+
+	public @NotNull DebugLogger.ContextualLogger getLogger() {
+		return logger;
+	}
+}

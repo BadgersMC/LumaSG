@@ -19,8 +19,7 @@ import java.util.Map;
  * Handles configuration and formatting for deathmatch reminders.
  */
 public class DeathmatchReminderConfig {
-    private final @NotNull LumaSG plugin;
-    private final @NotNull DebugLogger.ContextualLogger logger;
+	private final @NotNull DebugLogger.ContextualLogger logger;
     
     private final boolean enabled;
     @NotNull List<Integer> reminderTimes;
@@ -30,8 +29,7 @@ public class DeathmatchReminderConfig {
     private final String warningSound;
     
     public DeathmatchReminderConfig(@NotNull LumaSG plugin) {
-        this.plugin = plugin;
-        this.logger = plugin.getDebugLogger().forContext("DeathmatchReminderConfig");
+		this.logger = plugin.getDebugLogger().forContext("DeathmatchReminderConfig");
         
         ConfigurationSection config = plugin.getConfig().getConfigurationSection("messages.deathmatch-reminders");
         if (config == null) {
@@ -125,8 +123,9 @@ public class DeathmatchReminderConfig {
             NamespacedKey soundKey = soundName.contains(":") ? 
                 NamespacedKey.fromString(soundName.toLowerCase()) :
                 NamespacedKey.minecraft(soundName.toLowerCase());
-            
-            Sound sound = Registry.SOUNDS.get(soundKey);
+
+			assert soundKey != null;
+			Sound sound = Registry.SOUNDS.get(soundKey);
             if (sound != null) {
                 player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
             } else {
@@ -143,7 +142,7 @@ public class DeathmatchReminderConfig {
         return enabled;
     }
     
-    public List<Integer> getReminderTimes() {
+    public @NotNull List<Integer> getReminderTimes() {
         return reminderTimes;
     }
 } 

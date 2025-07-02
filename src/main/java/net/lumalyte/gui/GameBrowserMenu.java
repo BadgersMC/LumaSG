@@ -5,9 +5,11 @@ import net.lumalyte.arena.Arena;
 import net.lumalyte.game.Game;
 import net.lumalyte.game.GameState;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.gui.PagedGui;
@@ -134,19 +136,32 @@ public class GameBrowserMenu {
                         player.closeInventory();
                         
                         plugin.getServer().getScheduler().runTask(plugin, () -> {
-                            // Join or create game
                             if (finalGame != null && finalGame.getState() != GameState.FINISHED) {
-                                // Join existing game
-                                finalGame.addPlayer(player);
-                                player.sendMessage(Component.text("§aYou joined the game in arena " + finalArena.getName()));
-                            } else {
-                                // Create new game
-                                Game newGame = plugin.getGameManager().createGame(finalArena);
-                                if (newGame != null) {
-                                    newGame.addPlayer(player);
-                                    player.sendMessage(Component.text("§aCreated and joined a new game in arena " + finalArena.getName()));
+                                // Handle existing games based on their state
+                                if (finalGame.getState() == GameState.INACTIVE) {
+                                    // Game exists but is inactive - check if player has setup permission
+                                    if (player.hasPermission("lumasg.setup.game") || 
+                                        player.hasPermission("lumasg.admin")) {
+                                        // Ranked player - open game setup menu
+                                        new GameSetupMenu(plugin).openMenu(player);
+                                    } else {
+                                        // Regular player - can't set up games
+                                        player.sendMessage(Component.text("§cThis game is being set up by a ranked player. Please wait for it to become available!", NamedTextColor.RED));
+                                    }
                                 } else {
-                                    player.sendMessage(Component.text("§cFailed to create a new game!"));
+                                    // Game is active (waiting, countdown, etc.) - join normally
+                                    finalGame.addPlayer(player);
+                                    player.sendMessage(Component.text("§aYou joined the game in arena " + finalArena.getName()));
+                                }
+                            } else {
+                                // No game exists or game is finished - check if player has setup permission
+                                if (player.hasPermission("lumasg.setup.game") || 
+                                    player.hasPermission("lumasg.admin")) {
+                                    // Ranked player - open game setup menu
+                                    new GameSetupMenu(plugin).openMenu(player);
+                                } else {
+                                    // Regular player - can't create games
+                                    player.sendMessage(Component.text("§cOnly ranked players can create new games!", NamedTextColor.RED));
                                 }
                             }
                         });
@@ -201,12 +216,12 @@ public class GameBrowserMenu {
         }
 
 		return switch (game.getState()) {
+			case INACTIVE -> Material.PURPLE_WOOL; // Game being set up
 			case WAITING -> Material.LIME_WOOL; // Waiting for players
 			case COUNTDOWN -> Material.YELLOW_WOOL; // Countdown in progress
 			case GRACE_PERIOD, ACTIVE -> Material.ORANGE_WOOL; // Game in progress
 			case DEATHMATCH -> Material.RED_WOOL; // Deathmatch in progress
 			case FINISHED -> Material.EMERALD_BLOCK; // Game finished, can create new
-			default -> Material.GRAY_WOOL; // Unknown state
 		};
     }
     
@@ -222,13 +237,13 @@ public class GameBrowserMenu {
         }
 
 		return switch (game.getState()) {
+			case INACTIVE -> "§5Being set up";
 			case WAITING -> "§aWaiting for players";
 			case COUNTDOWN -> "§eStarting soon";
 			case GRACE_PERIOD -> "§6Grace period";
 			case ACTIVE -> "§cIn progress";
 			case DEATHMATCH -> "§4Deathmatch";
 			case FINISHED -> "§aFinished";
-			default -> "§7Unknown";
 		};
     }
 } 

@@ -418,7 +418,7 @@ public class ItemUtils {
                     
                     ArmorTrim trim = new ArmorTrim(material, pattern);
                     meta.setTrim(trim);
-                    logger.debug("Applied random armor trim: " + pattern.getKey().getKey() + " with material " + material.getKey().getKey());
+                    logger.debug("Applied random armor trim: " + pattern.toString() + " with material " + material.toString());
                 }
             }
         } catch (Exception e) {

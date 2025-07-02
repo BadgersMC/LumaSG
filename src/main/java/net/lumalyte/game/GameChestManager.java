@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -180,7 +181,7 @@ public class GameChestManager {
      * @return The selected tier name
      */
     private @NotNull String selectChestTier() {
-        Map<String, Integer> tierWeights = plugin.getConfig().getConfigurationSection("chest-tiers")
+        Map<String, Integer> tierWeights = Objects.requireNonNull(plugin.getConfig().getConfigurationSection("chest-tiers"))
             .getValues(false)
             .entrySet()
             .stream()

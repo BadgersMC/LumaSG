@@ -1,7 +1,6 @@
 package net.lumalyte.game;
 
 import net.lumalyte.LumaSG;
-import net.lumalyte.statistics.StatType;
 import net.lumalyte.statistics.StatisticsManager;
 import net.lumalyte.util.DebugLogger;
 import org.jetbrains.annotations.NotNull;
@@ -33,7 +32,7 @@ public class GameStatisticsManager {
     private final @NotNull StatisticsManager statisticsManager;
     
     /** Game start time for duration calculation */
-    private @NotNull Instant gameStartTime;
+    private final @NotNull Instant gameStartTime;
     
     /** Map of player UUIDs to their damage dealt during the game */
     private final @NotNull Map<UUID, Double> playerDamageDealt = new ConcurrentHashMap<>();
