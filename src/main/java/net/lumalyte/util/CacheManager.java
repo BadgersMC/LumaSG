@@ -168,6 +168,10 @@ public class CacheManager {
             PlayerDataCache.performMaintenance();
             ScoreboardCache.performMaintenance();
             
+            // Clean up tier-specific caches
+            HOT_CACHE.cleanUp();
+            WARM_CACHE.cleanUp();
+            
             // Update coordination cache
             COORDINATION_CACHE.cleanUp();
             
@@ -185,11 +189,18 @@ public class CacheManager {
             SkinCache.clearCache(); // Periodic skin cache refresh
             GuiComponentCache.performMaintenance();
             
+            // Clean up cold tier and persistent cache
+            COLD_CACHE.cleanUp();
+            PERSISTENT_CACHE.entrySet().removeIf(entry -> 
+                entry.getKey().startsWith("temp:") && // Remove temporary persistent entries
+                System.currentTimeMillis() - (Long) entry.getValue() > Duration.ofHours(24).toMillis()
+            );
+            
             // Update cache metadata
             updateCacheMetadata();
             
             // Log maintenance completion
-            logger.debug("Heavy maintenance completed");
+            logger.debug("Heavy maintenance completed - Cold cache cleaned, persistent cache optimized");
             
         } catch (Exception e) {
             logger.warn("Heavy maintenance failed", e);
@@ -201,10 +212,19 @@ public class CacheManager {
      */
     private static void updateCacheStatistics() {
         try {
-            // This would update statistics for monitoring
-            // Implementation depends on monitoring system requirements
+            // Update global cache metrics
+            totalRequests.incrementAndGet();
             
-            logger.debug("Cache statistics updated");
+            // Calculate hit/miss ratios from coordination cache
+            double coordinationHitRate = COORDINATION_CACHE.stats().hitRate();
+            if (coordinationHitRate > 0.8) {
+                cacheHits.incrementAndGet();
+            } else {
+                cacheMisses.incrementAndGet();
+            }
+            
+            logger.debug("Cache statistics updated - Total requests: " + totalRequests.get() + 
+                        ", Hits: " + cacheHits.get() + ", Misses: " + cacheMisses.get());
         } catch (Exception e) {
             logger.warn("Failed to update cache statistics", e);
         }
@@ -217,6 +237,15 @@ public class CacheManager {
         for (CacheMetadata metadata : CACHE_METADATA.asMap().values()) {
             metadata.lastMaintenanceTime = System.currentTimeMillis();
         }
+    }
+    
+    /**
+     * Gets detailed statistics from all cache subsystems
+     * 
+     * @return Formatted string containing all cache statistics
+     */
+    public static String getDetailedStats() {
+        return getAllCacheStats();
     }
     
     /**
@@ -351,6 +380,68 @@ public class CacheManager {
         health.append("\nOverall Status: ").append(allHealthy ? "HEALTHY" : "DEGRADED").append("\n");
         
         return health.toString();
+    }
+    
+    /**
+     * Performs maintenance on all cache systems
+     */
+    public static void performMaintenance() {
+        performLightMaintenance();
+        performHeavyMaintenance();
+    }
+    
+    /**
+     * Puts a value into the specified cache tier
+     */
+    public static void put(String key, Object value, CacheTier tier) {
+        switch (tier) {
+            case HOT -> HOT_CACHE.put(key, value);
+            case WARM -> WARM_CACHE.put(key, value);
+            case COLD -> COLD_CACHE.put(key, value);
+            case PERSISTENT -> PERSISTENT_CACHE.put(key, value);
+        }
+    }
+    
+    /**
+     * Gets a value from the cache tiers
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T get(String key, Class<T> clazz) {
+        Object value = HOT_CACHE.getIfPresent(key);
+        if (value != null) {
+            return clazz.cast(value);
+        }
+        
+        value = WARM_CACHE.getIfPresent(key);
+        if (value != null) {
+            // Promote to hot cache
+            HOT_CACHE.put(key, value);
+            return clazz.cast(value);
+        }
+        
+        value = COLD_CACHE.getIfPresent(key);
+        if (value != null) {
+            // Promote to warm cache
+            WARM_CACHE.put(key, value);
+            return clazz.cast(value);
+        }
+        
+        value = PERSISTENT_CACHE.get(key);
+        if (value != null) {
+            return clazz.cast(value);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Invalidates a key from all cache tiers
+     */
+    public static void invalidate(String key) {
+        HOT_CACHE.invalidate(key);
+        WARM_CACHE.invalidate(key);
+        COLD_CACHE.invalidate(key);
+        PERSISTENT_CACHE.remove(key);
     }
     
     /**

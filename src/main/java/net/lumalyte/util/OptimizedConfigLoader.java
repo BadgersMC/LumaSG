@@ -177,6 +177,20 @@ public class OptimizedConfigLoader {
     }
     
     /**
+     * Invalidates cache for a specific file
+     */
+    public static void invalidateFileCache(String configFile) {
+        // Remove all cached values for this file
+        CONFIG_VALUE_CACHE.asMap().keySet().removeIf(key -> key.startsWith(configFile + ":"));
+        SECTION_CACHE.asMap().keySet().removeIf(key -> key.startsWith(configFile + ":"));
+        FILE_CONFIG_CACHE.invalidate(configFile);
+        LIST_CACHE.asMap().keySet().removeIf(key -> key.startsWith(configFile + ":"));
+        FILE_MODIFICATION_TIMES.remove(configFile);
+        
+        logger.debug("Invalidated cache for file: " + configFile);
+    }
+    
+    /**
      * Invalidates all caches
      */
     public static void invalidateAllCaches() {

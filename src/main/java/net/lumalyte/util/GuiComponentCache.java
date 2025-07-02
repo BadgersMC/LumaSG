@@ -52,12 +52,8 @@ public class GuiComponentCache {
     // Pre-built item suppliers for common items
     private static final ConcurrentHashMap<String, Supplier<Item>> ITEM_SUPPLIERS = new ConcurrentHashMap<>();
     
-    // Commonly used materials for quick access
-    private static final Material[] BORDER_MATERIALS = {
-        Material.BLACK_STAINED_GLASS_PANE,
-        Material.GRAY_STAINED_GLASS_PANE,
-        Material.LIGHT_GRAY_STAINED_GLASS_PANE
-    };
+    // Note: Border materials will be implemented when needed
+    // Currently using inline material selection for better performance
     
     private static LumaSG plugin;
     private static DebugLogger.ContextualLogger logger;
@@ -205,6 +201,7 @@ public class GuiComponentCache {
             case "browser" -> GAME_BROWSER_CACHE.invalidate("browser:" + key);
             case "item" -> GUI_ITEM_CACHE.invalidate(key);
             case "itemstack" -> ITEMSTACK_CACHE.invalidate(key);
+            default -> logger.warn("Unknown cache type for invalidation: " + cacheType);
         }
     }
     
