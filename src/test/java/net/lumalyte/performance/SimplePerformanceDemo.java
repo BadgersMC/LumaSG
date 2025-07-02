@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import net.lumalyte.util.TestUtils;
 
@@ -45,6 +46,21 @@ public class SimplePerformanceDemo {
             String serverType = getServerType(cores);
             System.out.printf("%-20s: %2d cores → %2d threads (calculated: %.1f)%n", 
                             serverType, cores, bounded, calculated);
+            
+            // Assertions to validate algorithm behavior
+            assertTrue(bounded >= minThreads, "Thread count should be at least " + minThreads);
+            assertTrue(bounded <= maxThreads, "Thread count should not exceed " + maxThreads);
+            assertTrue(bounded > 0, "Thread count should be positive");
+            
+            // For low core counts, should use minimum
+            if (cores <= 2) {
+                assertEquals(minThreads, bounded, "Low core count should use minimum threads");
+            }
+            
+            // For high core counts, should hit maximum
+            if (cores >= 8) {
+                assertEquals(maxThreads, bounded, "High core count should use maximum threads");
+            }
         }
         
         System.out.println("\n✅ Thread pool sizing algorithm validated successfully");
@@ -91,6 +107,14 @@ public class SimplePerformanceDemo {
         System.out.println("Concurrent time: " + concurrentTime.toMillis() + " ms");
         System.out.printf("Speedup: %.2fx%n", speedup);
         System.out.printf("Efficiency: %.1f%%%n", efficiency);
+        
+        // Assertions to validate performance improvements
+        assertTrue(concurrentTime.toMillis() < sequentialTime.toMillis(), 
+                  "Concurrent execution should be faster than sequential");
+        assertTrue(speedup > 2.0, "Should achieve at least 2x speedup with concurrent execution");
+        assertTrue(efficiency > 25.0, "Thread pool efficiency should be at least 25%");
+        assertTrue(concurrentTime.toMillis() < (sequentialTime.toMillis() / 2), 
+                  "Concurrent execution should be at least 50% faster");
         
         System.out.println("\n✅ Concurrent processing demonstrates significant performance improvement");
     }
@@ -140,6 +164,14 @@ public class SimplePerformanceDemo {
         System.out.println("Cache lookups: " + cacheLookupTime.toMillis() + " ms");
         System.out.println("Without cache (estimated): " + estimatedDirectTime + " ms");
         System.out.printf("Cache speedup: %.0fx%n", cacheSpeedup);
+        
+        // Assertions to validate cache performance
+        assertEquals(uniqueKeys, cache.size(), "Cache should contain all unique keys");
+        assertTrue(cacheSpeedup > 10.0, "Cache should provide at least 10x speedup");
+        assertTrue(cacheLookupTime.toMillis() < estimatedDirectTime / 5, 
+                  "Cache lookups should be at least 5x faster than direct computation");
+        assertTrue(cachePopulationTime.toMillis() < uniqueKeys * 2, 
+                  "Cache population should be efficient");
         
         System.out.println("\n✅ Cache provides massive performance improvement for repeated operations");
     }
@@ -217,6 +249,14 @@ public class SimplePerformanceDemo {
         System.out.printf("Estimated server thread usage: %.2f%%%n", estimatedServerThreadUsage);
         System.out.printf("Server headroom remaining: %.2f%%%n", 100.0 - estimatedServerThreadUsage);
         
+        // Assertions to validate 20-game performance requirements
+        assertEquals(gameCount * playersPerGame, totalPlayers, "Should process all players");
+        assertEquals(gameCount * chestsPerGame, totalChests, "Should process all chests");
+        assertTrue(totalTime.toMillis() < 10000, "20 games should complete within 10 seconds");
+        assertTrue(chestsPerSecond > 100, "Should process at least 100 chests per second");
+        assertTrue(playersPerSecond > 200, "Should process at least 200 players per second");
+        assertTrue(estimatedServerThreadUsage < 5.0, "Server thread usage should be under 5%");
+        
         System.out.println("\n✅ 20-game simulation completed successfully with excellent performance");
     }
     
@@ -255,14 +295,23 @@ public class SimplePerformanceDemo {
         long withCachesMemory = runtime.totalMemory() - runtime.freeMemory();
         
         long cacheOverhead = withCachesMemory - baselineMemory;
+        double cacheOverheadMB = cacheOverhead / (1024.0 * 1024.0);
         
         System.out.println("Memory Usage Analysis:");
         System.out.printf("  Baseline memory: %.2f MB%n", baselineMemory / (1024.0 * 1024.0));
         System.out.printf("  With caches: %.2f MB%n", withCachesMemory / (1024.0 * 1024.0));
-        System.out.printf("  Cache overhead: %.2f MB%n", cacheOverhead / (1024.0 * 1024.0));
+        System.out.printf("  Cache overhead: %.2f MB%n", cacheOverheadMB);
         System.out.println("  Game cache entries: " + gameCache.size());
         System.out.println("  World cache entries: " + worldCache.size());
         System.out.println("  Loot cache entries: " + lootCache.size());
+        
+        // Assertions to validate memory efficiency
+        assertEquals(50, gameCache.size(), "Game cache should have 50 entries");
+        assertEquals(20, worldCache.size(), "World cache should have 20 entries");
+        assertEquals(250, lootCache.size(), "Loot cache should have 250 entries");
+        assertTrue(cacheOverheadMB < 10.0, "Cache overhead should be less than 10MB");
+        assertTrue(withCachesMemory > baselineMemory, "Cache should use some memory");
+        assertTrue(cacheOverhead > 0, "Cache overhead should be positive");
         
         System.out.println("\n✅ Memory overhead is minimal and well within acceptable bounds");
     }

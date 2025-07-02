@@ -78,9 +78,9 @@ public class Game {
     private final @NotNull GameTimerManager timerManager;
     private final @NotNull GameWorldManager worldManager;
     private final @NotNull GameScoreboardManager scoreboardManager;
-    private final @NotNull GameCelebrationManager celebrationManager;
+    private final @NotNull net.lumalyte.game.managers.CelebrationManager celebrationManager;
     private final @NotNull GameEliminationManager eliminationManager;
-    private final GameDeathMessageManager deathMessageManager;
+    private final net.lumalyte.game.managers.DeathMessageManager deathMessageManager;
     private final GameNameplateManager gameNameplateManager;
     private final @NotNull GameTeamManager teamManager;
     
@@ -159,9 +159,9 @@ public class Game {
         this.timerManager = new GameTimerManager(plugin, playerManager);
         this.worldManager = new GameWorldManager(plugin, arena);
         this.scoreboardManager = new GameScoreboardManager(plugin, arena, gameId, playerManager, timerManager);
-        this.celebrationManager = new GameCelebrationManager(plugin, playerManager);
+        this.celebrationManager = new net.lumalyte.game.managers.CelebrationManager(plugin, playerManager);
         this.eliminationManager = new GameEliminationManager(plugin, gameId.toString(), playerManager);
-        this.deathMessageManager = new GameDeathMessageManager(plugin, gameId.toString(), playerManager);
+        this.deathMessageManager = new net.lumalyte.game.managers.DeathMessageManager(plugin, gameId.toString(), playerManager);
         this.gameNameplateManager = new GameNameplateManager(plugin, arena, gameId, playerManager);
         this.teamManager = new GameTeamManager(plugin, this, net.lumalyte.game.GameMode.SOLO); // Default to solo mode
         
@@ -873,7 +873,7 @@ public class Game {
         // Pre-cache player skins when 3 players remain for faster winner celebration
         if (playerCount == 3 && (state == GameState.ACTIVE || state == GameState.DEATHMATCH)) {
             logger.debug("3 players remaining - pre-caching skins for winner celebration");
-            celebrationManager.preCachePlayerSkins();
+            // Pre-cache player skins for better performance (removed in simplified celebration manager)
         }
 
         // End game immediately if there's only one player left (regardless of game state)
@@ -1031,7 +1031,8 @@ public class Game {
         if (playerManager.getPlayerCount() == 1) {
             celebrateWinner();
         } else {
-            celebrationManager.celebrateNoWinner();
+            // Handle no winner case - broadcast end message
+            broadcastMessage(Component.text("Game Over! No winner!", NamedTextColor.RED));
         }
     }
     
@@ -1458,7 +1459,7 @@ public class Game {
         logger.debug("Started periodic game end checking (every 5 seconds)");
     }
 
-    public @NotNull GameDeathMessageManager getDeathMessageManager() {
+    public @NotNull net.lumalyte.game.managers.DeathMessageManager getDeathMessageManager() {
         return deathMessageManager;
     }
     
@@ -1466,7 +1467,7 @@ public class Game {
         return eliminationManager;
     }
     
-    public @NotNull GameCelebrationManager getCelebrationManager() {
+    public @NotNull net.lumalyte.game.managers.CelebrationManager getCelebrationManager() {
         return celebrationManager;
     }
     

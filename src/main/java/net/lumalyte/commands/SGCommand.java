@@ -35,7 +35,7 @@ import net.lumalyte.game.Game;
 import net.lumalyte.game.GameManager;
 import net.lumalyte.game.GameState;
 import net.lumalyte.game.Team;
-import net.lumalyte.gui.MainMenu;
+import net.lumalyte.gui.menus.MainMenu;
 import net.lumalyte.util.CacheManager;
 import net.lumalyte.util.DebugLogger;
 import net.lumalyte.util.InvitationManager;

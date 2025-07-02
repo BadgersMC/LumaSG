@@ -213,7 +213,10 @@ public class ExplosiveBehavior implements Listener {
         switch (data.explosiveType) {
             case FIRE_BOMB -> handleFireExplosion(explosionLocation, data, thrower);
             case POISON_BOMB -> handlePoisonExplosion(explosionLocation, data, thrower);
-            default -> logger.warn("Unknown explosive type: " + data.explosiveType);
+            default -> {
+                logger.warn("Unknown explosive type: " + data.explosiveType);
+                // Handle unknown explosive type gracefully
+            }
         }
         
         logger.debug("Custom explosive detonated at " + explosionLocation);
@@ -495,6 +498,12 @@ public class ExplosiveBehavior implements Listener {
             case POISON_BOMB -> {
                 player.playSound(location, Sound.ENTITY_TNT_PRIMED, 1.0f, 0.8f);
                 MiniMessageUtils.sendMessage(player, "<dark_purple>Poison bomb thrown!</dark_purple>");
+            }
+            default -> {
+                // Handle unknown explosive type
+                player.playSound(location, Sound.ENTITY_TNT_PRIMED, 1.0f, 1.0f);
+                MiniMessageUtils.sendMessage(player, "<yellow>Explosive thrown!</yellow>");
+                logger.warn("Unknown explosive type in playThrowEffects: " + explosiveType);
             }
         }
     }

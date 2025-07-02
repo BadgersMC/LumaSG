@@ -1,28 +1,37 @@
 package net.lumalyte.performance;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import net.lumalyte.LumaSG;
-import net.lumalyte.game.Game;
 import net.lumalyte.arena.Arena;
+import net.lumalyte.game.Game;
+import net.lumalyte.util.cache.ArenaWorldCache;
 import net.lumalyte.util.GameInstancePool;
-import net.lumalyte.util.ArenaWorldCache;
 import net.lumalyte.util.TestUtils;
 import net.lumalyte.util.TestUtils.MockLocation;
-import net.lumalyte.util.TestUtils.PerformanceResult;
 
 /**
  * Comprehensive performance benchmark suite for LumaSG
@@ -302,24 +311,28 @@ public class LumaSGPerformanceBenchmark {
             for (int i = 0; i < numOperations; i++) {
                 int keyIndex = random.nextInt(numUniqueKeys);
                 
-                // Mix of operations to test different caches
-                switch (i % 3) {
-                    case 0:
-                        // Test game instance pool cache
-                        long activeCount = GameInstancePool.getActiveGameCount();
-                        assertTrue(activeCount >= 0, "Active count should be non-negative");
-                        break;
-                    case 1:
-                        // Test arena world cache stats
-                        String worldStats = ArenaWorldCache.getCacheStats();
-                        assertNotNull(worldStats, "World cache stats should not be null");
-                        break;
-                    case 2:
-                        // Trigger loot table cache access indirectly
-                        List<MockLocation> chests = createMockChestLocations("cache-world", 5);
-                        simulateChestFilling(chests, "cache-test");
-                        break;
-                }
+                                            // Mix of operations to test different caches
+                            switch (i % 3) {
+                                case 0:
+                                    // Test game instance pool cache
+                                    long activeCount = GameInstancePool.getActiveGameCount();
+                                    assertTrue(activeCount >= 0, "Active count should be non-negative");
+                                    break;
+                                case 1:
+                                    // Test arena world cache stats
+                                    String worldStats = ArenaWorldCache.getCacheStats();
+                                    assertNotNull(worldStats, "World cache stats should not be null");
+                                    break;
+                                case 2:
+                                    // Trigger loot table cache access indirectly
+                                    List<MockLocation> chests = createMockChestLocations("cache-world", 5);
+                                    simulateChestFilling(chests, "cache-test");
+                                    break;
+                                default:
+                                    // Should not reach here with modulo 3
+                                    fail("Unexpected switch case value: " + (i % 3));
+                                    break;
+                            }
             }
             
             long totalTime = System.nanoTime() - startTime;
@@ -452,6 +465,10 @@ public class LumaSGPerformanceBenchmark {
                                     List<MockLocation> chests = createMockChestLocations("stress-world-" + threadIndex, 5);
                                     simulateChestFilling(chests, "stress-game-" + threadIndex + "-" + j);
                                     successfulOperations.incrementAndGet();
+                                    break;
+                                default:
+                                    // Should not reach here with nextInt(4)
+                                    fail("Unexpected switch case value: " + random.nextInt(4));
                                     break;
                             }
                         }

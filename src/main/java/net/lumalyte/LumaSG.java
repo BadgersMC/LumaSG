@@ -26,7 +26,7 @@ import net.lumalyte.util.AdminWand;
 import net.lumalyte.util.CacheManager;
 import net.lumalyte.util.ConfigurationManager;
 import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.PerformanceProfiler;
+import net.lumalyte.util.performance.PerformanceProfiler;
 import net.lumalyte.util.ValidationUtils;
 import xyz.xenondevs.invui.InvUI;
 
@@ -194,7 +194,7 @@ public class LumaSG extends JavaPlugin {
             
             // Shutdown scaling optimization systems
             net.lumalyte.util.GameInstancePool.shutdown();
-            net.lumalyte.util.ArenaWorldCache.shutdown();
+            net.lumalyte.util.cache.ArenaWorldCache.shutdown();
             net.lumalyte.util.ConcurrentChestFiller.shutdown();
             net.lumalyte.util.LootTableCache.shutdown();
             debugLogger.info("Scaling optimization systems shutdown completed");
@@ -366,7 +366,7 @@ public class LumaSG extends JavaPlugin {
             
             // Initialize scaling optimization systems
             net.lumalyte.util.GameInstancePool.initialize(this);
-            net.lumalyte.util.ArenaWorldCache.initialize(this);
+            net.lumalyte.util.cache.ArenaWorldCache.initialize(this);
             getDebugLogger().info("Initialized scaling systems for 15-20 concurrent games:");
             getDebugLogger().info("  ✓ GameInstancePool - Caffeine-based game lifecycle management");
             getDebugLogger().info("  ✓ ArenaWorldCache - Multi-world arena caching system");

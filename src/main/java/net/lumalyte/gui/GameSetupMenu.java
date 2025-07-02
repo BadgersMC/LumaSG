@@ -1,5 +1,14 @@
 package net.lumalyte.gui;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.jetbrains.annotations.NotNull;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.lumalyte.LumaSG;
@@ -9,10 +18,6 @@ import net.lumalyte.game.GameMode;
 import net.lumalyte.game.GameState;
 import net.lumalyte.game.Team;
 import net.lumalyte.game.TeamQueueManager;
-import org.bukkit.Material;
-import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
-import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.ItemProvider;
@@ -20,10 +25,6 @@ import xyz.xenondevs.invui.item.builder.ItemBuilder;
 import xyz.xenondevs.invui.item.impl.AbstractItem;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
 import xyz.xenondevs.invui.window.Window;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Menu for ranked players to configure and set up new games.
@@ -247,7 +248,7 @@ public class GameSetupMenu {
                     player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                     player.closeInventory();
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        new MainMenu(plugin).openMenu(player);
+                        new net.lumalyte.gui.menus.MainMenu(plugin).openMenu(player);
                     });
                 }
             }

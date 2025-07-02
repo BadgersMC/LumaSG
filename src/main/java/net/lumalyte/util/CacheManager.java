@@ -414,6 +414,10 @@ public class CacheManager {
             case WARM -> WARM_CACHE.put(key, value);
             case COLD -> COLD_CACHE.put(key, value);
             case PERSISTENT -> PERSISTENT_CACHE.put(key, value);
+            default -> {
+                logger.warn("Unknown cache tier: " + tier + ", defaulting to WARM tier");
+                WARM_CACHE.put(key, value);
+            }
         }
     }
     
