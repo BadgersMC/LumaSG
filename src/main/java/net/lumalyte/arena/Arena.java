@@ -882,24 +882,72 @@ public class Arena {
         ValidationUtils.requireNonNull(plugin, "Plugin Instance", "Arena Loading");
         ValidationUtils.requireNonNull(section, "Configuration Section", "Arena Loading");
 
+        String name = validateAndGetArenaName(section);
+        Arena arena = createArenaFromConfig(plugin, section, name);
+        
+        loadAllArenaData(arena, section);
+        validateArenaConfiguration(arena);
+        
+        return arena;
+    }
+    
+    /**
+     * Validates and extracts the arena name from configuration
+     */
+    private static @NotNull String validateAndGetArenaName(@NotNull ConfigurationSection section) throws LumaSGException.ConfigurationException {
         String name = section.getString("name");
         if (name == null || name.isEmpty()) {
             throw new LumaSGException.ConfigurationException("Arena name cannot be null or empty");
         }
-
+        return name;
+    }
+    
+    /**
+     * Creates a basic arena from configuration with player limits
+     */
+    private static @NotNull Arena createArenaFromConfig(@NotNull LumaSG plugin, @NotNull ConfigurationSection section, @NotNull String name) {
         int maxPlayers = section.getInt("max-players", 24);
         int minPlayers = section.getInt("min-players", 2);
-        
-        Arena arena = new Arena(name, plugin, maxPlayers, minPlayers);
+        return new Arena(name, plugin, maxPlayers, minPlayers);
+    }
+    
+    /**
+     * Loads all arena data from configuration
+     */
+    private static void loadAllArenaData(@NotNull Arena arena, @NotNull ConfigurationSection section) {
+        loadArenaLocationsFromConfig(arena, section);
+        loadArenaBlocksFromConfig(arena, section);
+        loadArenaPropertiesFromConfig(arena, section);
+    }
+    
+    /**
+     * Loads all location data for the arena
+     */
+    private static void loadArenaLocationsFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section) {
         ArenaConfigurationHelper configHelper = arena.configHelper;
         
-        // Load locations using the configuration helper
+        loadCenterLocationFromConfig(arena, section, configHelper);
+        loadSpawnPointsFromConfig(arena, section, configHelper);
+        loadChestLocationsFromConfig(arena, section, configHelper);
+        loadLobbySpawnFromConfig(arena, section, configHelper);
+        loadSpectatorSpawnFromConfig(arena, section, configHelper);
+    }
+    
+    /**
+     * Loads center location from configuration
+     */
+    private static void loadCenterLocationFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull ArenaConfigurationHelper configHelper) {
         ConfigurationSection centerSection = section.getConfigurationSection("center");
         if (centerSection != null) {
             arena.center = configHelper.loadLocation(centerSection);
             arena.logger.debug("Loaded center location");
         }
-
+    }
+    
+    /**
+     * Loads spawn points from configuration
+     */
+    private static void loadSpawnPointsFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull ArenaConfigurationHelper configHelper) {
         ConfigurationSection spawnSection = section.getConfigurationSection("spawn-points");
         if (spawnSection != null && !spawnSection.getKeys(false).isEmpty()) {
             for (String key : spawnSection.getKeys(false)) {
@@ -913,7 +961,12 @@ public class Arena {
                 }
             }
         }
-
+    }
+    
+    /**
+     * Loads chest locations from configuration
+     */
+    private static void loadChestLocationsFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull ArenaConfigurationHelper configHelper) {
         ConfigurationSection chestSection = section.getConfigurationSection("chest-locations");
         if (chestSection != null && !chestSection.getKeys(false).isEmpty()) {
             for (String key : chestSection.getKeys(false)) {
@@ -927,20 +980,34 @@ public class Arena {
                 }
             }
         }
-
+    }
+    
+    /**
+     * Loads lobby spawn from configuration
+     */
+    private static void loadLobbySpawnFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull ArenaConfigurationHelper configHelper) {
         ConfigurationSection lobbySection = section.getConfigurationSection("lobby-spawn");
         if (lobbySection != null) {
             arena.lobbySpawn = configHelper.loadLocation(lobbySection);
             arena.logger.debug("Loaded lobby spawn");
         }
-
+    }
+    
+    /**
+     * Loads spectator spawn from configuration
+     */
+    private static void loadSpectatorSpawnFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section, @NotNull ArenaConfigurationHelper configHelper) {
         ConfigurationSection spectatorSection = section.getConfigurationSection("spectator-spawn");
         if (spectatorSection != null) {
             arena.spectatorSpawn = configHelper.loadLocation(spectatorSection);
             arena.logger.debug("Loaded spectator spawn");
         }
-
-        // Load allowed blocks
+    }
+    
+    /**
+     * Loads allowed blocks from configuration
+     */
+    private static void loadArenaBlocksFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section) {
         List<String> allowedBlocksList = section.getStringList("allowed-blocks");
         for (String blockName : allowedBlocksList) {
             try {
@@ -951,15 +1018,21 @@ public class Arena {
                 arena.logger.warn("Invalid material name: " + blockName);
             }
         }
-
-        // Set radius
+    }
+    
+    /**
+     * Loads arena properties from configuration
+     */
+    private static void loadArenaPropertiesFromConfig(@NotNull Arena arena, @NotNull ConfigurationSection section) {
         arena.radius = section.getInt("radius", 100);
-
-        // Ensure we have at least one spawn point
+    }
+    
+    /**
+     * Validates the loaded arena configuration
+     */
+    private static void validateArenaConfiguration(@NotNull Arena arena) throws LumaSGException.ConfigurationException {
         if (arena.spawnPoints.isEmpty()) {
             throw new LumaSGException.ConfigurationException("Arena must have at least one spawn point");
         }
-
-        return arena;
     }
 } 

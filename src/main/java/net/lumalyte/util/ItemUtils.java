@@ -178,28 +178,56 @@ public class ItemUtils {
      * Applies enchantments to the item meta.
      */
     private static void applyEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger, @NotNull LumaSG plugin) {
-        // Handle stored enchantments for enchanted books
-        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta storageMeta && section.contains("stored-enchants")) {
-            ConfigurationSection storedEnchantSection = section.getConfigurationSection("stored-enchants");
-            if (storedEnchantSection != null) {
-                for (String enchantKey : storedEnchantSection.getKeys(false)) {
-                    try {
-                        Enchantment enchant = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(NamespacedKey.minecraft(enchantKey.toLowerCase()));
-                        if (enchant != null) {
-                            int level = storedEnchantSection.getInt(enchantKey);
-                            storageMeta.addStoredEnchant(enchant, level, true);
-                            logger.debug("Added stored enchantment: " + enchantKey + " level " + level);
-                        } else {
-                            logger.warn("Unknown stored enchantment: " + enchantKey);
-                        }
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Invalid stored enchantment: " + enchantKey);
-                    }
-                }
-            }
+        applyStoredEnchantments(section, meta, logger);
+        applyRegularEnchantments(section, meta, logger);
+    }
+    
+    /**
+     * Applies stored enchantments for enchanted books
+     */
+    private static void applyStoredEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger) {
+        if (!(meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta storageMeta)) {
+            return;
         }
-
-        // Handle regular enchantments
+        
+        if (!section.contains("stored-enchants")) {
+            return;
+        }
+        
+        ConfigurationSection storedEnchantSection = section.getConfigurationSection("stored-enchants");
+        if (storedEnchantSection == null) {
+            return;
+        }
+        
+        for (String enchantKey : storedEnchantSection.getKeys(false)) {
+            addStoredEnchantment(enchantKey, storedEnchantSection, storageMeta, logger);
+        }
+    }
+    
+    /**
+     * Adds a single stored enchantment to the meta
+     */
+    private static void addStoredEnchantment(@NotNull String enchantKey, @NotNull ConfigurationSection storedEnchantSection, 
+                                           @NotNull org.bukkit.inventory.meta.EnchantmentStorageMeta storageMeta, 
+                                           @NotNull DebugLogger.ContextualLogger logger) {
+        try {
+            Enchantment enchant = getEnchantmentFromRegistry(enchantKey);
+            if (enchant != null) {
+                int level = storedEnchantSection.getInt(enchantKey);
+                storageMeta.addStoredEnchant(enchant, level, true);
+                logger.debug("Added stored enchantment: " + enchantKey + " level " + level);
+            } else {
+                logger.warn("Unknown stored enchantment: " + enchantKey);
+            }
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid stored enchantment: " + enchantKey);
+        }
+    }
+    
+    /**
+     * Applies regular enchantments to the item
+     */
+    private static void applyRegularEnchantments(@NotNull ConfigurationSection section, @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger) {
         if (!section.contains("enchantments")) {
             return;
         }
@@ -210,20 +238,36 @@ public class ItemUtils {
         }
         
         for (String enchantKey : enchantSection.getKeys(false)) {
-            try {
-                // Use registry API instead of deprecated getByKey
-                Enchantment enchant = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(NamespacedKey.minecraft(enchantKey.toLowerCase()));
-                if (enchant != null) {
-                    int level = enchantSection.getInt(enchantKey);
-                    meta.addEnchant(enchant, level, true);
-                    logger.debug("Added enchantment: " + enchantKey + " level " + level);
-                } else {
-                    logger.warn("Unknown enchantment: " + enchantKey);
-                }
-            } catch (IllegalArgumentException e) {
-                logger.warn("Invalid enchantment: " + enchantKey);
-            }
+            addRegularEnchantment(enchantKey, enchantSection, meta, logger);
         }
+    }
+    
+    /**
+     * Adds a single regular enchantment to the meta
+     */
+    private static void addRegularEnchantment(@NotNull String enchantKey, @NotNull ConfigurationSection enchantSection, 
+                                            @NotNull ItemMeta meta, @NotNull DebugLogger.ContextualLogger logger) {
+        try {
+            Enchantment enchant = getEnchantmentFromRegistry(enchantKey);
+            if (enchant != null) {
+                int level = enchantSection.getInt(enchantKey);
+                meta.addEnchant(enchant, level, true);
+                logger.debug("Added enchantment: " + enchantKey + " level " + level);
+            } else {
+                logger.warn("Unknown enchantment: " + enchantKey);
+            }
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid enchantment: " + enchantKey);
+        }
+    }
+    
+    /**
+     * Gets an enchantment from the registry using the modern API
+     */
+    private static @Nullable Enchantment getEnchantmentFromRegistry(@NotNull String enchantKey) {
+        return RegistryAccess.registryAccess()
+                .getRegistry(RegistryKey.ENCHANTMENT)
+                .get(NamespacedKey.minecraft(enchantKey.toLowerCase()));
     }
     
     /**

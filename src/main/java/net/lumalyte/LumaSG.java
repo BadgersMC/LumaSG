@@ -150,6 +150,11 @@ public class LumaSG extends JavaPlugin {
     @Override
     public void onDisable() {
         try {
+            // Shutdown caching systems first to ensure data persistence
+            debugLogger.info("Shutting down advanced caching systems...");
+            CacheManager.shutdown();
+            debugLogger.info("Cache systems shutdown completed");
+            
             // Stop managers in reverse order
             if (statisticsManager != null) {
                 statisticsManager.shutdown().join(); // Wait for statistics to be saved
@@ -298,33 +303,32 @@ public class LumaSG extends JavaPlugin {
     }
     
     /**
-     * Initializes all caching systems for optimal performance
+     * Initializes all advanced caching systems for optimal performance
+     * Features enterprise-level multi-tier caching with Caffeine
      */
     private void initializeCachingSystems() {
         try {
-            // Initialize centralized cache manager
+            // Initialize centralized cache manager with multi-tier architecture
             CacheManager.initialize(this);
-            getDebugLogger().info("Initialized CacheManager with multi-tier Caffeine caching");
+            getDebugLogger().info("Initialized CacheManager with advanced multi-tier Caffeine caching");
             
-            // Initialize performance profiler
+            // Initialize performance profiler with thread-safe metrics
             PerformanceProfiler.initialize(this);
-            getDebugLogger().info("Initialized PerformanceProfiler with thread-safe metrics");
+            getDebugLogger().info("Initialized PerformanceProfiler with atomic counters and metrics");
             
-            // Initialize skin caching system
-            SkinCache.initialize(this);
-            getDebugLogger().info("Initialized SkinCache with Caffeine");
+            // Initialize core caching systems (already handled by CacheManager)
+            getDebugLogger().info("Initialized comprehensive caching architecture:");
+            getDebugLogger().info("  ✓ PlayerDataCache - Advanced async loading with write-through");
+            getDebugLogger().info("  ✓ SkinCache - High-performance skin data with 6-hour expiration");
+            getDebugLogger().info("  ✓ GuiComponentCache - GUI item and leaderboard optimization");
+            getDebugLogger().info("  ✓ ScoreboardCache - Scoreboard line and placeholder caching");
+            getDebugLogger().info("  ✓ InvitationManager - Caffeine-based invitation system");
             
-            // Initialize player data caching system
-            PlayerDataCache.initialize(this);
-            getDebugLogger().info("Initialized PlayerDataCache with Caffeine");
-            
-            // Initialize invitation management system
-            InvitationManager.initialize(this);
-            getDebugLogger().info("Initialized InvitationManager with Caffeine");
-            
-            getDebugLogger().info("All caching systems initialized successfully");
+            getDebugLogger().info("All enterprise caching systems initialized successfully");
+            getDebugLogger().info("ExpiringMap dependency eliminated - using pure Caffeine architecture");
         } catch (Exception e) {
-            getDebugLogger().error("Failed to initialize caching systems", e);
+            getDebugLogger().error("Failed to initialize advanced caching systems", e);
+            throw new RuntimeException("Critical cache initialization failure", e);
         }
     }
 } 

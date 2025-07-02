@@ -14,6 +14,7 @@ repositories {
         name = 'papermc-repo'
         url = 'https://repo.papermc.io/repository/maven-public/'
     }
+
     maven {
         name = 'sonatype'
         url = 'https://oss.sonatype.org/content/groups/public/'
@@ -48,6 +49,9 @@ dependencies {
     compileOnly 'com.nexomc:nexo:1.8.0'
 
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    // Caching - Advanced Caffeine-based caching system
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.1'
 }
 
 def targetJavaVersion = 21
