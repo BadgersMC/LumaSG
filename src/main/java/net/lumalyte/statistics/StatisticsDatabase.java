@@ -2,6 +2,7 @@ package net.lumalyte.statistics;
 
 import net.lumalyte.LumaSG;
 import net.lumalyte.util.DebugLogger;
+import net.lumalyte.util.StatisticsColumnMapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -316,19 +317,7 @@ public class StatisticsDatabase {
      * @return The corresponding database column name
      */
     private @NotNull String getColumnNameForStatType(@NotNull StatType statType) {
-        return switch (statType) {
-            case WINS -> "wins";
-            case KILLS -> "kills";
-            case GAMES_PLAYED -> "games_played";
-            case KILL_DEATH_RATIO -> "kills"; // We'll calculate KDR in application logic
-            case WIN_RATE -> "wins"; // We'll calculate win rate in application logic
-            case TIME_PLAYED -> "total_time_played";
-            case BEST_PLACEMENT -> "best_placement";
-            case WIN_STREAK -> "best_win_streak";
-            case TOP3_FINISHES -> "top3_finishes";
-            case DAMAGE_DEALT -> "total_damage_dealt";
-            case CHESTS_OPENED -> "chests_opened";
-        };
+        return StatisticsColumnMapper.getColumnName(statType);
     }
     
     /**

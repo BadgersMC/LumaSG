@@ -370,43 +370,97 @@ public class GameWorldManager {
         }
 
         // Remove all tracked barrier blocks
+        removeTrackedBarrierBlocks();
+
+        // Safety check: Scan for any untracked barrier blocks in the arena
+        performSafetyBarrierScan(arenaWorld);
+    }
+    
+    /**
+     * Removes all tracked barrier blocks.
+     */
+    private void removeTrackedBarrierBlocks() {
+        int removedCount = 0;
         for (Location location : barrierBlocks) {
-            if (location.getWorld() != null && location.getBlock().getType() == Material.BARRIER) {
+            if (isValidBarrierBlock(location)) {
                 location.getBlock().setType(Material.AIR);
+                removedCount++;
                 logger.debug("Removed barrier block at " + location);
             }
         }
         barrierBlocks.clear();
-
-        // Safety check: Scan for any untracked barrier blocks in the arena
-        Location center = arena.getCenter();
+        
+        if (removedCount > 0) {
+            logger.info("Removed " + removedCount + " tracked barrier blocks");
+        }
+    }
+    
+    /**
+     * Checks if a location contains a valid barrier block that should be removed.
+     */
+    private boolean isValidBarrierBlock(@NotNull Location location) {
+        return location.getWorld() != null && 
+               location.getBlock().getType() == Material.BARRIER;
+    }
+    
+    /**
+     * Performs a safety scan to remove any untracked barrier blocks in the arena.
+     */
+    private void performSafetyBarrierScan(@NotNull World arenaWorld) {
+        Location center = getArenaCenterLocation();
         if (center == null) {
-            center = arena.getLobbySpawn();
+            logger.debug("No center location found, skipping safety barrier scan");
+            return;
         }
-        if (center == null && !arena.getSpawnPoints().isEmpty()) {
-            center = arena.getSpawnPoints().getFirst();
+        
+        int barrierBlocksFound = scanAreaForBarriers(center);
+        
+        if (barrierBlocksFound > 0) {
+            logger.warn("Found and removed " + barrierBlocksFound + " untracked barrier blocks during cleanup");
         }
-
-        if (center != null) {
-            int radius = 100; // Reasonable radius to check
-            int barrierBlocksFound = 0;
-            
-            for (int x = -radius; x <= radius; x++) {
-                for (int y = -50; y <= 50; y++) { // Vertical range of ±50 blocks
-                    for (int z = -radius; z <= radius; z++) {
-                        Location loc = center.clone().add(x, y, z);
-                        if (loc.getBlock().getType() == Material.BARRIER) {
-                            loc.getBlock().setType(Material.AIR);
-                            barrierBlocksFound++;
-                        }
+    }
+    
+    /**
+     * Gets the center location for the arena, trying multiple fallback options.
+     */
+    private @Nullable Location getArenaCenterLocation() {
+        Location center = arena.getCenter();
+        if (center != null) return center;
+        
+        center = arena.getLobbySpawn();
+        if (center != null) return center;
+        
+        if (!arena.getSpawnPoints().isEmpty()) {
+            return arena.getSpawnPoints().getFirst();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Scans a cubic area around the center location for barrier blocks and removes them.
+     * 
+     * @param center The center location to scan around
+     * @return The number of barrier blocks found and removed
+     */
+    private int scanAreaForBarriers(@NotNull Location center) {
+        final int HORIZONTAL_RADIUS = 100;
+        final int VERTICAL_RADIUS = 50;
+        int barrierBlocksFound = 0;
+        
+        for (int x = -HORIZONTAL_RADIUS; x <= HORIZONTAL_RADIUS; x++) {
+            for (int y = -VERTICAL_RADIUS; y <= VERTICAL_RADIUS; y++) {
+                for (int z = -HORIZONTAL_RADIUS; z <= HORIZONTAL_RADIUS; z++) {
+                    Location loc = center.clone().add(x, y, z);
+                    if (loc.getBlock().getType() == Material.BARRIER) {
+                        loc.getBlock().setType(Material.AIR);
+                        barrierBlocksFound++;
                     }
                 }
             }
-            
-            if (barrierBlocksFound > 0) {
-                logger.warn("Found and removed " + barrierBlocksFound + " untracked barrier blocks during cleanup");
-            }
         }
+        
+        return barrierBlocksFound;
     }
     
     /**

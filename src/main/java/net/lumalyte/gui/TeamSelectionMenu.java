@@ -56,16 +56,16 @@ public class TeamSelectionMenu {
         Item borderItem = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(""));
         
         // Create back button
-        Item backButton = createBackButton(player);
+        Item backButton = createBackButton();
         
         // Create refresh button
-        Item refreshButton = createRefreshButton(player, game);
+        Item refreshButton = createRefreshButton(game);
         
         // Get all teams for this game
         List<Item> teamItems = new ArrayList<>();
         
         // Add "Create New Team" option first
-        teamItems.add(createNewTeamItem(player, game));
+        teamItems.add(createNewTeamItem(game));
         
         // Add existing teams
         for (Team team : game.getTeamManager().getTeams()) {
@@ -133,7 +133,7 @@ public class TeamSelectionMenu {
     /**
      * Creates a back button.
      */
-    private Item createBackButton(Player player) {
+    private Item createBackButton() {
         return new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
@@ -158,7 +158,7 @@ public class TeamSelectionMenu {
     /**
      * Creates a refresh button.
      */
-    private Item createRefreshButton(Player player, Game game) {
+    private Item createRefreshButton(Game game) {
         return new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
@@ -183,7 +183,7 @@ public class TeamSelectionMenu {
     /**
      * Creates the "Create New Team" item.
      */
-    private Item createNewTeamItem(Player player, Game game) {
+    private Item createNewTeamItem(Game game) {
         return new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
@@ -224,55 +224,10 @@ public class TeamSelectionMenu {
         return new AbstractItem() {
             @Override
             public ItemProvider getItemProvider() {
-                int teamSize = team.getMemberCount();
-                int maxSize = game.getGameMode().getTeamSize();
-                boolean isFull = teamSize >= maxSize;
-                boolean isInviteOnly = team.isInviteOnly();
-                boolean canJoin = !isFull && (!isInviteOnly || queueManager.hasInvitation(player.getUniqueId(), team));
+                TeamDisplayData displayData = buildTeamDisplayData(team, game, player);
+                List<String> lore = buildTeamLore(team, game, displayData);
                 
-                // Determine material and status
-                Material material;
-                if (team.isFull(game.getGameMode())) {
-                    material = Material.RED_CONCRETE;
-                } else if (team.isInviteOnly() && !queueManager.hasInvitation(player.getUniqueId(), team)) {
-                    material = Material.ORANGE_CONCRETE;
-                } else {
-                    material = Material.LIME_CONCRETE;
-                }
-                
-                // Build team member list
-                List<String> lore = new ArrayList<>();
-                lore.add("§7Status: " + (isFull ? "§cFull" : (isInviteOnly ? "§6Invite Only" : "§aJoinable")));
-                lore.add("§7Size: §f" + teamSize + "/" + maxSize);
-                lore.add("§7Privacy: §f" + (isInviteOnly ? "Invite Only" : "Open"));
-                lore.add("");
-                lore.add("§7Members:");
-                
-                // Add team members to lore
-                List<String> memberNames = team.getMemberNames();
-                if (memberNames.isEmpty()) {
-                    lore.add("§8  None");
-                } else {
-                    for (int i = 0; i < memberNames.size() && i < 5; i++) { // Limit to 5 names
-                        String memberName = memberNames.get(i);
-                        String prefix = team.getLeader().equals(team.getMemberByName(memberName)) ? "§6★ " : "§7  ";
-                        lore.add(prefix + memberName);
-                    }
-                    if (memberNames.size() > 5) {
-                        lore.add("§7  ... and " + (memberNames.size() - 5) + " more");
-                    }
-                }
-                
-                lore.add("");
-                if (canJoin) {
-                    lore.add("§aClick to join this team");
-                } else if (isFull) {
-                    lore.add("§cThis team is full");
-                } else if (isInviteOnly) {
-                    lore.add("§cYou need an invitation to join");
-                }
-                
-                return new ItemBuilder(material)
+                return new ItemBuilder(displayData.material())
                     .setDisplayName("§b§lTeam " + team.getDisplayNumber())
                     .addLoreLines(lore.toArray(new String[0]));
             }
@@ -280,43 +235,201 @@ public class TeamSelectionMenu {
             @Override
             public void handleClick(ClickType clickType, @NotNull Player player, org.bukkit.event.inventory.@NotNull InventoryClickEvent event) {
                 if (clickType.isLeftClick()) {
-                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
-                    
-                    // Check if player can join
-                    int teamSize = team.getMemberCount();
-                    int maxSize = game.getGameMode().getTeamSize();
-                    boolean isFull = teamSize >= maxSize;
-                    boolean isInviteOnly = team.isInviteOnly();
-                    boolean hasInvite = queueManager.hasInvitation(player.getUniqueId(), team);
-                    
-                    if (isFull) {
-                        player.sendMessage(Component.text("§cThis team is full!", NamedTextColor.RED));
-                        return;
-                    }
-                    
-                    if (isInviteOnly && !hasInvite) {
-                        player.sendMessage(Component.text("§cYou need an invitation to join this team!", NamedTextColor.RED));
-                        return;
-                    }
-                    
-                    player.closeInventory();
-                    
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        // Join the team
-                        boolean success = queueManager.joinTeam(player, team);
-                        if (success) {
-                            player.sendMessage(Component.text("§aJoined Team " + team.getDisplayNumber() + "!", NamedTextColor.GREEN));
-                            
-                            // Remove any pending invitation
-                            if (hasInvite) {
-                                queueManager.removeInvitation(player.getUniqueId());
-                            }
-                        } else {
-                            player.sendMessage(Component.text("§cFailed to join team!", NamedTextColor.RED));
-                        }
-                    });
+                    handleTeamJoinClick(player, game, team);
                 }
             }
         };
+    }
+    
+    /**
+     * Data class for team display information
+     */
+    private record TeamDisplayData(
+        Material material,
+        boolean canJoin,
+        boolean isFull,
+        boolean isInviteOnly,
+        boolean hasInvitation,
+        int teamSize,
+        int maxSize
+    ) {}
+    
+    /**
+     * Builds display data for a team
+     */
+    private TeamDisplayData buildTeamDisplayData(Team team, Game game, Player player) {
+        int teamSize = team.getMemberCount();
+        int maxSize = game.getGameMode().getTeamSize();
+        boolean isFull = teamSize >= maxSize;
+        boolean isInviteOnly = team.isInviteOnly();
+        boolean hasInvitation = queueManager.hasInvitation(player.getUniqueId(), team);
+        boolean canJoin = !isFull && (!isInviteOnly || hasInvitation);
+        
+        // Determine material based on team status
+        Material material = determineMaterial(isFull, isInviteOnly, hasInvitation);
+        
+        return new TeamDisplayData(
+            material, canJoin, isFull, isInviteOnly, 
+            hasInvitation, teamSize, maxSize
+        );
+    }
+    
+    /**
+     * Determines the material for team display based on status
+     */
+    private Material determineMaterial(boolean isFull, boolean isInviteOnly, boolean hasInvitation) {
+        if (isFull) {
+            return Material.RED_CONCRETE;
+        } else if (isInviteOnly && !hasInvitation) {
+            return Material.ORANGE_CONCRETE;
+        } else {
+            return Material.LIME_CONCRETE;
+        }
+    }
+    
+    /**
+     * Builds the lore for a team item
+     */
+    private List<String> buildTeamLore(Team team, Game game, TeamDisplayData displayData) {
+        List<String> lore = new ArrayList<>();
+        
+        // Status and basic info
+        addTeamStatusToLore(lore, displayData);
+        addTeamMembersToLore(lore, team);
+        addTeamActionToLore(lore, displayData);
+        
+        return lore;
+    }
+    
+    /**
+     * Adds team status information to lore
+     */
+    private void addTeamStatusToLore(List<String> lore, TeamDisplayData data) {
+        String status = data.isFull() ? "§cFull" : 
+                       (data.isInviteOnly() ? "§6Invite Only" : "§aJoinable");
+        String privacy = data.isInviteOnly() ? "Invite Only" : "Open";
+        
+        lore.add("§7Status: " + status);
+        lore.add("§7Size: §f" + data.teamSize() + "/" + data.maxSize());
+        lore.add("§7Privacy: §f" + privacy);
+        lore.add("");
+    }
+    
+    /**
+     * Adds team members information to lore
+     */
+    private void addTeamMembersToLore(List<String> lore, Team team) {
+        lore.add("§7Members:");
+        
+        List<String> memberNames = team.getMemberNames();
+        if (memberNames.isEmpty()) {
+            lore.add("§8  None");
+        } else {
+            addMemberNamesToLore(lore, team, memberNames);
+        }
+        lore.add("");
+    }
+    
+    /**
+     * Adds member names to lore with leader indication
+     */
+    private void addMemberNamesToLore(List<String> lore, Team team, List<String> memberNames) {
+        int maxDisplayed = Math.min(memberNames.size(), 5);
+        
+        for (int i = 0; i < maxDisplayed; i++) {
+            String memberName = memberNames.get(i);
+            String prefix = isTeamLeader(team, memberName) ? "§6★ " : "§7  ";
+            lore.add(prefix + memberName);
+        }
+        
+        if (memberNames.size() > 5) {
+            lore.add("§7  ... and " + (memberNames.size() - 5) + " more");
+        }
+    }
+    
+    /**
+     * Checks if a member is the team leader
+     */
+    private boolean isTeamLeader(Team team, String memberName) {
+        return team.getLeader().equals(team.getMemberByName(memberName));
+    }
+    
+    /**
+     * Adds action information to lore
+     */
+    private void addTeamActionToLore(List<String> lore, TeamDisplayData data) {
+        if (data.canJoin()) {
+            lore.add("§aClick to join this team");
+        } else if (data.isFull()) {
+            lore.add("§cThis team is full");
+        } else if (data.isInviteOnly()) {
+            lore.add("§cYou need an invitation to join");
+        }
+    }
+    
+    /**
+     * Handles the click action for joining a team
+     */
+    private void handleTeamJoinClick(Player player, Game game, Team team) {
+        player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+        
+        TeamJoinResult joinResult = validateTeamJoin(player, game, team);
+        
+        if (!joinResult.canJoin()) {
+            player.sendMessage(Component.text(joinResult.errorMessage(), NamedTextColor.RED));
+            return;
+        }
+        
+        player.closeInventory();
+        executeTeamJoin(player, team, joinResult.hasInvitation());
+    }
+    
+    /**
+     * Data class for team join validation results
+     */
+    private record TeamJoinResult(
+        boolean canJoin,
+        boolean hasInvitation,
+        String errorMessage
+    ) {}
+    
+    /**
+     * Validates if a player can join a team
+     */
+    private TeamJoinResult validateTeamJoin(Player player, Game game, Team team) {
+        int teamSize = team.getMemberCount();
+        int maxSize = game.getGameMode().getTeamSize();
+        boolean isFull = teamSize >= maxSize;
+        boolean isInviteOnly = team.isInviteOnly();
+        boolean hasInvite = queueManager.hasInvitation(player.getUniqueId(), team);
+        
+        if (isFull) {
+            return new TeamJoinResult(false, false, "§cThis team is full!");
+        }
+        
+        if (isInviteOnly && !hasInvite) {
+            return new TeamJoinResult(false, false, "§cYou need an invitation to join this team!");
+        }
+        
+        return new TeamJoinResult(true, hasInvite, "");
+    }
+    
+    /**
+     * Executes the team join action
+     */
+    private void executeTeamJoin(Player player, Team team, boolean hasInvitation) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            boolean success = queueManager.joinTeam(player, team);
+            
+            if (success) {
+                player.sendMessage(Component.text("§aJoined Team " + team.getDisplayNumber() + "!", NamedTextColor.GREEN));
+                
+                if (hasInvitation) {
+                    queueManager.removeInvitation(player.getUniqueId());
+                }
+            } else {
+                player.sendMessage(Component.text("§cFailed to join team!", NamedTextColor.RED));
+            }
+        });
     }
 } 
