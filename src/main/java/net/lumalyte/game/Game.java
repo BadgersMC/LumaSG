@@ -148,7 +148,7 @@ public class Game {
         this.plugin = plugin;
         this.arena = arena;
         this.gameId = UUID.randomUUID();
-        this.state = GameState.INACTIVE; // Start in INACTIVE state for ranked player setup
+        this.state = GameState.WAITING; // Start in WAITING state - games are activated immediately after creation
         
         // Initialize contextual logger for this game
         this.logger = plugin.getDebugLogger().forContext("Game-" + arena.getName());
@@ -1479,26 +1479,28 @@ public class Game {
     }
     
     /**
-     * Activates the game, transitioning from INACTIVE to WAITING state.
-     * This allows players to join the game.
+     * Configures the game with the specified game mode.
+     * Games now start in WAITING state, so this method just sets the game mode.
      * 
      * @param gameMode The game mode to set for this game
      */
     public void activateGame(@NotNull net.lumalyte.game.GameMode gameMode) {
-        if (state != GameState.INACTIVE) {
-            logger.warn("Cannot activate game - current state is " + state);
+        if (state != GameState.WAITING && state != GameState.INACTIVE) {
+            logger.warn("Cannot configure game - current state is " + state);
             return;
         }
         
         // Set the game mode
         teamManager.setGameMode(gameMode);
         
-        // Transition to WAITING state
-        state = GameState.WAITING;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        // Ensure we're in WAITING state (games now start in WAITING)
+        if (state != GameState.WAITING) {
+            state = GameState.WAITING;
+            scoreboardManager.setCurrentGameState(state);
+            timerManager.setCurrentGameState(state);
+        }
         
-        logger.info("Game activated with mode: " + gameMode.getDisplayName());
+        logger.info("Game configured with mode: " + gameMode.getDisplayName());
         
         // Start broadcasting this game
         if (plugin.getTeamQueueManager() != null) {
