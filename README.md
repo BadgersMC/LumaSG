@@ -20,9 +20,9 @@ LumaSG is a powerful and feature-rich Survival Games plugin for Paper servers, o
 - 📦 **Airdrop Flare**: Calls in supply drops with rare loot
 
 ### Chest System
-- **Tiered Loot**: Common, Uncommon, and Rare item tiers
-- **Distance-based Loot**: Better items in center chests
-- **Auto-refill**: Configurable chest refill system
+- **Tiered Loot**: Common, Uncommon, and Rare item tiers (can create more tiers)
+- **Distance-based Loot**: Better items in center chests (toggleable)
+- **Auto-refill**: Configurable chest refill system (toggleable)
 - **Custom Items Integration**: Special items in loot tables
 
 ### Visual Features
@@ -38,14 +38,14 @@ LumaSG is a powerful and feature-rich Survival Games plugin for Paper servers, o
 
 ### Integrations
 - **PlaceholderAPI Support**: Custom placeholders for scoreboards and chat
-- **KingdomsX Integration**: Handles PvP conflicts with kingdom systems
+- **KingdomsX Integration**: Handles PvP conflicts with kingdom systems (fight teammates, no RP loss on death)
 - **Nexo Integration**: Support for Nexo custom items
 
 ## 🔧 Requirements
 
 - Paper 1.21.4 or higher (Required - will not work on Spigot/CraftBukkit)
 - Java 21 or higher
-- MySQL/MariaDB for statistics (optional)
+- MySQL/MariaDB for statistics (sqlite for now, external db support with pooling soon)
 
 ## 📦 Installation
 
@@ -76,6 +76,7 @@ The plugin creates several configuration files:
 - Loot table configuration
 - Tier-based item distribution
 - Chest refill settings
+- Supports CMD, and NEXO items (with their mechanics!)
 
 ## 🎮 Commands
 
@@ -97,6 +98,7 @@ The plugin creates several configuration files:
 
 ## 🌟 Performance Features
 
+- Uses Caffeine where applicable
 - Optimized chest filling system
 - Concurrent operation handling
 - Memory-efficient caching
@@ -140,6 +142,11 @@ If you encounter any issues or need support:
 ## ⭐ Credits
 
 Developed by LumaLyte, and BadgersMC
+
+**Uses the following Libraries, graciously**
+- [InvUI](https://github.com/NichtStudioCode/InvUI)
+- [Caffeine](https://github.com/ben-manes/caffeine)
+- [OkHttp](https://github.com/square/okhttp)
 
 Made because someone said I dont understand Java, and I took that *very* personally. So heres a plugin that uses some over the top Java magic, and puts their 1.8 Survival Games to SHAME. And yes, Java *is* magic.
 
