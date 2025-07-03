@@ -1,0 +1,77 @@
+Lumalyte Source Available License (LSAL)
+Version 1.0, July2025
+
+Copyright (c) 2025 Lumalyte.net
+
+1. DEFINITIONS
+
+"Software" means the LumaSG plugin source code, documentation, and associated files.
+"Commercial Use" means any use of the Software for commercial purposes, including but not limited to selling, licensing, or distributing the Software or any derivative works for monetary gain.
+"Compiled Binary" means any executable or distributable form of the Software that is not source code.
+"Critical Bug Fix" means any fix that addresses security vulnerabilities, data corruption, server crashes, or other issues that significantly impact the Software's core functionality.
+"Derivative Work" means any work based upon the Software or any portion thereof.
+"Licensor" means Lumalyte.net.
+
+2. GRANT OF RIGHTS
+
+Subject to the terms and conditions of this License, Licensor hereby grants you a non-exclusive, royalty-free license to:
+
+a) Use the Software for personal, educational, and non-commercial purposes
+b) Study, modify, and create Derivative Works of the Software
+c) Distribute the source code of the Software and Derivative Works under this License
+
+3. COMMERCIAL USE RESTRICTIONS
+
+a) COMPILED BINARY DISTRIBUTION: You may NOT distribute, sell, license, or otherwise make available Compiled Binaries of the Software or any Derivative Works without explicit written permission from Licensor.
+
+b) COMMERCIAL SOURCE DISTRIBUTION: You may NOT use the Software or Derivative Works for Commercial Use without explicit written permission from Licensor.
+
+c) MARKETPLACE SALES: Only Licensor is authorized to sell the Software on marketplaces including but not limited to BuiltByBit, Polymart, SpigotMC, and similar platforms.
+
+4. CONTRIBUTION REQUIREMENTS FOR COMMERCIAL USERS
+
+If you are granted permission for Commercial Use of the Software or Derivative Works:
+
+a) MANDATORY CONTRIBUTIONS: You MUST contribute back to the original repository any Critical Bug Fixes you develop within 30 days of discovery or development.
+
+b) IMPROVEMENT SHARING: You are STRONGLY ENCOURAGED to contribute back significant improvements and features to benefit the community.
+
+c) ATTRIBUTION: You MUST prominently display attribution to the original Software and Licensor in any Commercial Use.
+
+5. SUPPORT TERMS
+
+a) LICENSED CUSTOMERS: Customers who have purchased the Software through authorized channels receive lifetime support from Licensor.
+
+b) NON-CUSTOMERS: Users of the source code receive limited community support only, unless they become active contributors to the project.
+
+c) CONTRIBUTORS: Active contributors who submit accepted pull requests may receive enhanced support at Licensor's discretion.
+
+6. ENFORCEMENT
+
+a) Any Commercial Use without permission constitutes copyright infringement and breach of this License.
+
+b) Any failure to contribute Critical Bug Fixes as required will result in immediate termination of Commercial Use permissions.
+
+c) Licensor reserves the right to pursue legal remedies for License violations.
+
+7. DISCLAIMER OF WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+8. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+9. TERMINATION
+
+This License automatically terminates if you violate any of its terms. Upon termination, you must cease all use of the Software and destroy all copies in your possession.
+
+10. MISCELLANEOUS
+
+a) This License shall be governed by the laws of The United States of America, the European Union, and their allies.
+b) If any provision of this License is held to be unenforceable, the remainder shall remain in full force and effect.
+c) This License may only be modified by written agreement signed by Licensor.
+
+For commercial licensing inquiries, please contact: thegeekedgamer@gmail.com
+
+---
