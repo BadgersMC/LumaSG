@@ -139,4 +139,8 @@ If you encounter any issues or need support:
 
 ## ⭐ Credits
 
-Developed by LumaLyte
+Developed by LumaLyte, and BadgersMC
+
+Made because someone said I dont understand Java, and I took that *very* personally. So heres a plugin that uses some over the top Java magic, and puts their 1.8 Survival Games to SHAME. And yes, Java *is* magic.
+
+This plugin is very much so still a WIP, please report any issues/requests to angrybadger#1 on discord.
