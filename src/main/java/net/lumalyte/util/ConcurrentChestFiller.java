@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -447,9 +448,10 @@ public class ConcurrentChestFiller {
      */
     public static CompletableFuture<Void> precacheTierLoot() {
         return CompletableFuture.runAsync(() -> {
-            String[] tiers = {"common", "uncommon", "rare", "epic", "legendary"};
+            // Get available tiers dynamically from configuration
+            Set<String> availableTiers = chestManager.getTiers();
             
-            for (String tier : tiers) {
+            for (String tier : availableTiers) {
                 List<ChestItem> tierLoot = chestManager.getTierItems(tier);
                 if (!tierLoot.isEmpty()) {
                     TIER_LOOT_CACHE.put(tier, tierLoot);
@@ -457,7 +459,7 @@ public class ConcurrentChestFiller {
             }
             
             if (logger != null) {
-                logger.info("Pre-cached loot for " + tiers.length + " tiers");
+                logger.info("Pre-cached loot for " + availableTiers.size() + " tiers: " + availableTiers);
             }
         });
     }

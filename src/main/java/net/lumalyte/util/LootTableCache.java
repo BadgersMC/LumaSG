@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -113,9 +114,10 @@ public class LootTableCache {
      */
     public static CompletableFuture<Void> preGenerateLootTables() {
         return CompletableFuture.runAsync(() -> {
-            String[] tiers = {"common", "uncommon", "rare", "epic", "legendary"};
+            // Get available tiers dynamically from configuration
+            Set<String> availableTiers = chestManager.getTiers();
             
-            for (String tier : tiers) {
+            for (String tier : availableTiers) {
                 try {
                     generateLootTableForTier(tier);
                 } catch (Exception e) {
@@ -126,7 +128,7 @@ public class LootTableCache {
             }
             
             if (logger != null) {
-                logger.info("Pre-generated loot tables for " + tiers.length + " tiers");
+                logger.info("Pre-generated loot tables for " + availableTiers.size() + " tiers: " + availableTiers);
             }
         }, GENERATION_EXECUTOR);
     }
@@ -416,9 +418,10 @@ public class LootTableCache {
      * Regenerates all loot tables (called periodically)
      */
     private static void regenerateLootTables() {
-        String[] tiers = {"common", "uncommon", "rare", "epic", "legendary"};
+        // Get available tiers dynamically from configuration
+        Set<String> availableTiers = chestManager.getTiers();
         
-        for (String tier : tiers) {
+        for (String tier : availableTiers) {
             // Only regenerate if cache is getting low
             List<PreGeneratedChest> existing = LOOT_TABLE_CACHE.getIfPresent(tier);
             if (existing == null || existing.size() < PREGENERATED_CHESTS_PER_TIER / 2) {

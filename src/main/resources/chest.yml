@@ -23,6 +23,8 @@ items:
       common: 25.0      # Very common in basic chests
       uncommon: 8.0     # Less common in better chests
       rare: 2.0         # Rare in high-tier chests
+      epic: 0.5         # Very rare in epic chests
+      legendary: 0.1    # Almost never in legendary chests
       
   stone_axe:
     material: STONE_AXE
@@ -34,6 +36,8 @@ items:
       common: 15.0
       uncommon: 12.0
       rare: 5.0
+      epic: 1.0
+      legendary: 0.2
       
   leather_helmet:
     material: LEATHER_HELMET
@@ -45,6 +49,8 @@ items:
       common: 18.0
       uncommon: 10.0
       rare: 3.0
+      epic: 0.5
+      legendary: 0.1
     # Random trim will be applied if not specified
       
   leather_chestplate:
@@ -525,6 +531,16 @@ tier-settings:
     min-items: 3
     max-items: 5
     # Rare chests favor high-quality items but fewer total items
+    
+  epic:
+    min-items: 2
+    max-items: 4
+    # Epic chests contain mostly high-tier items
+    
+  legendary:
+    min-items: 2
+    max-items: 3
+    # Legendary chests contain only the best items
 
 # Performance settings
 settings:
