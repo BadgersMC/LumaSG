@@ -469,7 +469,7 @@ public class SGCommand {
             return 0;
         }
 
-        new MainMenu(getPlugin()).show(player);
+        new MainMenu(getPlugin()).openMenu(player);
         return 1;
     }
 

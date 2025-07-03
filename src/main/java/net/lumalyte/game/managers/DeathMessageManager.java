@@ -1,18 +1,19 @@
 package net.lumalyte.game.managers;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
+
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.lumalyte.LumaSG;
 import net.lumalyte.game.GamePlayerManager;
 import net.lumalyte.util.MiniMessageUtils;
-import org.bukkit.Material;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.logging.Logger;
 
 /**
  * Manages death messages and kill tracking for game events.
@@ -122,8 +123,8 @@ public class DeathMessageManager {
         if (materialName.contains("rod")) return "rod";
 
         // Default cases
-        if (weapon.hasItemMeta() && weapon.getItemMeta().hasDisplayName()) {
-            return weapon.getItemMeta().getDisplayName();
+        if (weapon.hasItemMeta() && weapon.getItemMeta().displayName() != null) {
+            return MiniMessageUtils.toLegacy(weapon.getItemMeta().displayName());
         }
 
         return material.name().toLowerCase().replace("_", " ");

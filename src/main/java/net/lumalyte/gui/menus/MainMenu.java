@@ -1,13 +1,14 @@
 package net.lumalyte.gui.menus;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.gui.MenuUtils;
-import net.lumalyte.util.ItemUtils;
-import net.lumalyte.util.MiniMessageUtils;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+
+import net.lumalyte.LumaSG;
+import net.lumalyte.gui.MenuUtils;
+import net.lumalyte.util.ItemUtils;
+import net.lumalyte.util.MiniMessageUtils;
 
 /**
  * Main menu GUI for the LumaSG plugin.
@@ -65,7 +66,8 @@ public class MainMenu {
         }
 
         // Fill empty slots with glass panes
-        MenuUtils.fillEmptySlots(menu, Material.GRAY_STAINED_GLASS_PANE, " ");
+        ItemStack filler = ItemUtils.createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        MenuUtils.fillEmptySlots(menu, filler);
 
         player.openInventory(menu);
     }

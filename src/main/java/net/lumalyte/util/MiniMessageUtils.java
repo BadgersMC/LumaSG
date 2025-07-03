@@ -1,16 +1,17 @@
 package net.lumalyte.util;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import java.util.Map;
+
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 /**
  * Utility class for handling MiniMessage formatting in Survival Games.
@@ -283,5 +284,20 @@ public class MiniMessageUtils {
         }
         
         return result;
+    }
+
+    /**
+     * Deserializes a legacy color-coded string to a Component.
+     * This method converts legacy color codes (like &a, &b, etc.) to Adventure Components.
+     * 
+     * @param legacyText The legacy color-coded text (using & symbols)
+     * @return The Adventure Component
+     */
+    public static @NotNull Component deserializeLegacy(@NotNull String legacyText) {
+        if (legacyText == null) {
+            throw new IllegalArgumentException("Legacy text cannot be null");
+        }
+        
+        return LEGACY_SERIALIZER.deserialize(legacyText.replace('&', '§'));
     }
 } 

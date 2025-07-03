@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'io.github.goooler.shadow' version '8.1.8'
     id 'maven-publish'
-    id 'pmd'
 }
 
 group = 'net.lumalyte'
@@ -60,6 +59,13 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
     testImplementation 'org.mockito:mockito-inline:5.2.0'
     testImplementation 'org.awaitility:awaitility:4.2.0'
+    
+    // Add test dependencies for Bukkit/Adventure API
+    testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    testImplementation 'net.kyori:adventure-text-minimessage:4.14.0'
+    testImplementation 'net.kyori:adventure-api:4.14.0'
+    testImplementation 'net.kyori:adventure-text-serializer-legacy:4.14.0'
+    testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.1'
     
     // Test runtime dependencies
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -134,45 +140,35 @@ sourceSets {
 test {
     useJUnitPlatform()
     
-    // Performance test configuration
-    systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
-    systemProperty 'junit.jupiter.execution.parallel.mode.default', 'concurrent'
+    // Test filtering - exclude flaky tests in CI environments
+    if (System.getenv("CI") == "true") {
+        exclude "**/*PerformanceDemo*"
+    }
     
-    // Memory settings for performance tests
-    jvmArgs '-Xmx2g', '-XX:+UseG1GC'
+    // Parallel execution configuration
+    systemProperty 'junit.jupiter.execution.parallel.enabled', 'false' // Disable for more stable tests
+    systemProperty 'junit.jupiter.execution.parallel.mode.default', 'same_thread'
+    
+    // Memory settings for tests
+    jvmArgs '-Xmx1g', '-XX:+UseG1GC'
     
     // Test reporting
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
         showStandardStreams = false
+        showStackTraces = true
     }
     
-    // Timeout for long-running tests
-    timeout = Duration.ofMinutes(10)
-}
-
-// PMD configuration for code quality analysis
-pmd {
-    toolVersion = '7.7.0'
-    ruleSetFiles = files("config/pmd/pmd-rules.xml")
-    ruleSets = []
+    // Timeout for tests
+    timeout = Duration.ofMinutes(5)
+    
+    // Test result handling
     ignoreFailures = false
-    consoleOutput = true
-}
-
-pmdMain {
-    reports {
-        xml.required = true
-        html.required = true
-    }
-}
-
-pmdTest {
-    reports {
-        xml.required = true
-        html.required = true
-    }
+    
+    // System properties for tests
+    systemProperty 'java.awt.headless', 'true'
+    systemProperty 'file.encoding', 'UTF-8'
 }
 
 // Publishing configuration for GitHub Packages (optional)

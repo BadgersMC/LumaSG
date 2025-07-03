@@ -1,14 +1,19 @@
 package net.lumalyte.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import net.lumalyte.LumaSG;
+import net.lumalyte.util.DebugLogger;
 
 /**
  * Manages player elimination and statistics tracking in a game.
@@ -181,7 +186,7 @@ public class GameEliminationManager {
         // Send death message
         Game game = plugin.getGameManager().getGameByPlayer(victim);
         if (game != null) {
-            game.getDeathMessageManager().broadcastDeathMessage(victim, killer);
+            game.getDeathMessageManager().handlePlayerKill(victim, killer);
         }
         
         // Eliminate the player (this will automatically check if game should end)

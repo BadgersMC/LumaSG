@@ -161,7 +161,7 @@ public class Game {
         this.scoreboardManager = new GameScoreboardManager(plugin, arena, gameId, playerManager, timerManager);
         this.celebrationManager = new net.lumalyte.game.managers.CelebrationManager(plugin, playerManager);
         this.eliminationManager = new GameEliminationManager(plugin, gameId.toString(), playerManager);
-        this.deathMessageManager = new net.lumalyte.game.managers.DeathMessageManager(plugin, gameId.toString(), playerManager);
+        this.deathMessageManager = new net.lumalyte.game.managers.DeathMessageManager(plugin, playerManager);
         this.gameNameplateManager = new GameNameplateManager(plugin, arena, gameId, playerManager);
         this.teamManager = new GameTeamManager(plugin, this, net.lumalyte.game.GameMode.SOLO); // Default to solo mode
         

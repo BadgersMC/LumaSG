@@ -1,13 +1,14 @@
 package net.lumalyte.gui;
 
-import net.lumalyte.LumaSG;
-import net.kyori.adventure.text.Component;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.List;
+import net.kyori.adventure.text.Component;
+import net.lumalyte.LumaSG;
 
 /**
  * Utility class for creating and managing menus.
@@ -115,5 +116,32 @@ public class MenuUtils {
         List<String> lore = new ArrayList<>();
         lore.add("Click to go to the previous page");
         return createItem(Material.ARROW, "§a§lPrevious Page", lore);
+    }
+
+    /**
+     * Fills empty slots in an inventory with the specified filler item.
+     * 
+     * @param inventory The inventory to fill
+     * @param fillerItem The item to use as filler
+     */
+    public static void fillEmptySlots(org.bukkit.inventory.Inventory inventory, ItemStack fillerItem) {
+        if (inventory == null || fillerItem == null) {
+            return;
+        }
+        
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (inventory.getItem(i) == null || inventory.getItem(i).getType() == Material.AIR) {
+                inventory.setItem(i, fillerItem);
+            }
+        }
+    }
+
+    /**
+     * Fills empty slots in an inventory with black glass panes.
+     * 
+     * @param inventory The inventory to fill
+     */
+    public static void fillEmptySlots(org.bukkit.inventory.Inventory inventory) {
+        fillEmptySlots(inventory, createBorderItem());
     }
 } 

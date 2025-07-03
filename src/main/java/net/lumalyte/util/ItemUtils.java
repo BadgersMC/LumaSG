@@ -469,4 +469,63 @@ public class ItemUtils {
             logger.warn("Failed to apply armor trim", e);
         }
     }
+
+    /**
+     * Creates a simple ItemStack with the specified material, name, and lore.
+     * This is a convenience method for creating basic items.
+     * 
+     * @param material The material for the item
+     * @param name The display name for the item (supports MiniMessage format)
+     * @param lore The lore lines for the item (supports MiniMessage format)
+     * @return The created ItemStack
+     */
+    public static @NotNull ItemStack createItem(@NotNull Material material, @Nullable String name, @Nullable List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        
+        if (meta != null) {
+            // Set display name if provided
+            if (name != null && !name.isEmpty()) {
+                // Wrap with <!italic> if not already wrapped
+                String displayName = name.contains("<!italic>") ? name : "<!italic>" + name + "</!italic>";
+                meta.displayName(MiniMessageUtils.parseMessage(displayName));
+            }
+            
+            // Set lore if provided
+            if (lore != null && !lore.isEmpty()) {
+                List<Component> loreComponents = new ArrayList<>();
+                for (String line : lore) {
+                    // Wrap with <!italic> if not already wrapped
+                    String loreLine = line.contains("<!italic>") ? line : "<!italic>" + line + "</!italic>";
+                    loreComponents.add(MiniMessageUtils.parseMessage(loreLine));
+                }
+                meta.lore(loreComponents);
+            }
+            
+            item.setItemMeta(meta);
+        }
+        
+        return item;
+    }
+
+    /**
+     * Creates a simple ItemStack with the specified material and name.
+     * 
+     * @param material The material for the item
+     * @param name The display name for the item (supports MiniMessage format)
+     * @return The created ItemStack
+     */
+    public static @NotNull ItemStack createItem(@NotNull Material material, @Nullable String name) {
+        return createItem(material, name, null);
+    }
+
+    /**
+     * Creates a simple ItemStack with just the material.
+     * 
+     * @param material The material for the item
+     * @return The created ItemStack
+     */
+    public static @NotNull ItemStack createItem(@NotNull Material material) {
+        return createItem(material, null, null);
+    }
 } 
