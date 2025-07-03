@@ -98,6 +98,13 @@ public class GameBrowserMenu {
             Game game = plugin.getGameManager().getGameByArena(arena);
             boolean gameExists = (game != null);
             
+            // Filter out INACTIVE games for regular players (only show to admins/ranked players)
+            if (gameExists && game.getState() == GameState.INACTIVE) {
+                if (!player.hasPermission("lumasg.setup.game") && !player.hasPermission("lumasg.admin")) {
+                    continue; // Skip INACTIVE games for regular players
+                }
+            }
+            
             final Arena finalArena = arena;
             final Game finalGame = game;
             
@@ -109,12 +116,32 @@ public class GameBrowserMenu {
             
             // Add lore based on game status
             List<String> lore = new ArrayList<>();
-            lore.add("§7Players: §f" + (gameExists ? finalGame.getPlayerCount() : 0) + "/" + finalArena.getMaxPlayers());
+            
+            // Show current players vs available spawn points (more accurate than max players)
+            int currentPlayers = gameExists ? finalGame.getPlayerCount() : 0;
+            int maxPlayers = Math.min(finalArena.getMaxPlayers(), finalArena.getSpawnPoints().size());
+            lore.add("§7Players: §f" + currentPlayers + "/" + maxPlayers);
             lore.add("§7Status: " + getGameStatusText(finalGame));
+            
+            // Add spawn points info for admins
+            if (player.hasPermission("lumasg.admin")) {
+                lore.add("§7Spawn Points: §f" + finalArena.getSpawnPoints().size());
+            }
+            
             lore.add("");
             
             if (gameExists && finalGame.getState() != GameState.FINISHED) {
-                lore.add("§aClick to join this game");
+                if (finalGame.getState() == GameState.INACTIVE) {
+                    lore.add("§6Click to configure this game");
+                } else if (finalGame.getState() == GameState.WAITING) {
+                    if (currentPlayers < maxPlayers) {
+                        lore.add("§aClick to join this game");
+                    } else {
+                        lore.add("§cGame is full");
+                    }
+                } else {
+                    lore.add("§cGame in progress");
+                }
             } else {
                 lore.add("§aClick to create a new game");
             }
@@ -138,20 +165,48 @@ public class GameBrowserMenu {
                         plugin.getServer().getScheduler().runTask(plugin, () -> {
                             if (finalGame != null && finalGame.getState() != GameState.FINISHED) {
                                 // Handle existing games based on their state
-                                if (finalGame.getState() == GameState.INACTIVE) {
-                                    // Game exists but is inactive - check if player has setup permission
-                                    if (player.hasPermission("lumasg.setup.game") || 
-                                        player.hasPermission("lumasg.admin")) {
-                                        // Ranked player - open game setup menu
-                                        new GameSetupMenu(plugin).openMenu(player);
-                                    } else {
-                                        // Regular player - can't set up games
-                                        player.sendMessage(Component.text("§cThis game is being set up by a ranked player. Please wait for it to become available!", NamedTextColor.RED));
-                                    }
-                                } else {
-                                    // Game is active (waiting, countdown, etc.) - join normally
-                                    finalGame.addPlayer(player);
-                                    player.sendMessage(Component.text("§aYou joined the game in arena " + finalArena.getName()));
+                                switch (finalGame.getState()) {
+                                    case INACTIVE:
+                                        // Game exists but is inactive - check if player has setup permission
+                                        if (player.hasPermission("lumasg.setup.game") || 
+                                            player.hasPermission("lumasg.admin")) {
+                                            // Ranked player - open game setup menu
+                                            new GameSetupMenu(plugin).openMenu(player);
+                                        } else {
+                                            // Regular player - shouldn't see this but handle gracefully
+                                            player.sendMessage(Component.text("§cThis game is being set up by a ranked player. Please wait for it to become available!", NamedTextColor.RED));
+                                        }
+                                        break;
+                                        
+                                    case WAITING:
+                                        // Check if game has space
+                                        int currentPlayers = finalGame.getPlayerCount();
+                                        int maxPlayers = Math.min(finalArena.getMaxPlayers(), finalArena.getSpawnPoints().size());
+                                        
+                                        if (currentPlayers < maxPlayers) {
+                                            // Join the game
+                                            finalGame.addPlayer(player);
+                                            player.sendMessage(Component.text("§aYou joined the game in arena " + finalArena.getName() + "!", NamedTextColor.GREEN));
+                                        } else {
+                                            player.sendMessage(Component.text("§cThis game is full! (" + currentPlayers + "/" + maxPlayers + ")", NamedTextColor.RED));
+                                        }
+                                        break;
+                                        
+                                    case COUNTDOWN:
+                                        player.sendMessage(Component.text("§cThis game is starting soon and cannot accept new players!", NamedTextColor.RED));
+                                        break;
+                                        
+                                    case GRACE_PERIOD:
+                                    case ACTIVE:
+                                    case DEATHMATCH:
+                                        // Offer to spectate
+                                        finalGame.addSpectator(player);
+                                        player.sendMessage(Component.text("§6You are now spectating the game in arena " + finalArena.getName() + "!", NamedTextColor.GOLD));
+                                        break;
+                                        
+                                    default:
+                                        player.sendMessage(Component.text("§cThis game is not available for joining!", NamedTextColor.RED));
+                                        break;
                                 }
                             } else {
                                 // No game exists or game is finished - check if player has setup permission
