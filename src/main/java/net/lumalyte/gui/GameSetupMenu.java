@@ -187,6 +187,9 @@ public class GameSetupMenu {
             // Activate the game with the selected mode
             game.activateGame(config.gameMode);
             
+            // Mark the game as properly set up so it appears in the Game Browser
+            game.markSetupComplete();
+            
             // Create and join team for the setup player
             Team playerTeam = queueManager.createTeam(player, game, config.inviteOnly, config.autoFill);
             if (playerTeam == null) {

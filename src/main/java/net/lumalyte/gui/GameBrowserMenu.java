@@ -98,9 +98,25 @@ public class GameBrowserMenu {
             Game game = plugin.getGameManager().getGameByArena(arena);
             boolean gameExists = (game != null);
             
+            // Check if player has setup permissions
+            boolean canSetupGames = player.hasPermission("lumasg.setup.game") || 
+                                   player.hasPermission("lumasg.admin");
+            
+            // For regular players: only show games that have been properly set up
+            if (!canSetupGames && gameExists && !game.isSetupComplete()) {
+                // Skip games that haven't been set up yet for regular players
+                continue;
+            }
+            
+            // For regular players: don't show arenas with no games at all
+            if (!canSetupGames && !gameExists) {
+                // Skip arenas with no games for regular players
+                continue;
+            }
+            
             // Filter out INACTIVE games for regular players (only show to admins/ranked players)
             if (gameExists && game.getState() == GameState.INACTIVE) {
-                if (!player.hasPermission("lumasg.setup.game") && !player.hasPermission("lumasg.admin")) {
+                if (!player.hasPermission("lumasg.admin")) {
                     continue; // Skip INACTIVE games for regular players
                 }
             }
@@ -143,7 +159,12 @@ public class GameBrowserMenu {
                     lore.add("§cGame in progress");
                 }
             } else {
-                lore.add("§aClick to create a new game");
+                // Check if player can create games
+                if (player.hasPermission("lumasg.setup.game") || player.hasPermission("lumasg.admin")) {
+                    lore.add("§aClick to create a new game");
+                } else {
+                    lore.add("§7No games available");
+                }
             }
             
             // Convert List<String> to varargs String...

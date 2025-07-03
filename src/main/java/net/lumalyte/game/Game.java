@@ -73,6 +73,12 @@ public class Game {
     /** Whether the game is shutting down */
     private boolean isShuttingDown = false;
     
+    /** Flag indicating if this game has been properly set up by a ranked player */
+    private volatile boolean setupComplete = false;
+    
+    /** Game start time for accurate duration calculation */
+    private @Nullable Instant gameStartTime = null;
+    
     // Component managers for different aspects of the game
     private final @NotNull GamePlayerManager playerManager;
     private final @NotNull GameTimerManager timerManager;
@@ -123,9 +129,6 @@ public class Game {
     
     /** Map of player UUIDs to their chests opened during the game */
     private final @NotNull Map<UUID, Integer> playerChestsOpened = new ConcurrentHashMap<>();
-    
-    /** Game start time for accurate duration calculation */
-    private @Nullable Instant gameStartTime = null;
     
     /** Secure random number generator for cryptographically secure operations */
     private static final SecureRandom secureRandom = new SecureRandom();
@@ -1501,5 +1504,32 @@ public class Game {
         if (plugin.getTeamQueueManager() != null) {
             plugin.getTeamQueueManager().updateGameBroadcast(this);
         }
+    }
+
+    /**
+     * Gets whether this game has been properly set up by a ranked player.
+     * 
+     * @return true if the game has been set up and is ready for players
+     */
+    public boolean isSetupComplete() {
+        return setupComplete;
+    }
+    
+    /**
+     * Marks this game as properly set up by a ranked player.
+     * This allows the game to appear in the Game Browser for regular players.
+     */
+    public void markSetupComplete() {
+        this.setupComplete = true;
+        logger.info("Game " + gameId + " marked as setup complete");
+    }
+    
+    /**
+     * Clears the setup complete flag.
+     * This hides the game from regular players until setup is completed again.
+     */
+    public void clearSetupComplete() {
+        this.setupComplete = false;
+        logger.info("Game " + gameId + " setup cleared");
     }
 } 
