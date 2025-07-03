@@ -1,12 +1,22 @@
 Lumalyte Source Available License (LSAL)
-Version 1.0, July2025
+Version 1.0, July 2025
 
 Copyright (c) 2025 Lumalyte.net
 
 1. DEFINITIONS
 
 "Software" means the LumaSG plugin source code, documentation, and associated files.
-"Commercial Use" means any use of the Software for commercial purposes, including but not limited to selling, licensing, or distributing the Software or any derivative works for monetary gain.
+"Commercial Use" means any use of the Software in an environment that:
+  * Accepts payments for goods or services
+  * Operates a store or marketplace
+  * Sells in-game items, ranks, or privileges
+  * Monetizes gameplay features or access
+  * Generates revenue through advertisements or sponsorships
+"Non-Commercial Use" means use limited to environments that:
+  * Are completely free-to-play
+  * Do not sell any items or services
+  * Do not monetize any aspect of gameplay
+  * Do not generate any form of revenue
 "Compiled Binary" means any executable or distributable form of the Software that is not source code.
 "Critical Bug Fix" means any fix that addresses security vulnerabilities, data corruption, server crashes, or other issues that significantly impact the Software's core functionality.
 "Derivative Work" means any work based upon the Software or any portion thereof.
@@ -68,10 +78,25 @@ This License automatically terminates if you violate any of its terms. Upon term
 
 10. MISCELLANEOUS
 
-a) This License shall be governed by the laws of The United States of America, the European Union, and their allies.
-b) If any provision of this License is held to be unenforceable, the remainder shall remain in full force and effect.
-c) This License may only be modified by written agreement signed by Licensor.
+a) Governing Law. This License shall be governed by and construed in accordance with the laws of the United States of America. In the event of any conflict between jurisdictions, United States federal law shall take precedence.
+
+b) Severability. If any provision of this License is held to be unenforceable or invalid:
+   - Such provision shall be reformed only to the extent necessary to make it enforceable while preserving its intent
+   - The remaining provisions shall remain in full force and effect
+   - The unenforceable provision shall be construed to achieve as nearly as possible the same effect as the original provision within the bounds of applicable law
+
+c) Commercial Use Terms:
+   - No commercial use is permitted without a separate written commercial license agreement
+   - Evaluation for potential commercial use is permitted for a period not exceeding 30 days
+   - Commercial licenses, once granted, are subject to the terms in effect at the time of licensing
+
+d) Modifications:
+   - Any modifications to the Licensed Software must preserve all license notices
+   - Modified versions must be clearly marked as modified and not misrepresented as the original software
+   - The origin of the Licensed Software must not be misrepresented
 
 For commercial licensing inquiries, please contact: thegeekedgamer@gmail.com
+
+This License may only be modified by written agreement signed by Licensor.
 
 ---
