@@ -27,7 +27,7 @@ jobs:
         distribution: 'temurin'
         
     - name: Cache Gradle packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -39,42 +39,49 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
       
+    - name: Compile
+      run: ./gradlew compileJava compileTestJava --no-daemon
+      
     - name: Run tests
-      run: ./gradlew test --info --stacktrace
+      run: ./gradlew test --no-daemon --continue
       
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-java-${{ matrix.java }}
         path: |
-          build/test-results/**/*.xml
-          build/reports/tests/**/*
-          
-    - name: Publish test results
-      uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
-      with:
-        files: |
-          build/test-results/**/*.xml
-        check_name: "Test Results (Java ${{ matrix.java }})"
+          build/reports/tests/test/
+          build/test-results/test/
+        retention-days: 30
         
-  quality:
+    - name: Upload build reports
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-reports-java-${{ matrix.java }}
+        path: |
+          build/reports/
+          build/tmp/
+        retention-days: 7
+
+  code-quality:
     runs-on: ubuntu-latest
-    name: Code Quality Analysis
+    needs: test
+    if: always()
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up JDK 21
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: '17'
         distribution: 'temurin'
         
     - name: Cache Gradle packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -87,19 +94,61 @@ jobs:
       run: chmod +x ./gradlew
       
     - name: Run code quality checks
-      run: ./gradlew check --exclude-task test
+      run: ./gradlew check --no-daemon --continue
       
     - name: Upload quality reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: quality-reports
         path: |
-          build/reports/**/*
+          build/reports/
+        retention-days: 30
+
+  performance-benchmark:
+    runs-on: ubuntu-latest
+    needs: test
+    if: success()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
           
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+      
+    - name: Run performance benchmarks
+      run: ./gradlew test --tests "*Performance*" --no-daemon
+      
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-benchmarks
+        path: |
+          build/reports/tests/test/
+          build/test-results/test/
+        retention-days: 30
+
   build:
     runs-on: ubuntu-latest
-    needs: [test, quality]
+    needs: [test, code-quality]
     name: Build JAR
     
     steps:
@@ -113,7 +162,7 @@ jobs:
         distribution: 'temurin'
         
     - name: Cache Gradle packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -126,23 +175,12 @@ jobs:
       run: chmod +x ./gradlew
       
     - name: Build JAR
-      run: ./gradlew build --exclude-task test
+      run: ./gradlew build --exclude-task test --no-daemon
       
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: |
           build/libs/*.jar
-          
-    - name: Run performance benchmarks
-      run: ./gradlew test --tests "*Performance*" --info
-      
-    - name: Upload performance results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: performance-results
-        path: |
-          build/test-results/**/*Performance*.xml
-          build/reports/tests/**/*Performance* 
+        retention-days: 30 
