@@ -1,4 +1,4 @@
-package net.lumalyte.performance;
+package net.lumalyte.lumasg.performance;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +24,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.game.Game;
-import net.lumalyte.util.GameInstancePool;
-import net.lumalyte.util.TestUtils;
-import net.lumalyte.util.TestUtils.MockLocation;
-import net.lumalyte.util.cache.ArenaWorldCache;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.util.game.GameInstancePool;
+import net.lumalyte.lumasg.util.TestUtils;
+import net.lumalyte.lumasg.util.TestUtils.MockLocation;
+import net.lumalyte.lumasg.util.cache.ArenaWorldCache;
 
 /**
  * Comprehensive performance benchmark suite for LumaSG
