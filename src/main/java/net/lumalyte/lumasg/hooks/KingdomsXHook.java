@@ -1,10 +1,10 @@
-package net.lumalyte.hooks;
+package net.lumalyte.lumasg.hooks;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.game.GameState;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.GameManager;
+import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

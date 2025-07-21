@@ -1,4 +1,4 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,12 +13,12 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.exception.LumaSGException;
-import net.lumalyte.util.BaseManager;
-import net.lumalyte.util.ErrorHandlingUtils;
-import net.lumalyte.util.ValidationUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.exception.LumaSGException;
+import net.lumalyte.lumasg.util.core.BaseManager;
+import net.lumalyte.lumasg.util.validation.ErrorHandlingUtils;
+import net.lumalyte.lumasg.util.validation.ValidationUtils;
 
 /**
  * Manages all active games and game lifecycle operations.

@@ -1,7 +1,7 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;

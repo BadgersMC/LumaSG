@@ -232,6 +232,33 @@ statistics:
   track-damage: true          # Track damage dealt and taken
   track-chests: true          # Track chests opened
 
+# Database Settings
+database:
+  # Database type: POSTGRESQL, MYSQL, or SQLITE (fallback only)
+  type: "POSTGRESQL"
+  
+  # Connection settings
+  host: "localhost"
+  port: 5432  # 5432 for PostgreSQL, 3306 for MySQL
+  database: "lumasg"
+  username: "lumasg"
+  password: "your_password_here"
+  
+  # Connection pool settings (HikariCP)
+  pool:
+    minimum-idle: 2           # Minimum number of idle connections
+    maximum-pool-size: 8      # Maximum number of connections in pool
+    connection-timeout: 30000 # Connection timeout in milliseconds (30 seconds)
+    idle-timeout: 600000      # Idle timeout in milliseconds (10 minutes)
+    max-lifetime: 1800000     # Maximum connection lifetime in milliseconds (30 minutes)
+  
+  # Security settings
+  use-ssl: false              # Enable SSL connections
+  additional-properties: ""   # Additional JDBC properties
+  
+  # Migration settings
+  auto-migrate: true          # Automatically run database migrations on startup
+
 # Performance Settings
 # These settings control various performance optimizations
 # Do not touch unless you know what you're doing.

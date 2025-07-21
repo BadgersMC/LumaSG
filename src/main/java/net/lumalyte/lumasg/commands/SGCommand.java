@@ -1,4 +1,4 @@
-package net.lumalyte.commands;
+package net.lumalyte.lumasg.commands;
 
 import java.util.Collection;
 import java.util.List;
@@ -26,22 +26,22 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.arena.ArenaManager;
-import net.lumalyte.customitems.behaviors.AirdropBehavior;
-import net.lumalyte.customitems.behaviors.AirdropData;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.game.GameState;
-import net.lumalyte.game.Team;
-import net.lumalyte.gui.menus.MainMenu;
-import net.lumalyte.util.CacheManager;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.InvitationManager;
-import net.lumalyte.util.MiniMessageUtils;
-import net.lumalyte.util.PlayerDataCache;
-import net.lumalyte.util.SkinCache;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.arena.ArenaManager;
+import net.lumalyte.lumasg.customitems.behaviors.AirdropBehavior;
+import net.lumalyte.lumasg.customitems.behaviors.AirdropData;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.GameManager;
+import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.game.Team;
+import net.lumalyte.lumasg.gui.menus.MainMenu;
+import net.lumalyte.lumasg.util.cache.CacheManager;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.game.InvitationManager;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
+import net.lumalyte.lumasg.util.cache.PlayerDataCache;
+import net.lumalyte.lumasg.util.cache.SkinCache;
 
 /**
  * Modern command handler for Survival Games plugin commands using Paper's Brigadier command system.

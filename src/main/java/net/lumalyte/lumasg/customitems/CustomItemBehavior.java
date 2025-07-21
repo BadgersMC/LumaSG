@@ -1,4 +1,4 @@
-package net.lumalyte.customitems;
+package net.lumalyte.lumasg.customitems;
 
 /**
  * Enumeration of custom item behavior types.

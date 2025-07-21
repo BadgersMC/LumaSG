@@ -1,4 +1,4 @@
-package net.lumalyte.hooks;
+package net.lumalyte.lumasg.hooks;
 
 import org.bukkit.plugin.Plugin;
 

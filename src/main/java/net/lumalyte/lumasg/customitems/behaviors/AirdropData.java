@@ -1,4 +1,4 @@
-package net.lumalyte.customitems.behaviors;
+package net.lumalyte.lumasg.customitems.behaviors;
 
 import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;

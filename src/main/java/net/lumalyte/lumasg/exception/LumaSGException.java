@@ -1,4 +1,4 @@
-package net.lumalyte.exception;
+package net.lumalyte.lumasg.exception;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

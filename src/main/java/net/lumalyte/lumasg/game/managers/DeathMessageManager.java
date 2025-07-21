@@ -1,4 +1,4 @@
-package net.lumalyte.game.managers;
+package net.lumalyte.lumasg.game.managers;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,9 +11,9 @@ import org.bukkit.inventory.ItemStack;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.lumalyte.LumaSG;
-import net.lumalyte.game.GamePlayerManager;
-import net.lumalyte.util.MiniMessageUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.game.GamePlayerManager;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 
 /**
  * Manages death messages and kill tracking for game events.

@@ -1,11 +1,11 @@
-package net.lumalyte.customitems.behaviors;
+package net.lumalyte.lumasg.customitems.behaviors;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.game.Game;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
-import net.lumalyte.exception.LumaSGException;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.customitems.CustomItem;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
+import net.lumalyte.lumasg.exception.LumaSGException;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.*;

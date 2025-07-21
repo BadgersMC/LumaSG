@@ -1,9 +1,9 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
 import net.kyori.adventure.text.Component;
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;

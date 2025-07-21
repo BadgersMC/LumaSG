@@ -1,10 +1,10 @@
-package net.lumalyte;
+package net.lumalyte.lumasg;
 
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
-import net.lumalyte.commands.SGCommand;
+import net.lumalyte.lumasg.commands.SGCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 

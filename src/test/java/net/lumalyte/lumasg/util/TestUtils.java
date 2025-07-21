@@ -1,4 +1,4 @@
-package net.lumalyte.util;
+package net.lumalyte.lumasg.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,8 +12,8 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import net.lumalyte.arena.Arena;
-import net.lumalyte.game.Game;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.game.Game;
 
 /**
  * Common test utilities to reduce code duplication across test files

@@ -1,8 +1,8 @@
-package net.lumalyte.customitems;
+package net.lumalyte.lumasg.customitems;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.chest.ChestItem;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.chest.ChestItem;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;

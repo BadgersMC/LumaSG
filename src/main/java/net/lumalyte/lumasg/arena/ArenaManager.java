@@ -1,4 +1,4 @@
-package net.lumalyte.arena;
+package net.lumalyte.lumasg.arena;
 
 import java.io.File;
 import java.util.Collections;
@@ -14,9 +14,9 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.BaseManager;
-import net.lumalyte.util.ErrorHandlingUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.BaseManager;
+import net.lumalyte.lumasg.util.validation.ErrorHandlingUtils;
 
 /**
  * Manages Survival Games arenas, including loading, saving, and providing access to all arenas.

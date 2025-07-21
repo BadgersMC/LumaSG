@@ -1,12 +1,12 @@
 name: LumaSG
 version: '${version}'
-main: net.lumalyte.LumaSG
+main: net.lumalyte.lumasg.LumaSG
 description: ${description}
 api-version: '1.21'
 authors: [BadgersMC]
 load: POSTWORLD
-bootstrapper: net.lumalyte.LumaSGBootstrap
-loader: net.lumalyte.LumaSGLibraryLoader
+bootstrapper: net.lumalyte.lumasg.LumaSGBootstrap
+loader: net.lumalyte.lumasg.LumaSGLibraryLoader
 website: https://github.com/BadgersMC/LumaSG
 dependencies:
   server:

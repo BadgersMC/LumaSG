@@ -1,6 +1,6 @@
-package net.lumalyte.arena;
+package net.lumalyte.lumasg.arena;
 
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;

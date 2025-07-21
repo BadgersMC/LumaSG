@@ -1,4 +1,4 @@
-package net.lumalyte.listeners;
+package net.lumalyte.lumasg.listeners;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -18,12 +18,12 @@ import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.chest.ChestManager;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.game.GameState;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.chest.ChestManager;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.GameManager;
+import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 
 /**
  * Handles all chest-related events in Survival Games.

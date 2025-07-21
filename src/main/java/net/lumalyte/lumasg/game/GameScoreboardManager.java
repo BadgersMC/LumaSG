@@ -1,8 +1,8 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.util.MiniMessageUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Criteria;

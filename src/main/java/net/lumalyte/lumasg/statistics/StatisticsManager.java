@@ -1,12 +1,15 @@
-package net.lumalyte.statistics;
+package net.lumalyte.lumasg.statistics;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.database.DatabaseManager;
+import net.lumalyte.lumasg.util.database.DatabaseConfig;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StatisticsManager {
     
     private final @NotNull LumaSG plugin;
-    private final @NotNull StatisticsDatabase database;
+    private StatisticsDatabase database;
     
     /** The debug logger instance for this statistics manager */
     private final @NotNull DebugLogger.ContextualLogger logger;
@@ -38,6 +41,8 @@ public class StatisticsManager {
     /** Set of player UUIDs whose statistics have been modified and need saving */
     private final @NotNull Map<UUID, Long> pendingSaves;
     
+    private DatabaseManager databaseManager;
+    
     /**
      * Creates a new StatisticsManager instance.
      * 
@@ -45,25 +50,117 @@ public class StatisticsManager {
      */
     public StatisticsManager(@NotNull LumaSG plugin) {
         this.plugin = plugin;
-        this.database = new StatisticsDatabase(plugin);
         this.logger = plugin.getDebugLogger().forContext("StatisticsManager");
         this.statisticsCache = new ConcurrentHashMap<>();
         this.pendingSaves = new ConcurrentHashMap<>();
     }
     
     /**
-     * Initializes the statistics manager and database.
+     * Initializes the statistics manager with high-performance database infrastructure.
      * 
      * @return A CompletableFuture that completes when initialization is done
      */
     public @NotNull CompletableFuture<Void> initialize() {
-        return database.initialize().thenRun(() -> {
-            logger.info("Statistics manager initialized successfully");
-            
-            // Start the periodic save task
-            startPeriodicSaveTask();
+        return CompletableFuture.runAsync(() -> {
+            try {
+                // Create database configuration from plugin config
+                DatabaseConfig config = createDatabaseConfig();
+                
+                // Initialize database manager with connection pooling
+                databaseManager = new DatabaseManager(plugin, config);
+                databaseManager.initialize().join();
+                
+                // Initialize statistics database with the new manager
+                database = new StatisticsDatabase(plugin, databaseManager);
+                database.initialize().join();
+                
+                logger.info("Statistics manager initialized successfully with high-performance infrastructure:");
+                logger.info("  ✓ Database type: " + config.getType());
+                logger.info("  ✓ Connection pooling: HikariCP with " + config.getMaximumPoolSize() + " max connections");
+                logger.info("  ✓ Serialization: Kryo binary format");
+                logger.info("  ✓ Batch operations: Enabled for optimal throughput");
+                
+                // Start the periodic save task
+                startPeriodicSaveTask();
+                
+            } catch (Exception e) {
+                logger.severe("Failed to initialize statistics manager", e);
+                throw new RuntimeException("Statistics manager initialization failed", e);
+            }
         });
     }
+    
+    /**
+     * Creates database configuration from plugin settings.
+     * 
+     * @return Configured DatabaseConfig instance
+     */
+    private @NotNull DatabaseConfig createDatabaseConfig() {
+        DatabaseConfig.Builder builder = new DatabaseConfig.Builder();
+        
+        // Get database type from config
+        String typeStr = plugin.getConfig().getString("database.type", "POSTGRESQL").toUpperCase();
+        DatabaseConfig.DatabaseType type;
+        try {
+            type = DatabaseConfig.DatabaseType.valueOf(typeStr);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid database type '" + typeStr + "', defaulting to PostgreSQL");
+            type = DatabaseConfig.DatabaseType.POSTGRESQL;
+        }
+        
+        // Build configuration from plugin config
+        return builder
+                .type(type)
+                .host(plugin.getConfig().getString("database.host", "localhost"))
+                .port(plugin.getConfig().getInt("database.port", type.getDefaultPort()))
+                .database(plugin.getConfig().getString("database.database", "lumasg"))
+                .username(plugin.getConfig().getString("database.username", "lumasg"))
+                .password(plugin.getConfig().getString("database.password", ""))
+                .minimumIdle(plugin.getConfig().getInt("database.pool.minimum-idle", 2))
+                .maximumPoolSize(plugin.getConfig().getInt("database.pool.maximum-pool-size", 8))
+                .connectionTimeout(plugin.getConfig().getLong("database.pool.connection-timeout", 30000))
+                .idleTimeout(plugin.getConfig().getLong("database.pool.idle-timeout", 600000))
+                .maxLifetime(plugin.getConfig().getLong("database.pool.max-lifetime", 1800000))
+                .useSSL(plugin.getConfig().getBoolean("database.use-ssl", false))
+                .additionalProperties(plugin.getConfig().getString("database.additional-properties", ""))
+                .build();
+    }
+    
+    /**
+     * Saves player statistics to the database.
+     * 
+     * @param stats The player statistics to save
+     * @return A CompletableFuture that completes when the save is done
+     */
+    public @NotNull CompletableFuture<Void> savePlayerStats(@NotNull PlayerStats stats) {
+        // Mark as pending save
+        pendingSaves.put(stats.getPlayerId(), System.currentTimeMillis());
+        
+        // Update cache
+        statisticsCache.put(stats.getPlayerId(), stats);
+        
+        // Save to database
+        return database.savePlayerStats(stats).whenComplete((result, throwable) -> {
+            if (throwable == null) {
+                // Remove from pending saves on success
+                pendingSaves.remove(stats.getPlayerId());
+                logger.debug("Successfully saved statistics for " + stats.getPlayerName());
+            } else {
+                logger.error("Failed to save statistics for " + stats.getPlayerName(), throwable);
+            }
+        });
+    }
+    
+    /**
+     * Checks if the statistics manager is healthy.
+     * 
+     * @return true if healthy, false otherwise
+     */
+    public boolean isHealthy() {
+        return databaseManager != null && databaseManager.isHealthy();
+    }
+    
+
     
     /**
      * Shuts down the statistics manager and saves all pending data.
@@ -72,7 +169,12 @@ public class StatisticsManager {
      */
     public @NotNull CompletableFuture<Void> shutdown() {
         return saveAllPendingStats().thenCompose(v -> {
-            database.shutdown();
+            if (database != null) {
+                database.shutdown();
+            }
+            if (databaseManager != null) {
+                return databaseManager.shutdown();
+            }
             return CompletableFuture.completedFuture(null);
         });
     }

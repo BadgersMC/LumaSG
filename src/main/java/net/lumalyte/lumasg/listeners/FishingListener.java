@@ -1,10 +1,10 @@
-package net.lumalyte.listeners;
+package net.lumalyte.lumasg.listeners;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameState;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ItemUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.core.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.configuration.ConfigurationSection;

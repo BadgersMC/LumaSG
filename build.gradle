@@ -53,6 +53,18 @@ dependencies {
     // Caching
     shadow 'com.github.ben-manes.caffeine:caffeine:3.2.1'
     
+    // Database Connection Pooling
+    shadow 'com.zaxxer:HikariCP:5.0.1'
+    shadow 'org.postgresql:postgresql:42.6.0'
+    shadow 'mysql:mysql-connector-java:8.0.33'
+    
+    // High-Performance Serialization
+    shadow 'com.esotericsoftware:kryo:5.6.2'
+    
+    // Input Validation & Security
+    shadow 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
+    shadow 'org.apache.commons:commons-text:1.10.0'
+    
     // Testing dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testImplementation 'org.mockito:mockito-core:5.8.0'

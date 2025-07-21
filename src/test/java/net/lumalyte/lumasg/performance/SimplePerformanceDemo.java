@@ -1,4 +1,4 @@
-package net.lumalyte.performance;
+package net.lumalyte.lumasg.performance;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-import net.lumalyte.util.TestUtils;
+import net.lumalyte.lumasg.util.TestUtils;
 
 /**
  * Lightweight performance tests that validate our optimization algorithms

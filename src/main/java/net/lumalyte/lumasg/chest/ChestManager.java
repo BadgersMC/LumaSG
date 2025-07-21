@@ -1,8 +1,8 @@
-package net.lumalyte.chest;
+package net.lumalyte.lumasg.chest;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.exception.LumaSGException;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.exception.LumaSGException;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;

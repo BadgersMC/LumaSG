@@ -1,13 +1,13 @@
-package net.lumalyte.listeners;
+package net.lumalyte.lumasg.listeners;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.customitems.CustomItemBehavior;
-import net.lumalyte.customitems.CustomItemsManager;
-import net.lumalyte.customitems.behaviors.AirdropBehavior;
-import net.lumalyte.customitems.behaviors.PlayerTrackerBehavior;
-import net.lumalyte.customitems.behaviors.ExplosiveBehavior;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.customitems.CustomItem;
+import net.lumalyte.lumasg.customitems.CustomItemBehavior;
+import net.lumalyte.lumasg.customitems.CustomItemsManager;
+import net.lumalyte.lumasg.customitems.behaviors.AirdropBehavior;
+import net.lumalyte.lumasg.customitems.behaviors.PlayerTrackerBehavior;
+import net.lumalyte.lumasg.customitems.behaviors.ExplosiveBehavior;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

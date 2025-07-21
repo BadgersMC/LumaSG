@@ -1,9 +1,8 @@
-package net.lumalyte.hooks;
+package net.lumalyte.lumasg.hooks;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

@@ -1,4 +1,4 @@
-package net.lumalyte.statistics;
+package net.lumalyte.lumasg.statistics;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

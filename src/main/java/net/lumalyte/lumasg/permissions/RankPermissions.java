@@ -1,4 +1,4 @@
-package net.lumalyte.permissions;
+package net.lumalyte.lumasg.permissions;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;

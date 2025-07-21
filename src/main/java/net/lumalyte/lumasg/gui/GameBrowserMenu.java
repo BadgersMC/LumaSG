@@ -1,8 +1,9 @@
-package net.lumalyte.gui;
+package net.lumalyte.lumasg.gui;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import net.lumalyte.lumasg.gui.menus.MainMenu;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -10,10 +11,10 @@ import org.jetbrains.annotations.NotNull;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameState;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.GameState;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.gui.PagedGui;
 import xyz.xenondevs.invui.gui.structure.Markers;
@@ -63,7 +64,7 @@ public class GameBrowserMenu {
                     player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
                     player.closeInventory();
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        new net.lumalyte.gui.menus.MainMenu(plugin).openMenu(player);
+                        new MainMenu(plugin).openMenu(player);
                     });
                 }
             }

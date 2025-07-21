@@ -1,9 +1,9 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.InventoryUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.inventory.InventoryUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;

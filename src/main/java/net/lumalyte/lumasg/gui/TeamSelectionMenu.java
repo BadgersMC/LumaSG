@@ -1,11 +1,11 @@
-package net.lumalyte.gui;
+package net.lumalyte.lumasg.gui;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.lumalyte.LumaSG;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.Team;
-import net.lumalyte.game.TeamQueueManager;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.Team;
+import net.lumalyte.lumasg.game.TeamQueueManager;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;

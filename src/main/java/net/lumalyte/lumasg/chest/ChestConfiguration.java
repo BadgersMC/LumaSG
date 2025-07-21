@@ -1,7 +1,7 @@
-package net.lumalyte.chest;
+package net.lumalyte.lumasg.chest;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;

@@ -1,4 +1,4 @@
-package net.lumalyte.hooks;
+package net.lumalyte.lumasg.hooks;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -9,8 +9,8 @@ import org.bukkit.plugin.Plugin;
 
 import com.nexomc.nexo.api.NexoItems;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 
 /**
  * Hook for the Nexo plugin.

@@ -1,12 +1,12 @@
-package net.lumalyte.listeners;
+package net.lumalyte.lumasg.listeners;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.lumalyte.LumaSG;
-import net.lumalyte.arena.Arena;
-import net.lumalyte.arena.ArenaManager;
-import net.lumalyte.util.AdminWand;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.arena.ArenaManager;
+import net.lumalyte.lumasg.util.core.AdminWand;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;

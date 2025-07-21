@@ -1,8 +1,8 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.statistics.StatisticsManager;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.statistics.StatisticsManager;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;

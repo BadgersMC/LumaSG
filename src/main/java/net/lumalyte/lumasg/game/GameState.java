@@ -1,4 +1,4 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
 /**
  * Represents the different states a Survival Games game can be in.

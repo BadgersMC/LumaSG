@@ -1,4 +1,4 @@
-package net.lumalyte.statistics;
+package net.lumalyte.lumasg.statistics;
 
 /**
  * Enumeration of different statistic types that can be tracked and used for leaderboards.

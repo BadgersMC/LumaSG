@@ -1,10 +1,9 @@
-package net.lumalyte.customitems.behaviors;
+package net.lumalyte.lumasg.customitems.behaviors;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.game.Game;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.customitems.CustomItem;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -17,7 +16,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import net.lumalyte.listeners.CustomItemListener;
+import net.lumalyte.lumasg.listeners.CustomItemListener;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

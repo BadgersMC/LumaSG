@@ -1,4 +1,4 @@
-package net.lumalyte.util.performance;
+package net.lumalyte.lumasg.util.performance;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.jetbrains.annotations.NotNull;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 
 /**
  * Performance profiling utility for monitoring execution times and resource usage.

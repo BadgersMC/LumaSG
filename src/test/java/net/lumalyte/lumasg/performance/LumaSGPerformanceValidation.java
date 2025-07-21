@@ -1,4 +1,4 @@
-package net.lumalyte.performance;
+package net.lumalyte.lumasg.performance;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 
-import net.lumalyte.util.TestUtils;
+import net.lumalyte.lumasg.util.TestUtils;
 
 /**
  * COMPREHENSIVE PERFORMANCE VALIDATION FOR LUMASG OPTIMIZATION SYSTEM

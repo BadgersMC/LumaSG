@@ -1,8 +1,7 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import org.bukkit.ChatColor;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;

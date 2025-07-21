@@ -1,9 +1,9 @@
-package net.lumalyte.gui;
+package net.lumalyte.lumasg.gui;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.statistics.PlayerStats;
-import net.lumalyte.statistics.StatType;
-import net.lumalyte.util.DebugLogger;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.statistics.PlayerStats;
+import net.lumalyte.lumasg.statistics.StatType;
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;

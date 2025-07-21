@@ -1,8 +1,8 @@
-package net.lumalyte.customitems;
+package net.lumalyte.lumasg.customitems;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.ItemUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.core.ItemUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;

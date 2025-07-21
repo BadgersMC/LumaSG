@@ -1,4 +1,4 @@
-package net.lumalyte.game;
+package net.lumalyte.lumasg.game;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;

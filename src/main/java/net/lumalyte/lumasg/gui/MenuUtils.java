@@ -1,4 +1,4 @@
-package net.lumalyte.gui;
+package net.lumalyte.lumasg.gui;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import net.kyori.adventure.text.Component;
-import net.lumalyte.LumaSG;
+import net.lumalyte.lumasg.LumaSG;
 
 /**
  * Utility class for creating and managing menus.

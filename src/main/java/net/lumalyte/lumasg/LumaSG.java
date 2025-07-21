@@ -1,33 +1,38 @@
-package net.lumalyte;
+package net.lumalyte.lumasg;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.lumalyte.lumasg.util.cache.*;
+import net.lumalyte.lumasg.util.config.*;
+import net.lumalyte.lumasg.util.core.*;
+import net.lumalyte.lumasg.util.concurrent.*;
+import net.lumalyte.lumasg.util.game.*;
+import net.lumalyte.lumasg.util.serialization.*;
+import net.lumalyte.lumasg.util.validation.*;
+import net.lumalyte.lumasg.util.validation.ConfigValidator;
+import net.lumalyte.lumasg.util.performance.*;
+import net.lumalyte.lumasg.util.cache.ArenaWorldCache;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import net.lumalyte.arena.Arena;
-import net.lumalyte.arena.ArenaManager;
-import net.lumalyte.chest.ChestManager;
-import net.lumalyte.commands.SGCommand;
-import net.lumalyte.customitems.CustomItemsManager;
-import net.lumalyte.game.GameManager;
-import net.lumalyte.game.TeamQueueManager;
-import net.lumalyte.gui.MenuUtils;
-import net.lumalyte.hooks.HookManager;
-import net.lumalyte.listeners.AdminWandListener;
-import net.lumalyte.listeners.ChestListener;
-import net.lumalyte.listeners.CustomItemListener;
-import net.lumalyte.listeners.FishingListener;
-import net.lumalyte.listeners.PlayerListener;
-import net.lumalyte.statistics.StatisticsManager;
-import net.lumalyte.util.AdminWand;
-import net.lumalyte.util.CacheManager;
-import net.lumalyte.util.ConfigurationManager;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.performance.PerformanceProfiler;
-import net.lumalyte.util.ValidationUtils;
+import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.arena.ArenaManager;
+import net.lumalyte.lumasg.chest.ChestManager;
+import net.lumalyte.lumasg.commands.SGCommand;
+import net.lumalyte.lumasg.customitems.CustomItemsManager;
+import net.lumalyte.lumasg.game.GameManager;
+import net.lumalyte.lumasg.game.TeamQueueManager;
+import net.lumalyte.lumasg.gui.MenuUtils;
+import net.lumalyte.lumasg.hooks.HookManager;
+import net.lumalyte.lumasg.listeners.AdminWandListener;
+import net.lumalyte.lumasg.listeners.ChestListener;
+import net.lumalyte.lumasg.listeners.CustomItemListener;
+import net.lumalyte.lumasg.listeners.FishingListener;
+import net.lumalyte.lumasg.listeners.PlayerListener;
+import net.lumalyte.lumasg.statistics.StatisticsManager;
+
 import xyz.xenondevs.invui.InvUI;
 
 /**
@@ -63,6 +68,9 @@ public class LumaSG extends JavaPlugin {
         // Initialize debug logger early
         debugLogger = new DebugLogger(this);
         
+        // Initialize Kryo serialization manager early
+        KryoManager.initialize(this);
+        
         // Initialize core systems
         initializeCoreComponents();
         
@@ -87,6 +95,9 @@ public class LumaSG extends JavaPlugin {
         // Initialize configuration manager and update configs
         configManager = new ConfigurationManager(this);
         configManager.updateAllConfigs();
+        
+        // Validate configuration before proceeding
+        validateConfiguration();
         
         // Initialize GUI system
         MenuUtils.initialize(this);
@@ -138,11 +149,32 @@ public class LumaSG extends JavaPlugin {
     }
     
     /**
+     * Validates the plugin configuration for safety and correctness.
+     * This prevents the plugin from starting with dangerous or invalid settings.
+     */
+    private void validateConfiguration() {
+        ConfigValidator validator = new ConfigValidator(this);
+        
+        if (!validator.validateConfiguration()) {
+            // Configuration has critical errors - cannot continue
+            debugLogger.severe("Configuration validation failed! Plugin cannot start with invalid configuration.");
+            debugLogger.severe("Please fix the configuration errors listed above and restart the server.");
+            
+            // Disable the plugin to prevent issues
+            getServer().getPluginManager().disablePlugin(this);
+            throw new IllegalStateException("Plugin disabled due to invalid configuration");
+        }
+        
+        debugLogger.info("Configuration validation completed successfully");
+    }
+    
+    /**
      * Validates that all manager instances were created successfully.
      */
     private void validateManagers() {
-        // I imagine someone will look at this one day and ask "why..?"
-        // Because i felt like it. Thats why.
+        // I imagine someone will look at this one day and ask "is this really necessary?"
+        // I like knowing when something is wrong on startup.
+        // Stick around, and I will make a believer out of you too!
         ValidationUtils.requireNonNull(configManager, "Configuration Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(arenaManager, "Arena Manager", "Plugin Initialization");
         ValidationUtils.requireNonNull(gameManager, "Game Manager", "Plugin Initialization");
@@ -193,15 +225,19 @@ public class LumaSG extends JavaPlugin {
             debugLogger.info("Shutting down advanced caching systems...");
             
             // Shutdown scaling optimization systems
-            net.lumalyte.util.GameInstancePool.shutdown();
-            net.lumalyte.util.cache.ArenaWorldCache.shutdown();
-            net.lumalyte.util.ConcurrentChestFiller.shutdown();
-            net.lumalyte.util.LootTableCache.shutdown();
+            GameInstancePool.shutdown();
+            ArenaWorldCache.shutdown();
+            ConcurrentChestFiller.shutdown();
+            LootTableCache.shutdown();
             debugLogger.info("Scaling optimization systems shutdown completed");
             
             // Shutdown core caching systems
             CacheManager.shutdown();
             debugLogger.info("Cache systems shutdown completed");
+            
+            // Shutdown Kryo serialization manager
+            KryoManager.shutdown();
+            debugLogger.info("Kryo serialization manager shutdown completed");
             
             // Stop managers in reverse order
             if (statisticsManager != null) {
@@ -365,8 +401,8 @@ public class LumaSG extends JavaPlugin {
             getDebugLogger().info("Initialized PerformanceProfiler with atomic counters and metrics");
             
             // Initialize scaling optimization systems
-            net.lumalyte.util.GameInstancePool.initialize(this);
-            net.lumalyte.util.cache.ArenaWorldCache.initialize(this);
+            GameInstancePool.initialize(this);
+            ArenaWorldCache.initialize(this);
             getDebugLogger().info("Initialized scaling systems for 15-20 concurrent games:");
             getDebugLogger().info("  ✓ GameInstancePool - Caffeine-based game lifecycle management");
             getDebugLogger().info("  ✓ ArenaWorldCache - Multi-world arena caching system");
@@ -394,25 +430,25 @@ public class LumaSG extends JavaPlugin {
     private void initializeChestOptimizations() {
         try {
             // Initialize concurrent chest filler with the chest manager
-            net.lumalyte.util.ConcurrentChestFiller.initialize(this, chestManager);
+            ConcurrentChestFiller.initialize(this, chestManager);
             
             // Initialize loot table cache for pre-generated loot
-            net.lumalyte.util.LootTableCache.initialize(this, chestManager);
+            LootTableCache.initialize(this, chestManager);
             
             // Pre-generate loot tables asynchronously
-            net.lumalyte.util.LootTableCache.preGenerateLootTables().thenRun(() -> {
+            LootTableCache.preGenerateLootTables().thenRun(() -> {
                 debugLogger.info("Pre-generated loot tables for all tiers completed");
             });
             
             // Pre-cache tier loot for concurrent chest filler
-            net.lumalyte.util.ConcurrentChestFiller.precacheTierLoot().thenRun(() -> {
+            ConcurrentChestFiller.precacheTierLoot().thenRun(() -> {
                 debugLogger.info("Pre-cached tier loot for concurrent chest filling");
             });
             
             debugLogger.info("Chest optimization systems initialized:");
             debugLogger.info("  ✓ ConcurrentChestFiller - Adaptive thread pool (" + 
-                net.lumalyte.util.ConcurrentChestFiller.getCurrentThreadPoolSize() + " threads, " +
-                (net.lumalyte.util.ConcurrentChestFiller.isUsingAutoCalculation() ? "auto-calculated" : "configured") + ")");
+                ConcurrentChestFiller.getCurrentThreadPoolSize() + " threads, " +
+                (ConcurrentChestFiller.isUsingAutoCalculation() ? "auto-calculated" : "configured") + ")");
             debugLogger.info("  ✓ LootTableCache - Pre-generated loot tables (50 chests per tier)");
             debugLogger.info("  ✓ Tier caching - Optimized loot distribution system");
         } catch (Exception e) {

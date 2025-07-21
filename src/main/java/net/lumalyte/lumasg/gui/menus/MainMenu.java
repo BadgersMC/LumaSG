@@ -1,4 +1,4 @@
-package net.lumalyte.gui.menus;
+package net.lumalyte.lumasg.gui.menus;
 
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -6,12 +6,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.jetbrains.annotations.NotNull;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.gui.GameBrowserMenu;
-import net.lumalyte.gui.GameSetupMenu;
-import net.lumalyte.gui.LeaderboardMenu;
-import net.lumalyte.gui.SetupMenu;
-import net.lumalyte.util.MiniMessageUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.gui.GameBrowserMenu;
+import net.lumalyte.lumasg.gui.GameSetupMenu;
+import net.lumalyte.lumasg.gui.LeaderboardMenu;
+import net.lumalyte.lumasg.gui.SetupMenu;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.ItemProvider;

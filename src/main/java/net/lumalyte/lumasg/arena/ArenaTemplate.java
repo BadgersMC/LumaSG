@@ -1,8 +1,8 @@
-package net.lumalyte.arena;
+package net.lumalyte.lumasg.arena;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.exception.LumaSGException;
-import net.lumalyte.util.ValidationUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.exception.LumaSGException;
+import net.lumalyte.lumasg.util.validation.ValidationUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;

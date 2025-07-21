@@ -1,4 +1,4 @@
-package net.lumalyte.performance;
+package net.lumalyte.lumasg.performance;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import net.lumalyte.util.TestUtils;
+import net.lumalyte.lumasg.util.TestUtils;
 
 /**
  * Simple performance test runner that demonstrates the optimization improvements

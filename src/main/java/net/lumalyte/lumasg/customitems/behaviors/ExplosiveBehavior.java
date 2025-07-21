@@ -1,4 +1,4 @@
-package net.lumalyte.customitems.behaviors;
+package net.lumalyte.lumasg.customitems.behaviors;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -29,12 +29,12 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import net.lumalyte.LumaSG;
-import net.lumalyte.customitems.CustomItem;
-import net.lumalyte.customitems.CustomItemBehavior;
-import net.lumalyte.game.Game;
-import net.lumalyte.util.DebugLogger;
-import net.lumalyte.util.MiniMessageUtils;
+import net.lumalyte.lumasg.LumaSG;
+import net.lumalyte.lumasg.customitems.CustomItem;
+import net.lumalyte.lumasg.customitems.CustomItemBehavior;
+import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 
 /**
  * Handles explosive custom item behaviors including fire bombs and poison bombs.
