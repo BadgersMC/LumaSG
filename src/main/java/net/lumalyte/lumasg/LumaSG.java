@@ -14,6 +14,7 @@ import net.lumalyte.lumasg.util.validation.*;
 import net.lumalyte.lumasg.util.validation.ConfigValidator;
 import net.lumalyte.lumasg.util.performance.*;
 import net.lumalyte.lumasg.util.cache.ArenaWorldCache;
+import net.lumalyte.lumasg.game.world.GameChestFiller;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -229,6 +230,7 @@ public class LumaSG extends JavaPlugin {
             ArenaWorldCache.shutdown();
             ConcurrentChestFiller.shutdown();
             LootTableCache.shutdown();
+            GameChestFiller.shutdownThreadPool();
             debugLogger.info("Scaling optimization systems shutdown completed");
             
             // Shutdown core caching systems

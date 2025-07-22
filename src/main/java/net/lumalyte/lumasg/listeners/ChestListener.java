@@ -47,7 +47,6 @@ public class ChestListener implements Listener {
     
     /** The chest manager for handling loot generation and chest operations */
     // For future use
-    @SuppressWarnings("unused")
     private final ChestManager chestManager;
     
     /** The game manager for checking game states and player participation */
@@ -241,8 +240,25 @@ public class ChestListener implements Listener {
         
         // Check if this chest is in the game arena and hasn't been opened yet
         if (isChestInArena(chestBlock.getLocation(), game) && !openedChests.contains(chestBlock)) {
-            // Fill the chest with loot
-            chestManager.fillChest(chestBlock.getLocation());
+            // Check if the chest has already been filled by the GameChestFiller
+            boolean alreadyFilled = false;
+            
+            // Try to get the GameWorldManager from the game
+            if (game.getWorldManager() != null && game.getWorldManager().getChestManager() != null) {
+                // Check if the chest has already been filled by the GameChestFiller
+                alreadyFilled = game.getWorldManager().getChestManager().isChestFilled(chestBlock.getLocation());
+            }
+            
+            // Only fill the chest if it hasn't been filled already
+            if (!alreadyFilled) {
+                // Fill the chest with loot
+                chestManager.fillChest(chestBlock.getLocation());
+                logger.debug("Filled chest at " + chestBlock.getLocation() + " on player open");
+            } else {
+                logger.debug("Chest at " + chestBlock.getLocation() + " was already filled by GameChestFiller");
+            }
+            
+            // Mark as opened regardless of who filled it
             openedChests.add(chestBlock);
             
             // Record chest opened statistic if enabled
