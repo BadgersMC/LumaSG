@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.util.core.BaseManager;
 import net.lumalyte.lumasg.util.validation.ErrorHandlingUtils;
+import net.lumalyte.lumasg.util.security.InputSanitizer;
 
 /**
  * Manages Survival Games arenas, including loading, saving, and providing access to all arenas.
@@ -111,6 +112,14 @@ public class ArenaManager extends BaseManager {
             for (File file : files) {
                 String arenaName = file.getName().replace(".yml", "");
                 
+                // Sanitize arena name for security (prevent path traversal)
+                String sanitizedArenaName = InputSanitizer.sanitizeArenaName(arenaName);
+                if (!arenaName.equals(sanitizedArenaName)) {
+                    logger.warn("Arena file has potentially unsafe name: " + InputSanitizer.sanitizeForLogging(arenaName) + 
+                               ", treating as: " + sanitizedArenaName);
+                    arenaName = sanitizedArenaName;
+                }
+                
                 try {
                     logger.debug("Loading arena from file: " + file.getName());
                     
@@ -128,15 +137,15 @@ public class ArenaManager extends BaseManager {
                         arena.setConfigFile(file);
                         arenas.add(arena);
                         successfulLoads++;
-                        logger.debug("Successfully loaded arena: " + arenaName);
+                        logger.debug("Successfully loaded arena: " + InputSanitizer.sanitizeForLogging(arenaName));
                     } else {
                         failedLoads++;
-                        logger.severe("Failed to load arena: " + arenaName + " after all retry attempts");
+                        logger.severe("Failed to load arena: " + InputSanitizer.sanitizeForLogging(arenaName) + " after all retry attempts");
                     }
                     
                 } catch (Exception e) {
                     failedLoads++;
-                    logger.severe("Critical error loading arena: " + arenaName, e);
+                    logger.severe("Critical error loading arena: " + InputSanitizer.sanitizeForLogging(arenaName), e);
                 }
             }
             
@@ -341,9 +350,17 @@ public class ArenaManager extends BaseManager {
      * @return The newly created arena, or null if creation failed
      */
     public @Nullable Arena createArena(@NotNull String name, @NotNull org.bukkit.Location center, int radius) {
+        // Sanitize arena name for security
+        String sanitizedName = InputSanitizer.sanitizeArenaName(name);
+        if (!name.equals(sanitizedName)) {
+            logger.warn("Arena name was sanitized from '" + InputSanitizer.sanitizeForLogging(name) + 
+                       "' to '" + sanitizedName + "' for security reasons");
+            name = sanitizedName;
+        }
+        
         // Check if arena with this name already exists
         if (getArena(name) != null) {
-            logger.warn("Arena with name " + name + " already exists!");
+            logger.warn("Arena with name " + InputSanitizer.sanitizeForLogging(name) + " already exists!");
             return null;
         }
         
@@ -358,7 +375,7 @@ public class ArenaManager extends BaseManager {
             addArena(arena);
             
             // Scan for chests automatically
-            logger.debug("Scanning for chests in newly created arena: " + name);
+            logger.debug("Scanning for chests in newly created arena: " + InputSanitizer.sanitizeForLogging(name));
             int chestCount = arena.scanForChests();
             logger.debug("Found " + chestCount + " chests in arena: " + name);
             

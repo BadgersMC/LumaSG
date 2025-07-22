@@ -144,10 +144,12 @@ If you encounter any issues or need support:
 Developed by LumaLyte, and BadgersMC
 
 **Uses the following Libraries, graciously**
-- [InvUI](https://github.com/NichtStudioCode/InvUI)
-- [Caffeine](https://github.com/ben-manes/caffeine)
-- [OkHttp](https://github.com/square/okhttp)
-
-Made because someone said I dont understand Java, and I took that *very* personally. So heres a plugin that uses some over the top Java magic, and puts their 1.8 Survival Games to SHAME. And yes, Java *is* magic.
+- [InvUI](https://github.com/NichtStudioCode/InvUI) - Modern inventory GUI framework
+- [Caffeine](https://github.com/ben-manes/caffeine) - High-performance caching library
+- [OkHttp](https://github.com/square/okhttp) - HTTP client for external API calls
+- [HikariCP](https://github.com/brettwooldridge/HikariCP) - High-performance database connection pooling
+- [Kryo](https://github.com/EsotericSoftware/kryo) - Fast binary serialization framework
+- [Hibernate Validator](https://hibernate.org/validator/) - Bean validation framework
+- [Apache Commons Text](https://commons.apache.org/proper/commons-text/) - Text processing utilities
 
 This plugin is very much so still a WIP, please report any issues/requests to angrybadger#1 on discord.

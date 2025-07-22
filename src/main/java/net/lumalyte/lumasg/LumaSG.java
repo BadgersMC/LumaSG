@@ -3,6 +3,7 @@ package net.lumalyte.lumasg;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.lumalyte.lumasg.game.team.TeamQueueManager;
 import net.lumalyte.lumasg.util.cache.*;
 import net.lumalyte.lumasg.util.config.*;
 import net.lumalyte.lumasg.util.core.*;
@@ -22,8 +23,7 @@ import net.lumalyte.lumasg.arena.ArenaManager;
 import net.lumalyte.lumasg.chest.ChestManager;
 import net.lumalyte.lumasg.commands.SGCommand;
 import net.lumalyte.lumasg.customitems.CustomItemsManager;
-import net.lumalyte.lumasg.game.GameManager;
-import net.lumalyte.lumasg.game.TeamQueueManager;
+import net.lumalyte.lumasg.game.core.GameManager;
 import net.lumalyte.lumasg.gui.MenuUtils;
 import net.lumalyte.lumasg.hooks.HookManager;
 import net.lumalyte.lumasg.listeners.AdminWandListener;
@@ -40,7 +40,7 @@ import xyz.xenondevs.invui.InvUI;
  */
 public class LumaSG extends JavaPlugin {
     
-    // Single 4 lyfe
+    // Single 4 lyfe :3
     /** Static instance for global access */
     private static LumaSG instance;
     
@@ -370,10 +370,10 @@ public class LumaSG extends JavaPlugin {
     
     /**
      * Gets the team queue manager instance.
-     * 
+     *
      * @return The team queue manager
      */
-    public @NotNull TeamQueueManager getTeamQueueManager() {
+    public net.lumalyte.lumasg.game.team.TeamQueueManager getTeamQueueManager() {
         return teamQueueManager;
     }
     

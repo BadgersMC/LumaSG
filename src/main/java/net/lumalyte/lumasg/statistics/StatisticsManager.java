@@ -4,6 +4,7 @@ import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.lumalyte.lumasg.util.database.DatabaseManager;
 import net.lumalyte.lumasg.util.database.DatabaseConfig;
+import net.lumalyte.lumasg.util.security.InputSanitizer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -187,6 +188,9 @@ public class StatisticsManager {
      * @return A CompletableFuture containing the player statistics
      */
     public @NotNull CompletableFuture<PlayerStats> getPlayerStats(@NotNull UUID playerId, @NotNull String playerName) {
+        // Sanitize player name for security
+        String sanitizedPlayerName = InputSanitizer.sanitizePlayerName(playerName);
+        
         // Check cache first
         PlayerStats cached = statisticsCache.get(playerId);
         if (cached != null) {
@@ -197,11 +201,11 @@ public class StatisticsManager {
         return database.loadPlayerStats(playerId).thenApply(stats -> {
             if (stats == null) {
                 // Create new player statistics
-                stats = new PlayerStats(playerId, playerName);
-                logger.debug("Created new statistics for player: " + playerName);
+                stats = new PlayerStats(playerId, sanitizedPlayerName);
+                logger.debug("Created new statistics for player: " + InputSanitizer.sanitizeForLogging(sanitizedPlayerName));
             } else {
                 // Update player name in case it changed
-                stats.setPlayerName(playerName);
+                stats.setPlayerName(sanitizedPlayerName);
             }
             
             // Cache the statistics
@@ -272,7 +276,7 @@ public class StatisticsManager {
         // Mark for saving
         markForSaving(playerId);
         
-        logger.debug("Recorded game result for " + stats.getPlayerName() + 
+        logger.debug("Recorded game result for " + InputSanitizer.sanitizeForLogging(stats.getPlayerName()) + 
             ": placement=" + placement + ", kills=" + kills);
     }
     

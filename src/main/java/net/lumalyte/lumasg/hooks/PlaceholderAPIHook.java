@@ -2,7 +2,7 @@ package net.lumalyte.lumasg.hooks;
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import net.lumalyte.lumasg.LumaSG;
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

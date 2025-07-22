@@ -1,5 +1,6 @@
-package net.lumalyte.lumasg.util.game;  import net.lumalyte.lumasg.util.core.DebugLogger;
+package net.lumalyte.lumasg.util.game;     
 
+import net.lumalyte.lumasg.util.core.DebugLogger;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
@@ -19,8 +20,8 @@ import com.github.benmanes.caffeine.cache.RemovalListener;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
-import net.lumalyte.lumasg.game.Game;
-import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.game.core.Game;
+import net.lumalyte.lumasg.game.core.GameState;
 
 /**
  * High-performance game instance pooling system using Caffeine caching.

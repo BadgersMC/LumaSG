@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.core;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.core;
 
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -14,10 +14,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import net.lumalyte.lumasg.game.managers.CelebrationManager;
-import net.lumalyte.lumasg.game.managers.DeathMessageManager;
+import net.lumalyte.lumasg.game.ui.CelebrationManager;
+import net.lumalyte.lumasg.game.ui.DeathMessageManager;
+import net.lumalyte.lumasg.game.ui.GameScoreboardManager;
+import net.lumalyte.lumasg.game.player.GamePlayerManager;
+import net.lumalyte.lumasg.game.player.GameNameplateManager;
+import net.lumalyte.lumasg.game.mechanics.GameTimerManager;
+import net.lumalyte.lumasg.game.mechanics.GameEliminationManager;
+import net.lumalyte.lumasg.game.world.GameWorldManager;
+import net.lumalyte.lumasg.game.team.GameTeamManager;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -33,9 +39,12 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.util.security.InputSanitizer;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.lumalyte.lumasg.util.serialization.InventorySerializer;
 import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
+import net.lumalyte.lumasg.game.core.GameState;
+import net.lumalyte.lumasg.game.core.GameMode;
 
 /**
  * Represents a single instance of a Survival Games match.
@@ -183,8 +192,7 @@ public class Game {
         this.eliminationManager = new GameEliminationManager(plugin, gameId.toString(), playerManager);
         this.deathMessageManager = new DeathMessageManager(plugin, playerManager);
         this.gameNameplateManager = new GameNameplateManager(plugin, arena, gameId, playerManager);
-        this.teamManager = new GameTeamManager(plugin, this, net.lumalyte.lumasg.game.GameMode.SOLO); // Default to solo
-                                                                                                      // mode
+        this.teamManager = new GameTeamManager(plugin, this, GameMode.SOLO); // Default to solo mode
 
         logger.info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
     }
@@ -427,7 +435,8 @@ public class Game {
                     if (playerLoc.distance(spawnLoc) > 1.5) {
                         // Teleport them back to their spawn point
                         player.teleport(spawnLoc);
-                        logger.debug("Teleported " + player.getName() + " back to spawn point - was " +
+                        logger.debug("Teleported " + InputSanitizer.sanitizeForLogging(player.getName())
+                                + " back to spawn point - was " +
                                 String.format("%.2f", playerLoc.distance(spawnLoc)) + " blocks away");
                     }
                 }
@@ -541,7 +550,7 @@ public class Game {
         for (UUID playerId : playerManager.getPlayers()) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null) {
-                player.setGameMode(GameMode.ADVENTURE);
+                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
             }
         }
 
@@ -1053,14 +1062,16 @@ public class Game {
             if (inventoryData != null) {
                 inventories.put(playerId, inventoryData);
                 logger.debug(
-                        "Saved inventory for player: " + player.getName() + " (" + inventoryData.length + " bytes)");
+                        "Saved inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()) + " ("
+                                + inventoryData.length + " bytes)");
             }
 
             // Save armor contents
             byte[] armorData = InventorySerializer.serializeInventory(player.getInventory().getArmorContents());
             if (armorData != null) {
                 armorContents.put(playerId, armorData);
-                logger.debug("Saved armor for player: " + player.getName() + " (" + armorData.length + " bytes)");
+                logger.debug("Saved armor for player: " + InputSanitizer.sanitizeForLogging(player.getName()) + " ("
+                        + armorData.length + " bytes)");
             }
 
             // Save experience
@@ -1071,7 +1082,8 @@ public class Game {
             previousLocations.put(playerId, player.getLocation().clone());
 
         } catch (Exception e) {
-            logger.error("Failed to save inventory for player: " + player.getName(), e);
+            logger.error("Failed to save inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()),
+                    e);
         }
     }
 
@@ -1090,7 +1102,8 @@ public class Game {
                 ItemStack[] items = InventorySerializer.deserializeInventory(inventoryData);
                 if (items != null) {
                     player.getInventory().setContents(items);
-                    logger.debug("Restored inventory for player: " + player.getName());
+                    logger.debug(
+                            "Restored inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
                 }
                 inventories.remove(playerId);
             }
@@ -1101,7 +1114,7 @@ public class Game {
                 ItemStack[] armor = InventorySerializer.deserializeInventory(armorData);
                 if (armor != null) {
                     player.getInventory().setArmorContents(armor);
-                    logger.debug("Restored armor for player: " + player.getName());
+                    logger.debug("Restored armor for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
                 }
                 armorContents.remove(playerId);
             }
@@ -1121,11 +1134,13 @@ public class Game {
             Location previousLocation = previousLocations.remove(playerId);
             if (previousLocation != null) {
                 player.teleport(previousLocation);
-                logger.debug("Restored location for player: " + player.getName());
+                logger.debug("Restored location for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
             }
 
         } catch (Exception e) {
-            logger.error("Failed to restore inventory for player: " + player.getName(), e);
+            logger.error(
+                    "Failed to restore inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()),
+                    e);
         }
     }
 
@@ -1163,7 +1178,8 @@ public class Game {
         for (UUID playerId : playerIds) {
             Player player = playerManager.getCachedPlayer(playerId);
             if (player != null && player.isOnline()) {
-                player.setGameMode(GameMode.ADVENTURE);
+
+                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
 
                 // Clear inventory immediately to prevent items from being kept
                 player.getInventory().clear();
@@ -1292,7 +1308,8 @@ public class Game {
         // COUNTDOWN
         if (playerSpawnLoc != null && (state == GameState.WAITING || state == GameState.COUNTDOWN)) {
             removeBarriersAroundLocation(playerSpawnLoc);
-            logger.debug("Cleaned up barriers for " + player.getName() + " at " + playerSpawnLoc);
+            logger.debug("Cleaned up barriers for " + InputSanitizer.sanitizeForLogging(player.getName()) + " at "
+                    + playerSpawnLoc);
         }
 
         // Only broadcast leave message and check game end if game isn't ending
@@ -1350,7 +1367,8 @@ public class Game {
 
             // Ensure player is exactly at their spawn point (prevent any exploitation)
             player.teleport(spawnLoc);
-            logger.debug("Locked " + player.getName() + " at spawn point with barriers: " + spawnLoc);
+            logger.debug("Locked " + InputSanitizer.sanitizeForLogging(player.getName())
+                    + " at spawn point with barriers: " + spawnLoc);
         }
 
         // Broadcast join message
@@ -1497,7 +1515,7 @@ public class Game {
      * 
      * @return The current game mode
      */
-    public @NotNull net.lumalyte.lumasg.game.GameMode getGameMode() {
+    public @NotNull GameMode getGameMode() {
         return teamManager.getGameMode();
     }
 
@@ -1652,7 +1670,7 @@ public class Game {
      * 
      * @param gameMode The game mode to set for this game
      */
-    public void activateGame(@NotNull net.lumalyte.lumasg.game.GameMode gameMode) {
+    public void activateGame(@NotNull GameMode gameMode) {
         if (state != GameState.WAITING && state != GameState.INACTIVE) {
             logger.warn("Cannot configure game - current state is " + state);
             return;

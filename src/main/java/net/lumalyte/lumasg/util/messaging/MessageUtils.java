@@ -1,6 +1,6 @@
 package net.lumalyte.lumasg.util.messaging;
 
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;

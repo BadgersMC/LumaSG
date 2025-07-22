@@ -20,9 +20,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.chest.ChestManager;
-import net.lumalyte.lumasg.game.Game;
-import net.lumalyte.lumasg.game.GameManager;
-import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.game.core.Game;
+import net.lumalyte.lumasg.game.core.GameManager;
+import net.lumalyte.lumasg.game.core.GameState;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 
 /**

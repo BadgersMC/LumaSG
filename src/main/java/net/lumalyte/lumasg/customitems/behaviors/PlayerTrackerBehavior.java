@@ -2,7 +2,7 @@ package net.lumalyte.lumasg.customitems.behaviors;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.customitems.CustomItem;
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;

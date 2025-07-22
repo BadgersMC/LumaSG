@@ -26,7 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 import net.lumalyte.lumasg.util.game.GameInstancePool;
 import net.lumalyte.lumasg.util.TestUtils;
 import net.lumalyte.lumasg.util.TestUtils.MockLocation;

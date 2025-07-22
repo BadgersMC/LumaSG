@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.player;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;

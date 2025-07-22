@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.player;
 
 /**
  * Record to hold player game statistics.

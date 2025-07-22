@@ -13,92 +13,58 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import net.lumalyte.lumasg.arena.Arena;
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 
 /**
  * Common test utilities to reduce code duplication across test files
  */
 public class TestUtils {
-    
+
     /**
-     * Mock location class to replace Bukkit Location in tests
-     */
-    public static class MockLocation {
-        private final String world;
-        private final int x, y, z;
-        
-        public MockLocation(String world, int x, int y, int z) {
-            this.world = world;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-        
-        public String getWorld() { return world; }
-        public int getX() { return x; }
-        public int getY() { return y; }
-        public int getZ() { return z; }
-        
+         * Mock location class to replace Bukkit Location in tests
+         */
+        public record MockLocation(String world, int x, int y, int z) {
+
         @Override
-        public String toString() {
-            return world + ":" + x + "," + y + "," + z;
-        }
-        
+            public String toString() {
+                return world + ":" + x + "," + y + "," + z;
+            }
+
         @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof MockLocation)) return false;
-            MockLocation other = (MockLocation) obj;
-            return Objects.equals(world, other.world) && x == other.x && y == other.y && z == other.z;
-        }
-        
-        @Override
-        public int hashCode() {
-            return Objects.hash(world, x, y, z);
-        }
+            public boolean equals(Object obj) {
+                if (this == obj) return true;
+                if (!(obj instanceof MockLocation)) return false;
+                MockLocation other = (MockLocation) obj;
+                return Objects.equals(world, other.world) && x == other.x && y == other.y && z == other.z;
+            }
+
     }
-    
+
     /**
-     * Performance test result container
-     */
-    public static class PerformanceResult {
-        private final String operation;
-        private final long durationNanos;
-        private final int itemsProcessed;
-        private final boolean success;
-        
-        public PerformanceResult(String operation, long durationNanos, int itemsProcessed, boolean success) {
-            this.operation = operation;
-            this.durationNanos = durationNanos;
-            this.itemsProcessed = itemsProcessed;
-            this.success = success;
-        }
-        
+         * Performance test result container
+         */
+        public record PerformanceResult(String operation, long durationNanos, int itemsProcessed, boolean success) {
+
         public double getDurationMs() {
-            return durationNanos / 1_000_000.0;
-        }
-        
+                return durationNanos / 1_000_000.0;
+            }
+
         public double getItemsPerSecond() {
-            return (itemsProcessed * 1_000_000_000.0) / durationNanos;
-        }
-        
-        public String getOperation() { return operation; }
-        public long getDurationNanos() { return durationNanos; }
-        public int getItemsProcessed() { return itemsProcessed; }
-        public boolean isSuccess() { return success; }
-        
+                return (itemsProcessed * 1_000_000_000.0) / durationNanos;
+            }
+
         @Override
-        public String toString() {
-            return String.format("%s: %.2f ms, %d items, %.0f items/sec, %s", 
-                operation, getDurationMs(), itemsProcessed, getItemsPerSecond(), 
-                success ? "SUCCESS" : "FAILED");
+            public String toString() {
+                return String.format("%s: %.2f ms, %d items, %.0f items/sec, %s",
+                        operation, getDurationMs(), itemsProcessed, getItemsPerSecond(),
+                        success ? "SUCCESS" : "FAILED");
+            }
         }
-    }
     
     /**
      * Creates a mock game with the specified ID and arena name
      */
-    public static Game createMockGame(String gameId, String arenaName) {
+    public static net.lumalyte.lumasg.game.core.Game createMockGame(String gameId, String arenaName) {
         Game game = mock(Game.class);
         when(game.getGameId()).thenReturn(UUID.fromString(gameId));
         Arena arena = mock(Arena.class);
@@ -148,7 +114,7 @@ public class TestUtils {
             // Do some CPU work
             int dummy = 0;
             while (System.nanoTime() - startTime < targetNanos * 0.8) {
-                dummy += Math.random() * 1000;
+                dummy += (int) (Math.random() * 1000);
             }
             
             // Simulate I/O wait
@@ -218,7 +184,7 @@ public class TestUtils {
         double avgMs = totalMs / results.size();
         double minMs = results.stream().mapToDouble(PerformanceResult::getDurationMs).min().orElse(0);
         double maxMs = results.stream().mapToDouble(PerformanceResult::getDurationMs).max().orElse(0);
-        long successCount = results.stream().mapToLong(r -> r.isSuccess() ? 1 : 0).sum();
+        long successCount = results.stream().mapToLong(r -> r.success() ? 1 : 0).sum();
         
         return String.format(
             "Results: %d operations, %.2f ms avg, %.2f ms min, %.2f ms max, %d/%d successful (%.1f%%)",

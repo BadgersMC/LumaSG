@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game.managers;
+package net.lumalyte.lumasg.game.ui;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.lumalyte.lumasg.LumaSG;
-import net.lumalyte.lumasg.game.GamePlayerManager;
+import net.lumalyte.lumasg.game.player.GamePlayerManager;
 import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 
 /**

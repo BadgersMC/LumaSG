@@ -1,15 +1,18 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.team;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.game.core.Game;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.lumasg.game.core.GameState;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

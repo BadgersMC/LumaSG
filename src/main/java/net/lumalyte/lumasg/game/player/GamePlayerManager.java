@@ -1,8 +1,9 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.player;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
 import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.game.core.GameState;
 import net.lumalyte.lumasg.util.inventory.InventoryUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;

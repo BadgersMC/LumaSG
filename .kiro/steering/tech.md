@@ -2,7 +2,8 @@
 
 ## Build System
 - **Gradle 8.x** with Kotlin DSL
-- **Shadow plugin** for fat JAR creation with dependency shading
+- **Shadow plugin** for minimal JAR creation (dependencies loaded at runtime)
+- **Paper Library Loader** for runtime dependency management
 - **Java 21** target with toolchain support
 
 ## Core Dependencies
@@ -25,6 +26,20 @@
 - **JUnit 5** - Primary testing framework
 - **Mockito** - Mocking framework with inline support
 - **Awaitility** - Async testing utilities
+
+## Runtime Dependencies (Loaded by LumaSGLibraryLoader)
+- **Caffeine 3.2.1** - High-performance caching
+- **HikariCP 5.0.1** - Database connection pooling
+- **PostgreSQL 42.6.0** - PostgreSQL database driver
+- **MySQL 8.0.33** - MySQL database driver
+- **Kryo 5.6.2** - High-performance serialization
+- **Hibernate Validator 9.0.1** - Input validation framework
+- **Apache Commons Text 1.10.0** - Text processing and sanitization
+
+## JAR Size Optimization
+- **Production JAR**: ~0.55 MB (minimal size)
+- **Dependencies**: Loaded at runtime by Paper's library system
+- **Benefits**: Faster downloads, reduced memory footprint, shared libraries across plugins
 
 ## Common Commands
 
@@ -67,3 +82,4 @@
 - **Multi-tier caching** - Hot/Warm/Cold/Persistent cache tiers
 - **Thread-safe operations** - Extensive use of concurrent collections and atomic operations
 - **Resource pooling** - Game instance pooling for performance
+- **Runtime library loading** - Dependencies loaded via Paper's library system for minimal JAR size

@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.core;
 
 /**
  * Represents the different game modes available for Survival Games.

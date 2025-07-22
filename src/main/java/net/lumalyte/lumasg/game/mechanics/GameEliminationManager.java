@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.mechanics;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +14,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.game.player.GamePlayerManager;
+import net.lumalyte.lumasg.game.player.PlayerGameStats;
+import net.lumalyte.lumasg.game.core.Game;
 
 /**
  * Manages player elimination and statistics tracking in a game.

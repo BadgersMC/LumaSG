@@ -1,7 +1,9 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.team;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.util.core.DebugLogger;
+import net.lumalyte.lumasg.game.core.Game;
+import net.lumalyte.lumasg.game.core.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;

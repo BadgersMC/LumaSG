@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import net.lumalyte.lumasg.game.team.Team;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -28,13 +29,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
+import net.lumalyte.lumasg.util.security.InputSanitizer;
 import net.lumalyte.lumasg.arena.ArenaManager;
 import net.lumalyte.lumasg.customitems.behaviors.AirdropBehavior;
 import net.lumalyte.lumasg.customitems.behaviors.AirdropData;
-import net.lumalyte.lumasg.game.Game;
-import net.lumalyte.lumasg.game.GameManager;
-import net.lumalyte.lumasg.game.GameState;
-import net.lumalyte.lumasg.game.Team;
+import net.lumalyte.lumasg.game.core.Game;
+import net.lumalyte.lumasg.game.core.GameManager;
+import net.lumalyte.lumasg.game.core.GameState;
 import net.lumalyte.lumasg.gui.menus.MainMenu;
 import net.lumalyte.lumasg.util.cache.CacheManager;
 import net.lumalyte.lumasg.util.core.DebugLogger;
@@ -1128,6 +1129,13 @@ public class SGCommand {
 
         String name = StringArgumentType.getString(context, "name");
         int radius = IntegerArgumentType.getInteger(context, "radius");
+        
+        // Sanitize arena name for security
+        String sanitizedName = InputSanitizer.sanitizeArenaName(name);
+        if (!name.equals(sanitizedName)) {
+            player.sendMessage(Component.text("Arena name was sanitized for security: '" + sanitizedName + "'", NamedTextColor.YELLOW));
+            name = sanitizedName;
+        }
         
         // Check if arena already exists
         if (arenaManager.getArena(name) != null) {

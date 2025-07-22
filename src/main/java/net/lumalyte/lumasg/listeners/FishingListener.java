@@ -1,8 +1,8 @@
 package net.lumalyte.lumasg.listeners;
 
 import net.lumalyte.lumasg.LumaSG;
-import net.lumalyte.lumasg.game.Game;
-import net.lumalyte.lumasg.game.GameState;
+import net.lumalyte.lumasg.game.core.Game;
+import net.lumalyte.lumasg.game.core.GameState;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.lumalyte.lumasg.util.core.ItemUtils;
 import net.kyori.adventure.text.Component;

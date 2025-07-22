@@ -1,10 +1,12 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.team;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
 import java.util.UUID;
+
+import net.lumalyte.lumasg.game.core.Game;
 
 /**
  * Represents a team invitation from one player to another.

@@ -1,9 +1,11 @@
-package net.lumalyte.lumasg.util.game;  import net.lumalyte.lumasg.util.core.DebugLogger;
+package net.lumalyte.lumasg.util.game;  
+
+import net.lumalyte.lumasg.util.core.DebugLogger;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.lumalyte.lumasg.LumaSG;
-import net.lumalyte.lumasg.game.TeamInvitation;
+import net.lumalyte.lumasg.game.team.TeamInvitation;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

@@ -1,8 +1,10 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.team;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import net.lumalyte.lumasg.game.core.GameMode;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

@@ -50,20 +50,15 @@ dependencies {
 
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
 
-    // Caching
-    shadow 'com.github.ben-manes.caffeine:caffeine:3.2.1'
-    
-    // Database Connection Pooling
-    shadow 'com.zaxxer:HikariCP:5.0.1'
-    shadow 'org.postgresql:postgresql:42.6.0'
-    shadow 'mysql:mysql-connector-java:8.0.33'
-    
-    // High-Performance Serialization
-    shadow 'com.esotericsoftware:kryo:5.6.2'
-    
-    // Input Validation & Security
-    shadow 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
-    shadow 'org.apache.commons:commons-text:1.10.0'
+    // Runtime-loaded dependencies (loaded by LumaSGLibraryLoader)
+    // These are loaded at runtime by Paper's library system, reducing JAR size
+    compileOnly 'com.github.ben-manes.caffeine:caffeine:3.2.1'
+    compileOnly 'com.zaxxer:HikariCP:5.0.1'
+    compileOnly 'org.postgresql:postgresql:42.6.0'
+    compileOnly 'mysql:mysql-connector-java:8.0.33'
+    compileOnly 'com.esotericsoftware:kryo:5.6.2'
+    compileOnly 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
+    compileOnly 'org.apache.commons:commons-text:1.10.0'
     
     // Testing dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
@@ -72,12 +67,20 @@ dependencies {
     testImplementation 'org.mockito:mockito-inline:5.2.0'
     testImplementation 'org.awaitility:awaitility:4.2.0'
     
-    // Add test dependencies for Bukkit/Adventure API
+    // Add test dependencies for Bukkit/Adventure API and runtime libraries
     testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
     testImplementation 'net.kyori:adventure-text-minimessage:4.14.0'
     testImplementation 'net.kyori:adventure-api:4.14.0'
     testImplementation 'net.kyori:adventure-text-serializer-legacy:4.14.0'
+    
+    // Test implementations of runtime-loaded dependencies
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.1'
+    testImplementation 'com.zaxxer:HikariCP:5.0.1'
+    testImplementation 'org.postgresql:postgresql:42.6.0'
+    testImplementation 'mysql:mysql-connector-java:8.0.33'
+    testImplementation 'com.esotericsoftware:kryo:5.6.2'
+    testImplementation 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
+    testImplementation 'org.apache.commons:commons-text:1.10.0'
     
     // Test runtime dependencies
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -115,10 +118,8 @@ shadowJar {
     archiveBaseName.set(project.name)
     archiveVersion.set(version)
     
-    minimize {
-        exclude(dependency('io.papermc.paper:paper-api:.*'))
-        exclude(dependency('xyz.xenondevs.invui:.*'))
-    }
+    // No need to minimize since we're using runtime library loading
+    // This will result in a much smaller JAR file
     
     manifest {
         attributes('paperweight-mappings-namespace': 'mojang')

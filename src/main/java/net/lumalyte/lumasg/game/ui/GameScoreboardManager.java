@@ -1,8 +1,11 @@
-package net.lumalyte.lumasg.game;
+package net.lumalyte.lumasg.game.ui;
 
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
 import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
+import net.lumalyte.lumasg.game.core.GameState;
+import net.lumalyte.lumasg.game.player.GamePlayerManager;
+import net.lumalyte.lumasg.game.mechanics.GameTimerManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Criteria;

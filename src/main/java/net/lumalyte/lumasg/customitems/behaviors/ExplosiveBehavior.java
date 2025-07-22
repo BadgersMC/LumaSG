@@ -32,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.customitems.CustomItem;
 import net.lumalyte.lumasg.customitems.CustomItemBehavior;
-import net.lumalyte.lumasg.game.Game;
+import net.lumalyte.lumasg.game.core.Game;
 import net.lumalyte.lumasg.util.core.DebugLogger;
 import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
 
