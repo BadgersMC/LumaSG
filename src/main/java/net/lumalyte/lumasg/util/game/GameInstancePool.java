@@ -24,8 +24,8 @@ import net.lumalyte.lumasg.game.core.Game;
 import net.lumalyte.lumasg.game.core.GameState;
 
 /**
- * High-performance game instance pooling system using Caffeine caching.
- * Optimized for handling 15-20 concurrent games with efficient resource management.
+ * Game instance pooling system using Caffeine caching.
+ * Manages game instances for better resource usage.
  */
 public class GameInstancePool {
     

@@ -18,10 +18,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * High-performance database manager using HikariCP connection pooling.
+ * Database manager using HikariCP connection pooling.
  * 
- * This replaces the amateur SQLite implementation with enterprise-grade
- * connection pooling that can handle high-traffic network loads.
+ * Provides connection pooling for better performance and reliability
+ * compared to direct database connections.
  * 
  * Key Features:
  * - HikariCP connection pooling (fastest Java connection pool)
@@ -263,6 +263,11 @@ public class DatabaseManager {
         return CompletableFuture.runAsync(() -> {
             try (Connection connection = getConnection();
                  Statement statement = connection.createStatement()) {
+                
+                // Validate SQL before execution (basic safety check)
+                if (createTableSql == null || createTableSql.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Table creation SQL cannot be null or empty");
+                }
                 
                 statement.execute(createTableSql);
                 logger.debug("Executed table creation: " + createTableSql.substring(0, Math.min(50, createTableSql.length())) + "...");

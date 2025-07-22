@@ -29,8 +29,8 @@ import net.lumalyte.lumasg.chest.ChestItem;
 import net.lumalyte.lumasg.chest.ChestManager;
 
 /**
- * High-performance concurrent chest filling system.
- * Optimizes chest filling operations for multiple games with adaptive parallel processing.
+ * Concurrent chest filling system.
+ * Handles chest filling operations for multiple games using parallel processing.
  * 
  * Thread pool sizing follows the formula:
  * Threads = Available Cores * Target CPU Utilization * (1 + Wait Time / Service Time)

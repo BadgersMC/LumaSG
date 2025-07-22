@@ -123,7 +123,7 @@ public class DatabaseConfig {
         private int port = 5432;
         private String database = "lumasg";
         private String username = "lumasg";
-        private String password = "";
+        private String password = ""; // Default empty - should be configured in config.yml
         
         // HikariCP optimal defaults for game servers
         private int minimumIdle = 2;

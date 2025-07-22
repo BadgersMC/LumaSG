@@ -5,10 +5,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * High-performance inventory serialization using Kryo binary format.
+ * Inventory serialization using Kryo binary format.
  * 
- * This completely replaces the old Base64 string serialization with enterprise-grade
- * binary serialization that's 10x faster and 60% smaller.
+ * Replaces Base64 string serialization with binary serialization
+ * for better performance and smaller data size.
  * 
  * Performance Comparison:
  * - Old Base64: ~133% size increase, string operations overhead

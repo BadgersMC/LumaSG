@@ -18,8 +18,8 @@ import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.statistics.PlayerStats;
 
 /**
- * Advanced high-performance player data caching system using Caffeine
- * Features LoadingCache, AsyncLoadingCache, write-through caching, and refresh-ahead patterns
+ * Player data caching system using Caffeine.
+ * Provides caching for player statistics and permissions with automatic loading.
  */
 public class PlayerDataCache {
     

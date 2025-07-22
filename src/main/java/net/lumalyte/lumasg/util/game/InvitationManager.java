@@ -16,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * High-performance invitation management system using Caffeine
- * Handles team invitations with automatic expiration and memory management
+ * Team invitation management system using Caffeine.
+ * Handles team invitations with automatic expiration.
  */
 public class InvitationManager {
     

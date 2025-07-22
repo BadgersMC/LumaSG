@@ -21,11 +21,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * High-performance Kryo serialization manager with thread-safe pooling.
+ * Kryo serialization manager with thread-safe pooling.
  * 
- * This manager provides enterprise-grade binary serialization that's 10x faster
- * than Base64 and produces 60% smaller serialized data. Uses pooling to handle
- * Kryo's thread-safety limitations efficiently.
+ * Provides binary serialization that's faster than Base64 and produces smaller
+ * serialized data. Uses pooling to handle Kryo's thread-safety limitations.
  * 
  * Key Features:
  * - Thread-safe Kryo instance pooling

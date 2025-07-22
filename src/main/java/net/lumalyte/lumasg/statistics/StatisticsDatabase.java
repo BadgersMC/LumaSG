@@ -21,10 +21,10 @@ import net.lumalyte.lumasg.util.database.DatabaseConfig;
 import net.lumalyte.lumasg.util.serialization.KryoManager;
 
 /**
- * High-performance statistics database using HikariCP connection pooling and Kryo serialization.
+ * Statistics database using HikariCP connection pooling and Kryo serialization.
  * 
- * This completely replaces the amateur SQLite implementation with enterprise-grade
- * database operations that can handle high-traffic network loads.
+ * Handles player statistics storage and retrieval with connection pooling
+ * for better performance and reliability.
  * 
  * Key Improvements:
  * - HikariCP connection pooling (no more blocking autocommit operations)

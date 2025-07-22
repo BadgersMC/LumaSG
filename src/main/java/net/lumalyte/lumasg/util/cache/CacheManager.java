@@ -15,8 +15,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.lumalyte.lumasg.LumaSG;
 
 /**
- * Centralized cache management system for LumaSG
- * Demonstrates enterprise-level caching patterns using Caffeine, Guava principles, and thread-safe collections
+ * Centralized cache management system for LumaSG.
+ * Manages various caches using Caffeine for better performance.
  * 
  * This manager provides:
  * - Multi-tier caching strategies
