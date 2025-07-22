@@ -12,6 +12,7 @@ server-credentials.properties
 *.iml
 *.ipr
 *.iws
+.kiro/
 
 # OS
 .DS_Store
@@ -26,13 +27,14 @@ Thumbs.db
 
 # Minecraft Server (if testing locally)
 server/
-world/
 world_nether/
 world_the_end/
 logs/
 crash-reports/
 plugins/
-cache/
+
+# Minecraft server cache directory (not our source code cache package)
+/cache/
 banned-*.json
 ops.json
 whitelist.json
