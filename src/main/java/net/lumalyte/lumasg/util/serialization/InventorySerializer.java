@@ -1,5 +1,8 @@
 package net.lumalyte.lumasg.util.serialization;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,24 +28,21 @@ import org.jetbrains.annotations.Nullable;
  * - Safe for concurrent use across multiple games
  */
 public class InventorySerializer {
-    
-
+    private static final Logger LOGGER = Logger.getLogger("LumaSG");
     
     /**
      * Simple debug method that doesn't require logger initialization
      */
+    @SuppressWarnings("unused")
     private static void debug(String message) {
         // Debug disabled for utility class
     }
     
     /**
-     * Simple error method that doesn't require logger initialization
+     * Log an error message with the plugin logger
      */
     private static void error(String message, Throwable throwable) {
-        System.err.println("InventorySerializer Error: " + message);
-        if (throwable != null) {
-            throwable.printStackTrace();
-        }
+        LOGGER.log(Level.SEVERE, "InventorySerializer Error: " + message, throwable);
     }
     
     /**

@@ -103,3 +103,7 @@ security-*.json
 vscode-results.json
 intellij-results.json
 CODACY*.md
+
+#Ignore cursor AI rules
+.cursor\rules\codacy.mdc
+LumaSG_Architecture_Documentation.html

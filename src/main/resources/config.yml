@@ -234,10 +234,12 @@ statistics:
 
 # Database Settings
 database:
-  # Database type: POSTGRESQL, MYSQL, or SQLITE (fallback only)
-  type: "POSTGRESQL"
+  # Database type: POSTGRESQL, MYSQL, or SQLITE
+  # SQLITE is the default for easy setup, but POSTGRESQL is recommended for production
+  # WARNING: SQLite has limitations and should be upgraded to PostgreSQL/MySQL for production use
+  type: "SQLITE"
   
-  # Connection settings
+  # Connection settings (for PostgreSQL/MySQL only - ignored for SQLite)
   host: "localhost"
   port: 5432  # 5432 for PostgreSQL, 3306 for MySQL
   database: "lumasg"

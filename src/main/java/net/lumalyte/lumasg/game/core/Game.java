@@ -26,9 +26,7 @@ import net.lumalyte.lumasg.game.team.GameTeamManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,10 +39,7 @@ import net.lumalyte.lumasg.LumaSG;
 import net.lumalyte.lumasg.arena.Arena;
 import net.lumalyte.lumasg.util.security.InputSanitizer;
 import net.lumalyte.lumasg.util.core.DebugLogger;
-import net.lumalyte.lumasg.util.serialization.InventorySerializer;
 import net.lumalyte.lumasg.util.messaging.MiniMessageUtils;
-import net.lumalyte.lumasg.game.core.GameState;
-import net.lumalyte.lumasg.game.core.GameMode;
 
 /**
  * Represents a single instance of a Survival Games match.
@@ -79,14 +74,7 @@ public class Game {
     /** Unique identifier for this game instance */
     private final @NotNull UUID gameId;
 
-    /** Current state of the game (waiting, countdown, active, etc.) */
-    private @NotNull GameState state;
-
-    /** Whether PvP is currently enabled */
-    private boolean pvpEnabled;
-
-    /** Whether the game is currently in grace period */
-    private boolean isGracePeriod;
+    // Game state, PvP status, and grace period are now handled by GameStateHelper
 
     /** Whether the game is shutting down */
     private boolean isShuttingDown = false;
@@ -114,21 +102,22 @@ public class Game {
     // Task management: Track scheduled tasks for cleanup
     private final @NotNull Map<Integer, BukkitTask> activeTasks = new ConcurrentHashMap<>();
 
-    // Barrier block management for movement restriction during countdown
-    private final @NotNull Map<Location, Material> originalBlocks = new ConcurrentHashMap<>();
-    private final @NotNull Set<Location> barrierBlocks = ConcurrentHashMap.newKeySet();
+    // Barrier management is now handled by GameBarrierHelper
+    private final @NotNull GameBarrierHelper barrierHelper;
 
-    /**
-     * Map of player UUIDs to their original inventories (for restoration) -
-     * serialized with Kryo
-     */
-    private final @NotNull Map<UUID, byte[]> inventories = new ConcurrentHashMap<>();
+    // State management is now handled by GameStateHelper
+    private final @NotNull GameStateHelper stateHelper;
 
-    /**
-     * Map of player UUIDs to their original armor contents (for restoration) -
-     * serialized with Kryo
-     */
-    private final @NotNull Map<UUID, byte[]> armorContents = new ConcurrentHashMap<>();
+    // Event broadcasting is now handled by GameEventHelper
+    private final @NotNull GameEventHelper eventHelper;
+
+    // Cleanup and shutdown is now handled by GameCleanupHelper
+    private final @NotNull GameCleanupHelper cleanupHelper;
+
+    // Spawn enforcement is now handled by GameSpawnHelper
+    private final @NotNull GameSpawnHelper spawnHelper;
+
+    // Inventory management is now handled by GamePlayerManager
 
     /** Map of player UUIDs to their experience levels before joining the game */
     private final @NotNull Map<UUID, Integer> playerExperienceLevels = new ConcurrentHashMap<>();
@@ -174,14 +163,8 @@ public class Game {
         this.plugin = plugin;
         this.arena = arena;
         this.gameId = UUID.randomUUID();
-        this.state = GameState.WAITING; // Start in WAITING state - games are activated immediately after creation
-
         // Initialize contextual logger for this game
         this.logger = plugin.getDebugLogger().forContext("Game-" + arena.getName());
-
-        // Initialize game state
-        this.pvpEnabled = false;
-        this.isGracePeriod = false;
 
         // Initialize component managers
         this.playerManager = new GamePlayerManager(plugin, arena, gameId);
@@ -193,6 +176,15 @@ public class Game {
         this.deathMessageManager = new DeathMessageManager(plugin, playerManager);
         this.gameNameplateManager = new GameNameplateManager(plugin, arena, gameId, playerManager);
         this.teamManager = new GameTeamManager(plugin, this, GameMode.SOLO); // Default to solo mode
+
+        // Initialize helper classes for implementation details
+        this.barrierHelper = new GameBarrierHelper(plugin, arena, worldManager, gameId.toString());
+        this.stateHelper = new GameStateHelper(plugin, gameId.toString());
+        this.eventHelper = new GameEventHelper(plugin, playerManager, gameId.toString());
+        this.cleanupHelper = new GameCleanupHelper(plugin, gameId.toString(), playerManager,
+                timerManager, scoreboardManager, worldManager,
+                eliminationManager, celebrationManager, eventHelper);
+        this.spawnHelper = new GameSpawnHelper(plugin, gameId.toString(), playerManager, stateHelper);
 
         logger.info("Created new game with ID: " + gameId + " in arena: " + arena.getName());
     }
@@ -222,7 +214,7 @@ public class Game {
      * @return true if the game is in grace period, false otherwise
      */
     public boolean isGracePeriod() {
-        return isGracePeriod;
+        return stateHelper.isGracePeriod();
     }
 
     /**
@@ -265,188 +257,24 @@ public class Game {
             throw new IllegalArgumentException("Countdown duration cannot be negative");
         }
 
-        if (state != GameState.WAITING) {
+        if (!stateHelper.canTransitionTo(GameState.COUNTDOWN)) {
             return; // Can only start countdown from waiting state
         }
 
         timerManager.startCountdown(seconds, this::startGame);
-        state = GameState.COUNTDOWN;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        stateHelper.transitionTo(GameState.COUNTDOWN);
+        scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+        timerManager.setCurrentGameState(stateHelper.getCurrentState());
     }
 
-    /**
-     * Creates a 3x3x3 barrier box around the specified location.
-     * 
-     * @param center The center location for the barrier box
-     */
-    private void createBarrierBoxAroundLocation(@NotNull Location center) {
-        World world = center.getWorld();
-        if (world == null)
-            return;
-
-        int centerX = center.getBlockX();
-        int centerY = center.getBlockY();
-        int centerZ = center.getBlockZ();
-
-        // Create barriers on all 4 sides, 3 blocks high
-        for (int y = 0; y < 3; y++) {
-            // North side (Z-)
-            placeBarrierBlock(world, centerX, centerY + y, centerZ - 1);
-            // South side (Z+)
-            placeBarrierBlock(world, centerX, centerY + y, centerZ + 1);
-            // East side (X+)
-            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ);
-            // West side (X-)
-            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ);
-
-            // Corner blocks for complete enclosure
-            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ - 1); // NW
-            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ - 1); // NE
-            placeBarrierBlock(world, centerX - 1, centerY + y, centerZ + 1); // SW
-            placeBarrierBlock(world, centerX + 1, centerY + y, centerZ + 1); // SE
-        }
-    }
-
-    /**
-     * Places a barrier block at the specified location, storing the original block
-     * for restoration.
-     * 
-     * @param world The world to place the block in
-     * @param x     The X coordinate
-     * @param y     The Y coordinate
-     * @param z     The Z coordinate
-     */
-    private void placeBarrierBlock(@NotNull World world, int x, int y, int z) {
-        Location loc = new Location(world, x, y, z);
-        Material originalMaterial = loc.getBlock().getType();
-
-        // Only place barriers on air blocks or replace non-solid blocks
-        if (originalMaterial == Material.AIR || !originalMaterial.isSolid()) {
-            // Store original block for restoration
-            originalBlocks.put(loc, originalMaterial);
-            barrierBlocks.add(loc);
-
-            // Place barrier block (invisible to players)
-            loc.getBlock().setType(Material.BARRIER);
-
-            // Track in world manager for safety cleanup
-            worldManager.trackBarrierBlock(loc);
-
-            logger.debug("Placed barrier block at (" + x + ", " + y + ", " + z + "), replacing " + originalMaterial);
-        }
-    }
-
-    /**
-     * Removes all barrier blocks and restores original blocks.
-     * 
-     * <p>
-     * This method is called when the grace period starts, allowing players to move
-     * freely.
-     * </p>
-     */
-    private void removeSpawnBarriers() {
-        logger.debug("Removing spawn barriers - grace period starting");
-
-        for (Location loc : barrierBlocks) {
-            if (loc.getWorld() != null) {
-                Material originalMaterial = originalBlocks.getOrDefault(loc, Material.AIR);
-                loc.getBlock().setType(originalMaterial);
-                worldManager.untrackBarrierBlock(loc);
-                logger.debug("Restored block at " + loc + " to " + originalMaterial);
-            }
-        }
-
-        // Clear tracking collections
-        originalBlocks.clear();
-        barrierBlocks.clear();
-
-        logger.info("Removed all spawn barriers - players can now move freely");
-    }
-
-    /**
-     * Removes barrier blocks around a specific spawn location and restores the
-     * original blocks.
-     * This is used when a player leaves the game to clean up their specific spawn
-     * point.
-     * 
-     * @param center The center location (spawn point) to remove barriers around
-     */
-    private void removeBarriersAroundLocation(@NotNull Location center) {
-        World world = center.getWorld();
-        if (world == null) {
-            return;
-        }
-
-        logger.debug("Removing barriers around location: " + center);
-
-        // Remove barriers in a 3x3x3 box around the spawn point
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                for (int y = 0; y <= 2; y++) { // 3 blocks high
-                    Location barrierLoc = center.clone().add(x, y, z);
-
-                    // Only remove if it's actually a barrier block we placed
-                    if (barrierBlocks.contains(barrierLoc)) {
-                        // Get the original block material
-                        Material originalMaterial = originalBlocks.get(barrierLoc);
-                        if (originalMaterial != null) {
-                            // Restore the original block
-                            world.getBlockAt(barrierLoc).setType(originalMaterial);
-                            originalBlocks.remove(barrierLoc);
-                        } else {
-                            // Default to air if no original block was stored
-                            world.getBlockAt(barrierLoc).setType(Material.AIR);
-                        }
-
-                        barrierBlocks.remove(barrierLoc);
-                        worldManager.untrackBarrierBlock(barrierLoc);
-                    }
-                }
-            }
-        }
-
-        logger.debug("Removed barriers around spawn point");
-    }
+    // Barrier management methods moved to GameBarrierHelper
 
     /**
      * Starts periodic enforcement of spawn point restrictions during WAITING and
      * COUNTDOWN states.
-     * This runs every 2 seconds to check if players have somehow escaped their
-     * spawn points.
      */
     private void startSpawnPointEnforcement() {
-        // Only run enforcement during WAITING and COUNTDOWN states
-        BukkitTask enforcementTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            // Stop enforcement if game has progressed past countdown
-            if (state != GameState.WAITING && state != GameState.COUNTDOWN) {
-                return;
-            }
-
-            // Check each player's position
-            for (UUID playerId : playerManager.getPlayers()) {
-                Player player = playerManager.getCachedPlayer(playerId);
-                Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
-
-                if (player != null && spawnLoc != null) {
-                    Location playerLoc = player.getLocation();
-
-                    // Check if player is more than 1.5 blocks away from their spawn point
-                    if (playerLoc.distance(spawnLoc) > 1.5) {
-                        // Teleport them back to their spawn point
-                        player.teleport(spawnLoc);
-                        logger.debug("Teleported " + InputSanitizer.sanitizeForLogging(player.getName())
-                                + " back to spawn point - was " +
-                                String.format("%.2f", playerLoc.distance(spawnLoc)) + " blocks away");
-                    }
-                }
-            }
-        }, 40L, 40L); // Run every 2 seconds (40 ticks)
-
-        // Track the task for cleanup
-        activeTasks.put(enforcementTask.getTaskId(), enforcementTask);
-
-        logger.debug("Started spawn point enforcement task");
+        spawnHelper.startSpawnPointEnforcement();
     }
 
     /**
@@ -459,7 +287,7 @@ public class Game {
      * </p>
      */
     public void startCountdown() {
-        if (state != GameState.WAITING) {
+        if (!stateHelper.canTransitionTo(GameState.COUNTDOWN)) {
             return; // Can only start countdown from waiting state
         }
 
@@ -480,9 +308,9 @@ public class Game {
                         .build());
 
                 // Now start the actual countdown using timer manager
-                state = GameState.COUNTDOWN;
-                scoreboardManager.setCurrentGameState(state);
-                timerManager.setCurrentGameState(state);
+                stateHelper.transitionTo(GameState.COUNTDOWN);
+                scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+                timerManager.setCurrentGameState(stateHelper.getCurrentState());
 
                 // Barriers are already in place from when players joined
                 // No need to create them again during countdown
@@ -501,24 +329,24 @@ public class Game {
      * </p>
      */
     public void cancelCountdown() {
-        if (state == GameState.COUNTDOWN) {
-            state = GameState.WAITING;
-            scoreboardManager.setCurrentGameState(state);
-            timerManager.setCurrentGameState(state);
+        if (stateHelper.getCurrentState() == GameState.COUNTDOWN) {
+            stateHelper.transitionTo(GameState.WAITING);
+            scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+            timerManager.setCurrentGameState(stateHelper.getCurrentState());
 
             // Set up world settings and borders
             worldManager.setupWorld();
 
             // Remove spawn barriers if countdown was cancelled, then recreate them for
             // WAITING state
-            removeSpawnBarriers();
+            barrierHelper.removeAllBarriers();
 
             // Recreate barriers for all players since we're back in WAITING state
             // This ensures players remain locked at their spawn points
             for (UUID playerId : playerManager.getPlayers()) {
                 Location spawnLoc = playerManager.getPlayerLocations().get(playerId);
                 if (spawnLoc != null && spawnLoc.getWorld() != null) {
-                    createBarrierBoxAroundLocation(spawnLoc);
+                    barrierHelper.createBarrierBoxAroundLocation(spawnLoc);
                 }
             }
 
@@ -538,13 +366,13 @@ public class Game {
      * Starts the game.
      */
     private void startGame() {
-        if (state != GameState.COUNTDOWN) {
+        if (!stateHelper.canTransitionTo(GameState.GRACE_PERIOD)) {
             return;
         }
 
-        state = GameState.GRACE_PERIOD;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        stateHelper.transitionTo(GameState.GRACE_PERIOD);
+        scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+        timerManager.setCurrentGameState(stateHelper.getCurrentState());
 
         // Remove barriers around spawn points to allow players to move
         worldManager.removeSpawnBarriers();
@@ -585,10 +413,10 @@ public class Game {
      */
     private CompletableFuture<Void> fillArenaChestsAsync() {
         logger.debug("Starting to fill chests in arena: " + arena.getName() + " using GameChestFiller");
-        
+
         // Use the GameChestFiller to fill chests asynchronously
         CompletableFuture<Void> future = worldManager.getChestManager().fillArenaChestsAsync();
-        
+
         // Track the future for cleanup
         activeFutures.add(future);
         future.whenComplete((result, throwable) -> {
@@ -600,7 +428,7 @@ public class Game {
                 logger.info("Successfully filled " + filledCount + " chests in arena " + arena.getName());
             }
         });
-        
+
         return future;
     }
 
@@ -612,9 +440,7 @@ public class Game {
     private void startGracePeriod() {
         logger.debug("Starting grace period for game: " + gameId);
 
-        // Disable PvP during grace period
-        pvpEnabled = false;
-        isGracePeriod = true;
+        // Grace period is handled by the state helper during state transition
 
         // Set game start time for accurate duration calculation
         gameStartTime = Instant.now();
@@ -630,7 +456,7 @@ public class Game {
                 .build());
 
         // Remove spawn barriers so players can move freely
-        removeSpawnBarriers();
+        barrierHelper.removeAllBarriers();
 
         // Start grace period using timer manager
         timerManager.startGracePeriod(this::endGracePeriod);
@@ -644,16 +470,13 @@ public class Game {
     private void endGracePeriod() {
         logger.debug("Ending grace period for game: " + gameId);
 
-        // Enable PvP - use synchronized block to ensure thread safety
-        synchronized (this) {
-            pvpEnabled = true;
-            isGracePeriod = false;
-        }
+        // Enable PvP - handled by state helper
+        stateHelper.enablePvP();
 
         // Update game state
-        state = GameState.ACTIVE;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        stateHelper.transitionTo(GameState.ACTIVE);
+        scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+        timerManager.setCurrentGameState(stateHelper.getCurrentState());
 
         // NOW schedule deathmatch and game end - this ensures the timer only starts
         // after the grace period ends and players are freed from spawn barriers
@@ -684,7 +507,7 @@ public class Game {
      * This is primarily used for debugging and testing purposes.
      */
     public void skipGracePeriod() {
-        if (!isGracePeriod) {
+        if (!stateHelper.isGracePeriod()) {
             logger.debug("Cannot skip grace period - not currently in grace period");
             return;
         }
@@ -708,13 +531,13 @@ public class Game {
      * Starts the deathmatch phase.
      */
     private void startDeathmatch() {
-        if (state != GameState.ACTIVE) {
+        if (!stateHelper.canTransitionTo(GameState.DEATHMATCH)) {
             return;
         }
 
-        state = GameState.DEATHMATCH;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        stateHelper.transitionTo(GameState.DEATHMATCH);
+        scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+        timerManager.setCurrentGameState(stateHelper.getCurrentState());
 
         // Set up deathmatch world border
         worldManager.setupDeathmatchBorder();
@@ -755,16 +578,18 @@ public class Game {
      */
     private void checkGameEnd() {
         // Allow game end checks in more states, especially for solo testing
-        if (state == GameState.FINISHED || isShuttingDown) {
+        if (stateHelper.getCurrentState() == GameState.FINISHED || isShuttingDown) {
             logger.debug("Game end check skipped - game already finished or shutting down");
             return;
         }
 
         int playerCount = playerManager.getPlayerCount();
-        logger.debug("Checking game end conditions - Active players: " + playerCount + ", Game state: " + state);
+        logger.debug("Checking game end conditions - Active players: " + playerCount + ", Game state: "
+                + stateHelper.getCurrentState());
 
         // Pre-cache player skins when 3 players remain for faster winner celebration
-        if (playerCount == 3 && (state == GameState.ACTIVE || state == GameState.DEATHMATCH)) {
+        GameState currentState = stateHelper.getCurrentState();
+        if (playerCount == 3 && (currentState == GameState.ACTIVE || currentState == GameState.DEATHMATCH)) {
             logger.debug("3 players remaining - pre-caching skins for winner celebration");
             // Pre-cache player skins for better performance (removed in simplified
             // celebration manager)
@@ -776,13 +601,14 @@ public class Game {
         // periods
         if (playerCount <= 1) {
             logger.debug(
-                    "Ending game immediately - only " + playerCount + " player(s) remaining (state: " + state + ")");
+                    "Ending game immediately - only " + playerCount + " player(s) remaining (state: "
+                            + stateHelper.getCurrentState() + ")");
             endGame(null);
             return;
         }
 
         // In WAITING state, check if we have enough players to continue
-        if (state == GameState.WAITING) {
+        if (stateHelper.getCurrentState() == GameState.WAITING) {
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
             if (playerCount < minPlayers) {
                 logger.debug("Not enough players to start game - " + playerCount + "/" + minPlayers);
@@ -792,7 +618,7 @@ public class Game {
         }
 
         // In COUNTDOWN state, if we drop below minimum players, cancel countdown
-        if (state == GameState.COUNTDOWN) {
+        if (stateHelper.getCurrentState() == GameState.COUNTDOWN) {
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
             if (playerCount < minPlayers) {
                 logger.debug("Cancelling countdown - not enough players: " + playerCount + "/" + minPlayers);
@@ -823,7 +649,7 @@ public class Game {
      * Ends the game and returns players to their original locations.
      */
     public void endGame(Object o) {
-        if (state == GameState.FINISHED || isShuttingDown) {
+        if (stateHelper.getCurrentState() == GameState.FINISHED || isShuttingDown) {
             return;
         }
 
@@ -862,222 +688,60 @@ public class Game {
      */
     private void initializeGameShutdown() {
         isShuttingDown = true;
-        state = GameState.FINISHED;
-        scoreboardManager.setCurrentGameState(state);
-        timerManager.setCurrentGameState(state);
+        stateHelper.transitionTo(GameState.FINISHED);
+        scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+        timerManager.setCurrentGameState(stateHelper.getCurrentState());
     }
 
     /**
      * Disables PvP and grace period for the end game phase.
      */
     private void disablePvpAndGracePeriod() {
-        pvpEnabled = false;
-        isGracePeriod = false;
+        stateHelper.disablePvP();
     }
 
     /**
      * Cleans up timer and scoreboard managers.
      */
     private void cleanupManagers() {
-        timerManager.cleanup();
-        scoreboardManager.cleanup();
+        cleanupHelper.cleanupManagers();
     }
 
-    /**
-     * Saves a player's inventory and armor contents using Kryo serialization.
-     * 
-     * @param player The player whose inventory to save
-     */
-    public void savePlayerInventory(@NotNull Player player) {
-        UUID playerId = player.getUniqueId();
-
-        try {
-            // Save main inventory
-            byte[] inventoryData = InventorySerializer.serializeInventory(player.getInventory().getContents());
-            if (inventoryData != null) {
-                inventories.put(playerId, inventoryData);
-                logger.debug(
-                        "Saved inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()) + " ("
-                                + inventoryData.length + " bytes)");
-            }
-
-            // Save armor contents
-            byte[] armorData = InventorySerializer.serializeInventory(player.getInventory().getArmorContents());
-            if (armorData != null) {
-                armorContents.put(playerId, armorData);
-                logger.debug("Saved armor for player: " + InputSanitizer.sanitizeForLogging(player.getName()) + " ("
-                        + armorData.length + " bytes)");
-            }
-
-            // Save experience
-            playerExperienceLevels.put(playerId, player.getLevel());
-            playerExperiencePoints.put(playerId, player.getExp());
-
-            // Save location
-            previousLocations.put(playerId, player.getLocation().clone());
-
-        } catch (Exception e) {
-            logger.error("Failed to save inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()),
-                    e);
-        }
-    }
-
-    /**
-     * Restores a player's inventory and armor contents from Kryo serialization.
-     * 
-     * @param player The player whose inventory to restore
-     */
-    public void restorePlayerInventory(@NotNull Player player) {
-        UUID playerId = player.getUniqueId();
-
-        try {
-            // Restore main inventory
-            byte[] inventoryData = inventories.get(playerId);
-            if (inventoryData != null) {
-                ItemStack[] items = InventorySerializer.deserializeInventory(inventoryData);
-                if (items != null) {
-                    player.getInventory().setContents(items);
-                    logger.debug(
-                            "Restored inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
-                }
-                inventories.remove(playerId);
-            }
-
-            // Restore armor contents
-            byte[] armorData = armorContents.get(playerId);
-            if (armorData != null) {
-                ItemStack[] armor = InventorySerializer.deserializeInventory(armorData);
-                if (armor != null) {
-                    player.getInventory().setArmorContents(armor);
-                    logger.debug("Restored armor for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
-                }
-                armorContents.remove(playerId);
-            }
-
-            // Restore experience
-            Integer level = playerExperienceLevels.remove(playerId);
-            if (level != null) {
-                player.setLevel(level);
-            }
-
-            Float exp = playerExperiencePoints.remove(playerId);
-            if (exp != null) {
-                player.setExp(exp);
-            }
-
-            // Restore location
-            Location previousLocation = previousLocations.remove(playerId);
-            if (previousLocation != null) {
-                player.teleport(previousLocation);
-                logger.debug("Restored location for player: " + InputSanitizer.sanitizeForLogging(player.getName()));
-            }
-
-        } catch (Exception e) {
-            logger.error(
-                    "Failed to restore inventory for player: " + InputSanitizer.sanitizeForLogging(player.getName()),
-                    e);
-        }
-    }
-
-    /**
-     * Clears stored inventory data for a player (cleanup).
-     * 
-     * @param playerId The player's UUID
-     */
-    public void clearPlayerInventoryData(@NotNull UUID playerId) {
-        inventories.remove(playerId);
-        armorContents.remove(playerId);
-        playerExperienceLevels.remove(playerId);
-        playerExperiencePoints.remove(playerId);
-        previousLocations.remove(playerId);
-
-        logger.debug("Cleared inventory data for player: " + playerId);
-    }
+    // Player inventory management is now handled by GamePlayerManager
+    // These methods have been removed to eliminate duplication
 
     /**
      * Prepares all players and spectators for end game by setting them to adventure
-     * mode
-     * and clearing their inventories.
+     * mode and clearing their inventories.
      */
     private void preparePlayersForEndGame() {
-        preparePlayersForEndGameCleanup(playerManager.getPlayers());
-        preparePlayersForEndGameCleanup(playerManager.getSpectators());
-    }
-
-    /**
-     * Helper method to prepare a collection of player UUIDs for end game cleanup.
-     * 
-     * @param playerIds The collection of player UUIDs to prepare
-     */
-    private void preparePlayersForEndGameCleanup(Set<UUID> playerIds) {
-        for (UUID playerId : playerIds) {
-            Player player = playerManager.getCachedPlayer(playerId);
-            if (player != null && player.isOnline()) {
-
-                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
-
-                // Clear inventory immediately to prevent items from being kept
-                player.getInventory().clear();
-                // Note: Inventories can be null when empty - this is handled gracefully by the
-                // system
-                player.getInventory().setArmorContents(null);
-            }
-        }
+        cleanupHelper.preparePlayersForEndGame();
     }
 
     /**
      * Records game statistics if statistics are enabled in the configuration.
      */
     private void recordStatisticsIfEnabled() {
-        if (plugin.getConfig().getBoolean("statistics.enabled", true)) {
-            long gameTimeSeconds = gameStartTime != null ? Duration.between(gameStartTime, Instant.now()).getSeconds()
-                    : 0;
-            eliminationManager.recordFinalStatistics(gameTimeSeconds);
+        if (gameStartTime != null) {
+            cleanupHelper.recordStatisticsIfEnabled(gameStartTime);
         }
     }
 
     /**
      * Handles the celebration phase by determining if there's a winner and
-     * triggering
-     * the appropriate celebration.
+     * triggering the appropriate celebration.
      */
     private void handleCelebration() {
-        if (playerManager.getPlayerCount() == 1) {
-            celebrateWinner();
-        } else {
-            // Handle no winner case - broadcast end message
-            broadcastMessage(Component.text("Game Over! No winner!", NamedTextColor.RED));
-        }
+        cleanupHelper.handleCelebration();
     }
 
-    /**
-     * Celebrates the game winner if one exists.
-     */
-    private void celebrateWinner() {
-        UUID winnerId = playerManager.getPlayers().iterator().next();
-        Player winner = playerManager.getCachedPlayer(winnerId);
-        if (winner != null) {
-            celebrationManager.celebrateWinner(winner);
-        }
-    }
+    // Celebration is now handled by GameCleanupHelper
 
     /**
      * Schedules the final cleanup tasks to run after the celebration period.
      */
     private void scheduleGameCleanup() {
-        // This gives time for fireworks and title to be seen
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            // Restore world settings using world manager (including original border)
-            worldManager.restoreWorld();
-
-            // Return all players to lobby or original locations using player manager
-            playerManager.cleanup();
-
-            // Remove from game manager
-            plugin.getGameManager().removeGame(this);
-
-            logger.info("Cleaned up game: " + gameId);
-        }, 120L); // 6 second delay (120 ticks) - gives time for celebration
+        cleanupHelper.scheduleGameCleanup(this);
     }
 
     /**
@@ -1141,8 +805,9 @@ public class Game {
 
         // Clean up barriers around the player's spawn point if they were in WAITING or
         // COUNTDOWN
-        if (playerSpawnLoc != null && (state == GameState.WAITING || state == GameState.COUNTDOWN)) {
-            removeBarriersAroundLocation(playerSpawnLoc);
+        GameState currentState = stateHelper.getCurrentState();
+        if (playerSpawnLoc != null && (currentState == GameState.WAITING || currentState == GameState.COUNTDOWN)) {
+            barrierHelper.removeBarriersAroundLocation(playerSpawnLoc);
             logger.debug("Cleaned up barriers for " + InputSanitizer.sanitizeForLogging(player.getName()) + " at "
                     + playerSpawnLoc);
         }
@@ -1165,7 +830,7 @@ public class Game {
             if (logger.isDebugEnabled()) {
                 minPlayers = 1;
             }
-            if (playerManager.getPlayerCount() < minPlayers && state == GameState.COUNTDOWN) {
+            if (playerManager.getPlayerCount() < minPlayers && stateHelper.getCurrentState() == GameState.COUNTDOWN) {
                 cancelCountdown();
             }
         }
@@ -1178,13 +843,13 @@ public class Game {
      */
     public synchronized void addPlayer(@NotNull Player player) {
         // If game has started (past countdown), only allow spectators
-        if (state != GameState.WAITING && state != GameState.COUNTDOWN) {
+        if (!stateHelper.canAddPlayer()) {
             addSpectator(player);
             return;
         }
 
         // Delegate to player manager
-        boolean added = playerManager.addPlayer(player, state);
+        boolean added = playerManager.addPlayer(player, stateHelper.getCurrentState());
         if (!added) {
             return; // Player couldn't be added (arena full, etc.)
         }
@@ -1198,7 +863,7 @@ public class Game {
         // This prevents them from moving off their spawn platform
         Location spawnLoc = playerManager.getPlayerLocations().get(player.getUniqueId());
         if (spawnLoc != null && spawnLoc.getWorld() != null) {
-            createBarrierBoxAroundLocation(spawnLoc);
+            barrierHelper.createBarrierBoxAroundLocation(spawnLoc);
 
             // Ensure player is exactly at their spawn point (prevent any exploitation)
             player.teleport(spawnLoc);
@@ -1219,7 +884,7 @@ public class Game {
         if (logger.isDebugEnabled()) {
             minPlayers = 1;
         }
-        if (playerManager.getPlayerCount() >= minPlayers && state == GameState.WAITING) {
+        if (playerManager.getPlayerCount() >= minPlayers && stateHelper.getCurrentState() == GameState.WAITING) {
             startCountdown();
             // Don't restart countdown if already in progress
             // This prevents chest filling from restarting when new players join
@@ -1342,7 +1007,7 @@ public class Game {
     }
 
     public @NotNull GameState getState() {
-        return state;
+        return stateHelper.getCurrentState();
     }
 
     /**
@@ -1363,7 +1028,16 @@ public class Game {
     }
 
     public synchronized boolean isPvpEnabled() {
-        return pvpEnabled;
+        return stateHelper.isPvpEnabled();
+    }
+
+    /**
+     * Gets the current game state.
+     * 
+     * @return The current game state
+     */
+    public @NotNull GameState getCurrentState() {
+        return stateHelper.getCurrentState();
     }
 
     public int getPlayerCount() {
@@ -1410,20 +1084,13 @@ public class Game {
         activeTasks.clear();
 
         // Remove any remaining barrier blocks
-        removeSpawnBarriers();
+        barrierHelper.cleanup();
 
-        // Delegate cleanup to managers
-        worldManager.cleanup();
-        timerManager.cleanup();
-        playerManager.cleanup();
-        scoreboardManager.cleanup();
-        celebrationManager.cleanup();
-        teamManager.cleanup();
+        // Stop spawn enforcement
+        spawnHelper.cleanup();
 
-        // Remove from game manager
-        plugin.getGameManager().removeGame(this);
-
-        logger.info("Cleaned up game: " + gameId);
+        // Perform immediate cleanup using helper
+        cleanupHelper.performImmediateCleanup(this);
     }
 
     /**
@@ -1464,7 +1131,8 @@ public class Game {
         BukkitTask gameEndCheckTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             try {
                 // Only check if game is still active or in deathmatch
-                if (state == GameState.ACTIVE || state == GameState.DEATHMATCH) {
+                GameState currentState = stateHelper.getCurrentState();
+                if (currentState == GameState.ACTIVE || currentState == GameState.DEATHMATCH) {
                     checkGameEnd();
                 } else {
                     // Game is no longer active, cancel this task
@@ -1498,7 +1166,7 @@ public class Game {
     public @NotNull GameTeamManager getTeamManager() {
         return teamManager;
     }
-    
+
     /**
      * Gets the world manager for this game.
      * 
@@ -1515,8 +1183,8 @@ public class Game {
      * @param gameMode The game mode to set for this game
      */
     public void activateGame(@NotNull GameMode gameMode) {
-        if (state != GameState.WAITING && state != GameState.INACTIVE) {
-            logger.warn("Cannot configure game - current state is " + state);
+        if (stateHelper.getCurrentState() != GameState.WAITING) {
+            logger.warn("Cannot configure game - current state is " + stateHelper.getCurrentState());
             return;
         }
 
@@ -1524,10 +1192,10 @@ public class Game {
         teamManager.setGameMode(gameMode);
 
         // Ensure we're in WAITING state (games now start in WAITING)
-        if (state != GameState.WAITING) {
-            state = GameState.WAITING;
-            scoreboardManager.setCurrentGameState(state);
-            timerManager.setCurrentGameState(state);
+        if (stateHelper.getCurrentState() != GameState.WAITING) {
+            stateHelper.transitionTo(GameState.WAITING);
+            scoreboardManager.setCurrentGameState(stateHelper.getCurrentState());
+            timerManager.setCurrentGameState(stateHelper.getCurrentState());
         }
 
         logger.info("Game configured with mode: " + gameMode.getDisplayName());

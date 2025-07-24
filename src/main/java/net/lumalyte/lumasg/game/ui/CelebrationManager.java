@@ -187,6 +187,12 @@ public class CelebrationManager {
         if (winner == null || !winner.isOnline()) {
             return;
         }
+        
+        // Don't schedule tasks if plugin is being disabled
+        if (!plugin.isEnabled()) {
+            logger.info("Skipping fireworks celebration - plugin is shutting down");
+            return;
+        }
 
         Random random = new Random();
         AtomicInteger fireworkCount = new AtomicInteger(0);

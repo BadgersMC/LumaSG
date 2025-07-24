@@ -1,6 +1,7 @@
 package net.lumalyte.lumasg.util.serialization;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.VersionFieldSerializer;
@@ -70,7 +71,7 @@ public class KryoManager {
 
                 // Register core Java types with fixed IDs for consistency
                 kryo.register(String.class, 1);
-                kryo.register(UUID.class, 2);
+                kryo.register(UUID.class, new UUIDSerializer(), 2);
                 kryo.register(byte[].class, 3);
                 kryo.register(int[].class, 4);
                 kryo.register(long[].class, 5);
@@ -80,10 +81,12 @@ public class KryoManager {
                 kryo.register(ItemStack.class, 10);
                 kryo.register(ItemStack[].class, 11);
                 kryo.register(Location.class, 12);
+                kryo.register(org.bukkit.potion.PotionEffect.class, 13);
+                kryo.register(org.bukkit.potion.PotionEffect[].class, 14);
 
                 // Register LumaSG types with versioned serializers for compatibility
                 kryo.register(PlayerStats.class, new VersionFieldSerializer<>(kryo, PlayerStats.class), 20);
-                kryo.register(PlayerGameStats.class, new VersionFieldSerializer<>(kryo, PlayerGameStats.class), 21);
+                kryo.register(PlayerGameStats.class, new PlayerGameStatsSerializer(), 21);
                 kryo.register(Team.class, new VersionFieldSerializer<>(kryo, Team.class), 22);
 
                 // Register collection types commonly used
@@ -340,5 +343,48 @@ public class KryoManager {
      */
     public static boolean isInitialized() {
         return initialized;
+    }
+
+    /**
+     * Custom UUID serializer that avoids reflection issues in Java 17+.
+     * This serializer uses the public UUID methods instead of accessing private
+     * fields.
+     */
+    private static class UUIDSerializer extends com.esotericsoftware.kryo.Serializer<UUID> {
+        @Override
+        public void write(Kryo kryo, Output output, UUID uuid) {
+            output.writeLong(uuid.getMostSignificantBits());
+            output.writeLong(uuid.getLeastSignificantBits());
+        }
+
+        @Override
+        public UUID read(Kryo kryo, Input input, Class<? extends UUID> type) {
+            long mostSigBits = input.readLong();
+            long leastSigBits = input.readLong();
+            return new UUID(mostSigBits, leastSigBits);
+        }
+    }
+    
+    /**
+     * Custom PlayerGameStats serializer that avoids reflection issues with Java records.
+     * This serializer uses the public record methods instead of accessing private fields.
+     */
+    private static class PlayerGameStatsSerializer extends com.esotericsoftware.kryo.Serializer<PlayerGameStats> {
+        @Override
+        public void write(Kryo kryo, Output output, PlayerGameStats stats) {
+            output.writeInt(stats.kills());
+            output.writeDouble(stats.damageDealt());
+            output.writeDouble(stats.damageTaken());
+            output.writeInt(stats.chestsOpened());
+        }
+        
+        @Override
+        public PlayerGameStats read(Kryo kryo, Input input, Class<? extends PlayerGameStats> type) {
+            int kills = input.readInt();
+            double damageDealt = input.readDouble();
+            double damageTaken = input.readDouble();
+            int chestsOpened = input.readInt();
+            return new PlayerGameStats(kills, damageDealt, damageTaken, chestsOpened);
+        }
     }
 }
