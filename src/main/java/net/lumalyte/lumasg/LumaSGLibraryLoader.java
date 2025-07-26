@@ -37,6 +37,9 @@ public class LumaSGLibraryLoader implements PluginLoader {
         resolver.addDependency(new Dependency(new DefaultArtifact("org.hibernate.validator:hibernate-validator:9.0.1.Final"), null));
         resolver.addDependency(new Dependency(new DefaultArtifact("org.apache.commons:commons-text:1.10.0"), null));
         
+        // Discord Integration (JDA 5.6.1)
+        resolver.addDependency(new Dependency(new DefaultArtifact("net.dv8tion:JDA:5.6.1"), null));
+        
         // Add the resolver to the classpath
         classpathBuilder.addLibrary(resolver);
     }

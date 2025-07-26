@@ -76,9 +76,13 @@ public class DatabaseManager {
                 
                 // Connection settings
                 hikariConfig.setJdbcUrl(config.buildJdbcUrl());
-                hikariConfig.setUsername(config.getUsername());
-                hikariConfig.setPassword(config.getPassword());
                 hikariConfig.setDriverClassName(config.getType().getDriverClass());
+                
+                // SQLite doesn't use username/password
+                if (config.getType() != DatabaseConfig.DatabaseType.SQLITE) {
+                    hikariConfig.setUsername(config.getUsername());
+                    hikariConfig.setPassword(config.getPassword());
+                }
                 
                 // Pool settings optimized for game servers
                 hikariConfig.setMinimumIdle(config.getMinimumIdle());
@@ -111,6 +115,16 @@ public class DatabaseManager {
                     hikariConfig.addDataSourceProperty("cacheServerConfiguration", "true");
                     hikariConfig.addDataSourceProperty("elideSetAutoCommits", "true");
                     hikariConfig.addDataSourceProperty("maintainTimeStats", "false");
+                } else if (config.getType() == DatabaseConfig.DatabaseType.SQLITE) {
+                    // SQLite-specific optimizations
+                    hikariConfig.addDataSourceProperty("journal_mode", "WAL");
+                    hikariConfig.addDataSourceProperty("synchronous", "NORMAL");
+                    hikariConfig.addDataSourceProperty("cache_size", "10000");
+                    hikariConfig.addDataSourceProperty("foreign_keys", "true");
+                    
+                    // SQLite works better with smaller connection pools
+                    hikariConfig.setMaximumPoolSize(Math.min(config.getMaximumPoolSize(), 4));
+                    hikariConfig.setMinimumIdle(Math.min(config.getMinimumIdle(), 2));
                 }
                 
                 // Create the data source

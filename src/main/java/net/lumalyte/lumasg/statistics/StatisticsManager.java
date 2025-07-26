@@ -110,11 +110,21 @@ public class StatisticsManager {
         }
         
         // Build configuration from plugin config
+        String databaseName;
+        if (type == DatabaseConfig.DatabaseType.SQLITE) {
+            // For SQLite, use the sqlite-file setting and make it relative to plugin data folder
+            String sqliteFile = plugin.getConfig().getString("database.sqlite-file", "lumasg.db");
+            databaseName = plugin.getDataFolder().getAbsolutePath() + java.io.File.separator + sqliteFile;
+        } else {
+            // For PostgreSQL/MySQL, use the database name
+            databaseName = plugin.getConfig().getString("database.database", "lumasg");
+        }
+        
         return builder
                 .type(type)
                 .host(plugin.getConfig().getString("database.host", "localhost"))
                 .port(plugin.getConfig().getInt("database.port", type.getDefaultPort()))
-                .database(plugin.getConfig().getString("database.database", "lumasg"))
+                .database(databaseName)
                 .username(plugin.getConfig().getString("database.username", "lumasg"))
                 .password(plugin.getConfig().getString("database.password", ""))
                 .minimumIdle(plugin.getConfig().getInt("database.pool.minimum-idle", 2))

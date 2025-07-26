@@ -610,6 +610,9 @@ public class Game {
         // In WAITING state, check if we have enough players to continue
         if (stateHelper.getCurrentState() == GameState.WAITING) {
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
+            if (plugin.getDebugLogger().isDebugEnabled()) {
+                minPlayers = 1;
+            }
             if (playerCount < minPlayers) {
                 logger.debug("Not enough players to start game - " + playerCount + "/" + minPlayers);
                 // Don't end the game, just wait for more players
@@ -620,6 +623,9 @@ public class Game {
         // In COUNTDOWN state, if we drop below minimum players, cancel countdown
         if (stateHelper.getCurrentState() == GameState.COUNTDOWN) {
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
+            if (plugin.getDebugLogger().isDebugEnabled()) {
+                minPlayers = 1;
+            }
             if (playerCount < minPlayers) {
                 logger.debug("Cancelling countdown - not enough players: " + playerCount + "/" + minPlayers);
                 cancelCountdown();
@@ -827,7 +833,7 @@ public class Game {
 
             // Cancel countdown if not enough players
             int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
-            if (logger.isDebugEnabled()) {
+            if (plugin.getDebugLogger().isDebugEnabled()) {
                 minPlayers = 1;
             }
             if (playerManager.getPlayerCount() < minPlayers && stateHelper.getCurrentState() == GameState.COUNTDOWN) {
@@ -881,7 +887,7 @@ public class Game {
 
         // Countdown logic: start or restart if enough players
         int minPlayers = plugin.getConfig().getInt("game.min-players", 2);
-        if (logger.isDebugEnabled()) {
+        if (plugin.getDebugLogger().isDebugEnabled()) {
             minPlayers = 1;
         }
         if (playerManager.getPlayerCount() >= minPlayers && stateHelper.getCurrentState() == GameState.WAITING) {

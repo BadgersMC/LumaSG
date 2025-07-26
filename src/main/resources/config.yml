@@ -48,6 +48,58 @@ arena:
   default-min-players: 2
   auto-save: true
   save-delay-seconds: 3  # Delay before saving arena changes (prevents excessive saves)
+
+# Discord Integration Settings
+discord:
+  enabled: false
+  bot-token: "YOUR_BOT_TOKEN_HERE"
+  
+  # Connection settings
+  connection:
+    reconnect-attempts: 5
+    reconnect-delay-seconds: 30
+    timeout-seconds: 30
+  
+  # Channel configuration
+  channels:
+    game-announcements: ""
+    statistics: ""
+    admin: ""
+  
+  # Webhook configuration (optional, for better performance)
+  webhooks:
+    use-webhooks-first: true
+    # game-announcements: "https://discord.com/api/webhooks/..."
+    # statistics: "https://discord.com/api/webhooks/..."
+  
+  # Feature toggles
+  features:
+    announce-game-start: true
+    announce-game-end: true
+    announce-deathmatch: true
+    announce-milestones: true
+    enable-stat-commands: true
+    enable-admin-commands: true
+    enable-queue-commands: true
+  
+  # Announcement settings
+  announcements:
+    milestone-thresholds: [10, 5, 3, 2]
+    include-player-list: true
+    max-players-in-embed: 20
+    use-player-avatars: true
+  
+  # Embed formatting
+  formatting:
+    embed-color: "#00FF00"
+    server-icon-url: ""
+    timestamp-format: "yyyy-MM-dd HH:mm:ss"
+  
+  # Permission mapping
+  permissions:
+    admin-roles: []
+    moderator-roles: []
+    role-permissions: {}
   immediate-save-on-shutdown: true  # Always save immediately during shutdown
 
 # World Border Settings
@@ -239,6 +291,9 @@ database:
   # WARNING: SQLite has limitations and should be upgraded to PostgreSQL/MySQL for production use
   type: "SQLITE"
   
+  # SQLite file path (relative to plugin data folder)
+  sqlite-file: "lumasg.db"
+  
   # Connection settings (for PostgreSQL/MySQL only - ignored for SQLite)
   host: "localhost"
   port: 5432  # 5432 for PostgreSQL, 3306 for MySQL
@@ -293,4 +348,82 @@ queue:
   # Broadcast update interval (in seconds)
   broadcast-interval: 30
   # Allow players to mute queue broadcasts
-  allow-mute: true 
+  allow-mute: true
+
+# Discord Integration Settings
+discord:
+  # Enable Discord integration
+  enabled: false
+  
+  # Bot token (keep this secure and never share it)
+  bot-token: "YOUR_BOT_TOKEN_HERE"
+  
+  # Connection settings
+  connection:
+    # Number of reconnection attempts before giving up
+    reconnect-attempts: 5
+    # Delay between reconnection attempts (in seconds)
+    reconnect-delay-seconds: 30
+    # Connection timeout (in seconds)
+    timeout-seconds: 30
+  
+  # Channel configuration
+  channels:
+    # Channel ID for game announcements
+    game-announcements: ""
+    # Channel ID for statistics commands
+    statistics: ""
+    # Channel ID for admin commands
+    admin: ""
+  
+  # Webhook configuration (optional, for better performance)
+  webhooks:
+    # Webhook URL for game announcements
+    game-announcements: ""
+    # Webhook URL for statistics
+    statistics: ""
+    # Use webhooks first, fallback to bot messaging if they fail
+    use-webhooks-first: true
+  
+  # Feature toggles
+  features:
+    # Game event announcements
+    announce-game-start: true
+    announce-game-end: true
+    announce-deathmatch: true
+    announce-milestones: true
+    # Discord commands
+    enable-stat-commands: true
+    enable-admin-commands: true
+    enable-queue-commands: true
+  
+  # Announcement settings
+  announcements:
+    # Player count thresholds for milestone announcements
+    milestone-thresholds: [10, 5, 3, 2]
+    # Include player list in announcements
+    include-player-list: true
+    # Maximum players to show in embed (prevents Discord embed limits)
+    max-players-in-embed: 20
+    # Use player avatars in embeds
+    use-player-avatars: true
+  
+  # Embed formatting
+  formatting:
+    # Embed color (hex color code)
+    embed-color: "#00FF00"
+    # Server icon URL for embeds
+    server-icon-url: ""
+    # Timestamp format for embeds
+    timestamp-format: "yyyy-MM-dd HH:mm:ss"
+  
+  # Permission mapping
+  permissions:
+    # Discord roles that have admin permissions
+    admin-roles: ["Admin", "Owner"]
+    # Discord roles that have moderator permissions
+    moderator-roles: ["Moderator", "Staff"]
+    # Map Discord roles to plugin permissions
+    role-permissions:
+      "Admin": "lumasg.admin"
+      "Moderator": "lumasg.moderate" 

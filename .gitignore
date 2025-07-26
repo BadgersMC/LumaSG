@@ -106,4 +106,6 @@ CODACY*.md
 
 #Ignore cursor AI rules
 .cursor\rules\codacy.mdc
+
+#Plugin Documentation
 LumaSG_Architecture_Documentation.html

@@ -77,12 +77,19 @@ public class KryoManager {
                 kryo.register(long[].class, 5);
                 kryo.register(double[].class, 6);
 
-                // Register Minecraft types
+                // Register Minecraft types with custom serializers for Java 17+ compatibility
                 kryo.register(ItemStack.class, 10);
                 kryo.register(ItemStack[].class, 11);
                 kryo.register(Location.class, 12);
-                kryo.register(org.bukkit.potion.PotionEffect.class, 13);
+                kryo.register(org.bukkit.potion.PotionEffect.class, new PotionEffectSerializer(), 13);
                 kryo.register(org.bukkit.potion.PotionEffect[].class, 14);
+                
+                // Register Java types that cause issues in Java 17+
+                kryo.register(Boolean.class, new BooleanSerializer(), 15);
+                kryo.register(Integer.class, 16);
+                kryo.register(Long.class, 17);
+                kryo.register(Double.class, 18);
+                kryo.register(Float.class, 19);
 
                 // Register LumaSG types with versioned serializers for compatibility
                 kryo.register(PlayerStats.class, new VersionFieldSerializer<>(kryo, PlayerStats.class), 20);
@@ -385,6 +392,63 @@ public class KryoManager {
             double damageTaken = input.readDouble();
             int chestsOpened = input.readInt();
             return new PlayerGameStats(kills, damageDealt, damageTaken, chestsOpened);
+        }
+    }
+    
+    /**
+     * Custom Boolean serializer that avoids reflection issues with Boolean.value field in Java 17+.
+     * This serializer uses the public Boolean methods instead of accessing private fields.
+     */
+    private static class BooleanSerializer extends com.esotericsoftware.kryo.Serializer<Boolean> {
+        @Override
+        public void write(Kryo kryo, Output output, Boolean bool) {
+            output.writeBoolean(bool.booleanValue());
+        }
+        
+        @Override
+        public Boolean read(Kryo kryo, Input input, Class<? extends Boolean> type) {
+            return Boolean.valueOf(input.readBoolean());
+        }
+    }
+    
+    /**
+     * Custom PotionEffect serializer that avoids reflection issues with lambda expressions in Java 17+.
+     * This serializer uses the public PotionEffect methods instead of accessing private fields.
+     */
+    private static class PotionEffectSerializer extends com.esotericsoftware.kryo.Serializer<org.bukkit.potion.PotionEffect> {
+        @Override
+        public void write(Kryo kryo, Output output, org.bukkit.potion.PotionEffect effect) {
+            // Write the effect type key instead of the deprecated name to avoid lambda issues
+            output.writeString(effect.getType().getKey().toString());
+            output.writeInt(effect.getDuration());
+            output.writeInt(effect.getAmplifier());
+            output.writeBoolean(effect.isAmbient());
+            output.writeBoolean(effect.hasParticles());
+            output.writeBoolean(effect.hasIcon());
+        }
+        
+        @Override
+        public org.bukkit.potion.PotionEffect read(Kryo kryo, Input input, Class<? extends org.bukkit.potion.PotionEffect> type) {
+            String typeKey = input.readString();
+            int duration = input.readInt();
+            int amplifier = input.readInt();
+            boolean ambient = input.readBoolean();
+            boolean particles = input.readBoolean();
+            boolean icon = input.readBoolean();
+            
+            // Get the potion effect type by key
+            org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(typeKey);
+            org.bukkit.potion.PotionEffectType effectType = null;
+            if (key != null) {
+                effectType = org.bukkit.Registry.EFFECT.get(key);
+            }
+            
+            if (effectType == null) {
+                // Fallback to a safe default if the effect type is not found
+                effectType = org.bukkit.potion.PotionEffectType.REGENERATION;
+            }
+            
+            return new org.bukkit.potion.PotionEffect(effectType, duration, amplifier, ambient, particles, icon);
         }
     }
 }

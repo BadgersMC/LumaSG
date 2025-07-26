@@ -68,6 +68,16 @@ public class DatabaseConfig {
     @NotNull
     public String buildJdbcUrl() {
         StringBuilder url = new StringBuilder();
+        
+        if (type == DatabaseType.SQLITE) {
+            // SQLite uses a different URL format: jdbc:sqlite:path/to/file.db
+            url.append("jdbc:sqlite:");
+            // Use the database field as the file path for SQLite
+            url.append(database);
+            return url.toString();
+        }
+        
+        // PostgreSQL and MySQL use host:port format
         url.append("jdbc:").append(type.getProtocol()).append("://");
         url.append(host).append(":").append(port);
         url.append("/").append(database);

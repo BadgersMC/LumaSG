@@ -59,6 +59,7 @@ dependencies {
     compileOnly 'com.esotericsoftware:kryo:5.6.2'
     compileOnly 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
     compileOnly 'org.apache.commons:commons-text:1.10.0'
+    compileOnly 'net.dv8tion:JDA:5.6.1'
     
     // Testing dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
@@ -77,10 +78,12 @@ dependencies {
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.1'
     testImplementation 'com.zaxxer:HikariCP:5.0.1'
     testImplementation 'org.postgresql:postgresql:42.6.0'
+    testImplementation 'net.dv8tion:JDA:5.6.1'
     testImplementation 'mysql:mysql-connector-java:8.0.33'
     testImplementation 'com.esotericsoftware:kryo:5.6.2'
     testImplementation 'org.hibernate.validator:hibernate-validator:9.0.1.Final'
     testImplementation 'org.apache.commons:commons-text:1.10.0'
+    testImplementation 'net.dv8tion:JDA:5.6.1'
     
     // Test runtime dependencies
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

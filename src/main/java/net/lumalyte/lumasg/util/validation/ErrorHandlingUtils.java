@@ -232,6 +232,55 @@ public final class ErrorHandlingUtils {
             return false;
         }
     }
+    
+    /**
+     * Handles serialization failures gracefully by providing fallback mechanisms.
+     * 
+     * @param primaryOperation   The primary serialization operation
+     * @param fallbackOperation  The fallback operation if primary fails
+     * @param emptyFallback      The empty fallback if both operations fail
+     * @param logger             Logger for error reporting
+     * @param operationName      Name of the operation for logging
+     * @param <T>                Return type of the operation
+     * @return The result of the operation or fallback
+     */
+    public static <T> T handleSerializationFailure(@NotNull Supplier<T> primaryOperation,
+            @NotNull Supplier<T> fallbackOperation,
+            @NotNull Supplier<T> emptyFallback,
+            @NotNull Logger logger,
+            @NotNull String operationName) {
+        
+        // Try primary operation
+        try {
+            T result = primaryOperation.get();
+            if (result != null) {
+                return result;
+            }
+        } catch (Exception e) {
+            logError(logger, Level.WARNING, operationName, "Primary serialization failed, trying fallback", e);
+        }
+        
+        // Try fallback operation
+        try {
+            T result = fallbackOperation.get();
+            if (result != null) {
+                logger.log(Level.INFO, "Fallback serialization succeeded for " + operationName);
+                return result;
+            }
+        } catch (Exception e) {
+            logError(logger, Level.WARNING, operationName, "Fallback serialization failed, using empty fallback", e);
+        }
+        
+        // Use empty fallback as last resort
+        try {
+            T result = emptyFallback.get();
+            logger.log(Level.INFO, "Using empty fallback for " + operationName);
+            return result;
+        } catch (Exception e) {
+            logError(logger, Level.SEVERE, operationName, "Even empty fallback failed", e);
+            return null;
+        }
+    }
 
     /**
      * Circuit breaker state for tracking repeated failures.

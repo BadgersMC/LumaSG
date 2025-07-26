@@ -102,6 +102,31 @@ public class StatisticsDatabase {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """;
     
+    private static final String CREATE_SQLITE_TABLE_SQL = """
+        CREATE TABLE IF NOT EXISTS player_stats (
+            player_id TEXT PRIMARY KEY,
+            player_name TEXT NOT NULL,
+            stats_data BLOB NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            
+            -- Denormalized columns for fast queries
+            wins INTEGER DEFAULT 0,
+            kills INTEGER DEFAULT 0,
+            games_played INTEGER DEFAULT 0,
+            best_placement INTEGER DEFAULT 999999
+        )
+        """;
+    
+    private static final String CREATE_SQLITE_INDEXES_SQL = """
+        CREATE INDEX IF NOT EXISTS idx_player_name ON player_stats (player_name);
+        CREATE INDEX IF NOT EXISTS idx_wins ON player_stats (wins DESC);
+        CREATE INDEX IF NOT EXISTS idx_kills ON player_stats (kills DESC);
+        CREATE INDEX IF NOT EXISTS idx_games_played ON player_stats (games_played DESC);
+        CREATE INDEX IF NOT EXISTS idx_best_placement ON player_stats (best_placement ASC);
+        CREATE INDEX IF NOT EXISTS idx_updated_at ON player_stats (updated_at DESC);
+        """;
+    
     // High-performance SQL statements using prepared statements and batch operations
     private static final String UPSERT_POSTGRESQL_SQL = """
         INSERT INTO player_stats (player_id, player_name, stats_data, wins, kills, games_played, best_placement, updated_at)
@@ -126,6 +151,19 @@ public class StatisticsDatabase {
             kills = VALUES(kills),
             games_played = VALUES(games_played),
             best_placement = VALUES(best_placement),
+            updated_at = CURRENT_TIMESTAMP
+        """;
+    
+    private static final String UPSERT_SQLITE_SQL = """
+        INSERT INTO player_stats (player_id, player_name, stats_data, wins, kills, games_played, best_placement, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT (player_id) DO UPDATE SET
+            player_name = EXCLUDED.player_name,
+            stats_data = EXCLUDED.stats_data,
+            wins = EXCLUDED.wins,
+            kills = EXCLUDED.kills,
+            games_played = EXCLUDED.games_played,
+            best_placement = EXCLUDED.best_placement,
             updated_at = CURRENT_TIMESTAMP
         """;
     
@@ -167,6 +205,19 @@ public class StatisticsDatabase {
             updated_at = CURRENT_TIMESTAMP
         """;
     
+    private static final String BATCH_UPSERT_SQLITE_SQL = """
+        INSERT INTO player_stats (player_id, player_name, stats_data, wins, kills, games_played, best_placement, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT (player_id) DO UPDATE SET
+            player_name = EXCLUDED.player_name,
+            stats_data = EXCLUDED.stats_data,
+            wins = EXCLUDED.wins,
+            kills = EXCLUDED.kills,
+            games_played = EXCLUDED.games_played,
+            best_placement = EXCLUDED.best_placement,
+            updated_at = CURRENT_TIMESTAMP
+        """;
+    
     /**
      * Creates a new StatisticsDatabase instance with high-performance database manager.
      * 
@@ -195,11 +246,23 @@ public class StatisticsDatabase {
                 switch (dbType) {
                     case POSTGRESQL -> createTableSql = CREATE_POSTGRESQL_TABLE_SQL;
                     case MYSQL -> createTableSql = CREATE_MYSQL_TABLE_SQL;
+                    case SQLITE -> createTableSql = CREATE_SQLITE_TABLE_SQL;
                     default -> throw new IllegalStateException("Unsupported database type: " + dbType);
                 }
                 
                 // Create table asynchronously
                 databaseManager.createTableIfNotExists(createTableSql).join();
+                
+                // For SQLite, create indexes separately
+                if (dbType == DatabaseConfig.DatabaseType.SQLITE) {
+                    // Split the indexes SQL and execute each one separately
+                    String[] indexStatements = CREATE_SQLITE_INDEXES_SQL.split(";");
+                    for (String indexSql : indexStatements) {
+                        if (!indexSql.trim().isEmpty()) {
+                            databaseManager.createTableIfNotExists(indexSql.trim()).join();
+                        }
+                    }
+                }
                 
                 logger.info("Statistics database initialized successfully with " + dbType + " schema");
                 logger.info("Table features:");
@@ -233,8 +296,12 @@ public class StatisticsDatabase {
                 
                 // Choose SQL based on database type
                 DatabaseConfig.DatabaseType dbType = databaseManager.getConfig().getType();
-                String sql = (dbType == DatabaseConfig.DatabaseType.POSTGRESQL) ? 
-                    UPSERT_POSTGRESQL_SQL : UPSERT_MYSQL_SQL;
+                String sql = switch (dbType) {
+                    case POSTGRESQL -> UPSERT_POSTGRESQL_SQL;
+                    case MYSQL -> UPSERT_MYSQL_SQL;
+                    case SQLITE -> UPSERT_SQLITE_SQL;
+                    default -> throw new IllegalStateException("Unsupported database type: " + dbType);
+                };
                 
                 // Use database manager for connection pooling
                 try (Connection connection = databaseManager.getConnection();
@@ -410,8 +477,12 @@ public class StatisticsDatabase {
             try {
                 // Choose SQL based on database type
                 DatabaseConfig.DatabaseType dbType = databaseManager.getConfig().getType();
-                String sql = (dbType == DatabaseConfig.DatabaseType.POSTGRESQL) ? 
-                    BATCH_UPSERT_POSTGRESQL_SQL : BATCH_UPSERT_MYSQL_SQL;
+                String sql = switch (dbType) {
+                    case POSTGRESQL -> BATCH_UPSERT_POSTGRESQL_SQL;
+                    case MYSQL -> BATCH_UPSERT_MYSQL_SQL;
+                    case SQLITE -> BATCH_UPSERT_SQLITE_SQL;
+                    default -> throw new IllegalStateException("Unsupported database type: " + dbType);
+                };
                 
                 // Prepare batch parameters
                 Object[][] batchParams = new Object[statsList.size()][];
