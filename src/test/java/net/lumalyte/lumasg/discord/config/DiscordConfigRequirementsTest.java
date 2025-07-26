@@ -61,7 +61,7 @@ class DiscordConfigRequirementsTest {
         // Setup configuration with bot token
         when(config.getConfigurationSection("discord")).thenReturn(discordSection);
         when(discordSection.getBoolean("enabled", false)).thenReturn(true);
-        when(discordSection.getString("bot-token", "")).thenReturn("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz");
+        when(discordSection.getString("bot-token", "")).thenReturn("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY");
         
         // Load configuration
         assertTrue(configManager.loadConfiguration());
@@ -69,7 +69,7 @@ class DiscordConfigRequirementsTest {
         // Verify bot token is accessible but secure
         String botToken = configManager.getBotToken();
         assertNotNull(botToken);
-        assertEquals("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz", botToken);
+        assertEquals("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY", botToken);
         
         // Verify placeholder tokens are rejected
         when(discordSection.getString("bot-token", "")).thenReturn("YOUR_BOT_TOKEN_HERE");
@@ -197,18 +197,18 @@ class DiscordConfigRequirementsTest {
         // Setup initial configuration
         when(config.getConfigurationSection("discord")).thenReturn(discordSection);
         when(discordSection.getBoolean("enabled", false)).thenReturn(true);
-        when(discordSection.getString("bot-token", "")).thenReturn("initial.token");
+        when(discordSection.getString("bot-token", "")).thenReturn("INITIAL_TOKEN_PLACEHOLDER");
         
         // Load initial configuration
         assertTrue(configManager.loadConfiguration());
         DiscordConfig initialConfig = configManager.getConfig();
         assertNotNull(initialConfig);
         assertTrue(initialConfig.isEnabled());
-        assertEquals("initial.token", initialConfig.getBotToken());
+        assertEquals("INITIAL_TOKEN_PLACEHOLDER", initialConfig.getBotToken());
         
         // Simulate configuration change
         when(discordSection.getBoolean("enabled", false)).thenReturn(false);
-        when(discordSection.getString("bot-token", "")).thenReturn("updated.token");
+        when(discordSection.getString("bot-token", "")).thenReturn("UPDATED_TOKEN_PLACEHOLDER");
         
         // Test hot-reloading
         assertTrue(configManager.reloadConfiguration());
@@ -218,14 +218,14 @@ class DiscordConfigRequirementsTest {
         DiscordConfig updatedConfig = configManager.getConfig();
         assertNotNull(updatedConfig);
         assertFalse(updatedConfig.isEnabled());
-        assertEquals("updated.token", updatedConfig.getBotToken());
+        assertEquals("UPDATED_TOKEN_PLACEHOLDER", updatedConfig.getBotToken());
         
         // Test hot-reloading with change notification
         when(discordSection.getBoolean("enabled", false)).thenReturn(true);
         assertTrue(configManager.reloadConfigurationWithNotification());
         
         // Verify the configuration is ready check works after reload
-        when(discordSection.getString("bot-token", "")).thenReturn("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz");
+        when(discordSection.getString("bot-token", "")).thenReturn("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY");
         configManager.loadConfiguration();
         
         // Configuration readiness check (will fail due to mocked validation, but method is tested)
@@ -322,7 +322,7 @@ class DiscordConfigRequirementsTest {
         assertTrue(summary.contains("Errors"));
         
         // Test with valid configuration
-        testConfig.setBotToken("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz");
+        testConfig.setBotToken("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY");
         testConfig.setChannelMappings(Map.of("valid-channel", "123456789012345678"));
         testConfig.setWebhooks(Map.of("valid-webhook", "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz"));
         testConfig.setReconnectAttempts(5);

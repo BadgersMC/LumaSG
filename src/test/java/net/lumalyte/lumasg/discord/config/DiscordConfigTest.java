@@ -65,7 +65,7 @@ class DiscordConfigTest {
         assertTrue(config.isEnabled());
         
         // Test bot token
-        String testToken = "test.token.here";
+        String testToken = "TEST_TOKEN_PLACEHOLDER";
         config.setBotToken(testToken);
         assertEquals(testToken, config.getBotToken());
         
@@ -260,11 +260,11 @@ class DiscordConfigTest {
         assertFalse(config.isValidBotToken());
         
         // Test short token
-        config.setBotToken("short.token");
+        config.setBotToken("SHORT_TOKEN");
         assertFalse(config.isValidBotToken());
         
         // Test valid token (50+ characters)
-        config.setBotToken("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz");
+        config.setBotToken("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY");
         assertTrue(config.isValidBotToken());
     }
     

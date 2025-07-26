@@ -30,7 +30,7 @@ class DiscordConfigIntegrationTest {
         
         // Configure Discord integration
         config.setEnabled(true);
-        config.setBotToken("test.bot.token.here");
+        config.setBotToken("TEST_BOT_TOKEN_PLACEHOLDER");
         
         // Configure connection settings
         config.setReconnectAttempts(3);
@@ -75,7 +75,7 @@ class DiscordConfigIntegrationTest {
         
         // Verify all settings
         assertTrue(config.isEnabled());
-        assertEquals("test.bot.token.here", config.getBotToken());
+        assertEquals("TEST_BOT_TOKEN_PLACEHOLDER", config.getBotToken());
         assertEquals(3, config.getReconnectAttempts());
         assertEquals(15000, config.getReconnectDelay());
         assertEquals(20000, config.getConnectionTimeout());

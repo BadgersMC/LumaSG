@@ -69,7 +69,7 @@ class DiscordConfigManagerTest {
         // Setup: Basic discord configuration
         when(config.getConfigurationSection("discord")).thenReturn(discordSection);
         when(discordSection.getBoolean("enabled", false)).thenReturn(true);
-        when(discordSection.getString("bot-token", "")).thenReturn("test.bot.token");
+        when(discordSection.getString("bot-token", "")).thenReturn("TEST_BOT_TOKEN_PLACEHOLDER");
         
         // Execute
         boolean result = configManager.loadConfiguration();
@@ -78,7 +78,7 @@ class DiscordConfigManagerTest {
         assertTrue(result);
         assertNotNull(configManager.getConfig());
         assertTrue(configManager.getConfig().isEnabled());
-        assertEquals("test.bot.token", configManager.getConfig().getBotToken());
+        assertEquals("TEST_BOT_TOKEN_PLACEHOLDER", configManager.getConfig().getBotToken());
     }
     
     @Test
@@ -331,11 +331,11 @@ class DiscordConfigManagerTest {
         
         // Setup: Load configuration with token
         when(config.getConfigurationSection("discord")).thenReturn(discordSection);
-        when(discordSection.getString("bot-token", "")).thenReturn("test.bot.token");
+        when(discordSection.getString("bot-token", "")).thenReturn("TEST_BOT_TOKEN_PLACEHOLDER");
         configManager.loadConfiguration();
         
         // Test token retrieval
-        assertEquals("test.bot.token", configManager.getBotToken());
+        assertEquals("TEST_BOT_TOKEN_PLACEHOLDER", configManager.getBotToken());
     }
     
     @Test
@@ -400,11 +400,11 @@ class DiscordConfigManagerTest {
         assertNull(configManager.getBotToken());
         
         // Test with valid token
-        when(discordSection.getString("bot-token", "")).thenReturn("valid.bot.token.here");
+        when(discordSection.getString("bot-token", "")).thenReturn("VALID_BOT_TOKEN_PLACEHOLDER");
         configManager.loadConfiguration();
         
         // Should return the valid token
-        assertEquals("valid.bot.token.here", configManager.getBotToken());
+        assertEquals("VALID_BOT_TOKEN_PLACEHOLDER", configManager.getBotToken());
     }
     
     @Test
@@ -425,7 +425,7 @@ class DiscordConfigManagerTest {
         assertFalse(configManager.isConfigurationReady());
         
         // Test with valid configuration
-        when(discordSection.getString("bot-token", "")).thenReturn("MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz");
+        when(discordSection.getString("bot-token", "")).thenReturn("VALID_TOKEN_PLACEHOLDER_50_CHARS_LONG_FOR_TESTING_ONLY");
         configManager.loadConfiguration();
         // Note: This will still return false because validation will fail due to mocked dependencies
         // but the method logic is tested
@@ -440,7 +440,7 @@ class DiscordConfigManagerTest {
         // Test with loaded config
         when(config.getConfigurationSection("discord")).thenReturn(discordSection);
         when(discordSection.getBoolean("enabled", false)).thenReturn(true);
-        when(discordSection.getString("bot-token", "")).thenReturn("valid.token");
+        when(discordSection.getString("bot-token", "")).thenReturn("VALID_TOKEN_PLACEHOLDER");
         configManager.loadConfiguration();
         
         summary = configManager.getConfigurationSummary();
