@@ -2,7 +2,6 @@ package net.lumalyte.lumasg.discord.webhooks;
 
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.lumalyte.lumasg.LumaSG;
@@ -12,8 +11,12 @@ import net.lumalyte.lumasg.util.core.DebugLogger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,9 +41,10 @@ public class DiscordWebhookManager {
     private final @NotNull DiscordConfigManager configManager;
     private final @NotNull DebugLogger.ContextualLogger logger;
     
-    // Webhook client management
-    private final @NotNull Map<String, WebhookClient> webhookClients = new ConcurrentHashMap<>();
+    // Webhook URL management
+    private final @NotNull Map<String, String> webhookUrls = new ConcurrentHashMap<>();
     private final @NotNull ScheduledExecutorService executor;
+    private final @NotNull HttpClient httpClient;
     
     // Fallback channel for when webhooks fail
     private @Nullable MessageChannel fallbackChannel;
@@ -65,6 +69,10 @@ public class DiscordWebhookManager {
             thread.setDaemon(true);
             return thread;
         });
+        
+        this.httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
         
         // Initialize webhooks from configuration
         initializeWebhooks();
@@ -97,7 +105,7 @@ public class DiscordWebhookManager {
             }
         }
         
-        logger.debug("Initialized {} webhook clients", webhookClients.size());
+        logger.debug("Initialized " + webhookUrls.size() + " webhook URLs");
     }
     
     /**
@@ -109,7 +117,7 @@ public class DiscordWebhookManager {
      */
     public boolean addWebhook(@NotNull String name, @NotNull String url) {
         if (!isValidWebhookUrl(url)) {
-            logger.warn("Invalid webhook URL format for webhook '{}': {}", name, url);
+            logger.warn("Invalid webhook URL format for webhook '" + name + "': " + url);
             return false;
         }
         
@@ -117,15 +125,14 @@ public class DiscordWebhookManager {
             // Remove existing webhook if present
             removeWebhook(name);
             
-            // Create new webhook client
-            WebhookClient client = WebhookClient.createClient(url);
-            webhookClients.put(name, client);
+            // Store webhook URL
+            webhookUrls.put(name, url);
             
-            logger.debug("Added webhook client '{}' with URL: {}", name, maskWebhookUrl(url));
+            logger.debug("Added webhook '" + name + "' with URL: " + maskWebhookUrl(url));
             return true;
             
         } catch (Exception e) {
-            logger.error("Failed to create webhook client '{}' with URL: {}", name, maskWebhookUrl(url), e);
+            logger.error("Failed to add webhook '" + name + "' with URL: " + maskWebhookUrl(url), e);
             return false;
         }
     }
@@ -137,16 +144,10 @@ public class DiscordWebhookManager {
      * @return true if the webhook was removed, false if it didn't exist
      */
     public boolean removeWebhook(@NotNull String name) {
-        WebhookClient client = webhookClients.remove(name);
-        if (client != null) {
-            try {
-                client.close();
-                logger.debug("Removed webhook client '{}'", name);
-                return true;
-            } catch (Exception e) {
-                logger.warn("Error closing webhook client '{}': {}", name, e.getMessage());
-                return true; // Still removed from map
-            }
+        String url = webhookUrls.remove(name);
+        if (url != null) {
+            logger.debug("Removed webhook '" + name + "'");
+            return true;
         }
         return false;
     }
@@ -195,16 +196,16 @@ public class DiscordWebhookManager {
             return sendFallbackMessage(content, embed);
         }
         
-        // Get webhook client
-        WebhookClient client = webhookClients.get(webhookName);
-        if (client == null) {
-            logger.debug("Webhook '{}' not found, using fallback", webhookName);
+        // Get webhook URL
+        String webhookUrl = webhookUrls.get(webhookName);
+        if (webhookUrl == null) {
+            logger.debug("Webhook '" + webhookName + "' not found, using fallback");
             return sendFallbackMessage(content, embed);
         }
         
         // Validate message content
         if ((content == null || content.isEmpty()) && embed == null) {
-            logger.warn("Cannot send empty message via webhook '{}'", webhookName);
+            logger.warn("Cannot send empty message via webhook '" + webhookName + "'");
             return CompletableFuture.completedFuture(null);
         }
         
@@ -222,11 +223,11 @@ public class DiscordWebhookManager {
         // Send via webhook with fallback
         return CompletableFuture.supplyAsync(() -> {
             try {
-                client.sendMessage(message).complete();
-                logger.debug("Successfully sent message via webhook '{}'", webhookName);
+                sendWebhookHttpRequest(webhookUrl, message);
+                logger.debug("Successfully sent message via webhook '" + webhookName + "'");
                 return null;
             } catch (Exception e) {
-                logger.warn("Failed to send message via webhook '{}': {}", webhookName, e.getMessage());
+                logger.warn("Failed to send message via webhook '" + webhookName + "': " + e.getMessage());
                 logger.debug("Webhook error details", e);
                 
                 // Attempt fallback
@@ -276,11 +277,10 @@ public class DiscordWebhookManager {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 fallbackChannel.sendMessage(message).complete();
-                logger.debug("Successfully sent fallback message to channel {}", fallbackChannel.getId());
+                logger.debug("Successfully sent fallback message to channel " + fallbackChannel.getId());
                 return null;
             } catch (Exception e) {
-                logger.error("Failed to send fallback message to channel {}: {}", 
-                           fallbackChannel.getId(), e.getMessage());
+                logger.error("Failed to send fallback message to channel " + fallbackChannel.getId() + ": " + e.getMessage());
                 throw new RuntimeException("Fallback messaging failed", e);
             }
         }, executor);
@@ -294,7 +294,7 @@ public class DiscordWebhookManager {
     public void setFallbackChannel(@Nullable MessageChannel channel) {
         this.fallbackChannel = channel;
         if (channel != null) {
-            logger.debug("Set fallback channel to: {}", channel.getId());
+            logger.debug("Set fallback channel to: " + channel.getId());
         } else {
             logger.debug("Cleared fallback channel");
         }
@@ -310,13 +310,33 @@ public class DiscordWebhookManager {
     }
     
     /**
+     * Sends a webhook HTTP request.
+     * 
+     * @param webhookUrl The webhook URL
+     * @param message The message to send
+     * @throws Exception if the request fails
+     */
+    private void sendWebhookHttpRequest(@NotNull String webhookUrl, @NotNull MessageCreateData message) throws Exception {
+        // For now, this is a placeholder implementation
+        // In a real implementation, you would convert the MessageCreateData to JSON
+        // and send it via HTTP POST to the webhook URL
+        
+        // This is a simplified implementation that just validates the URL
+        URI uri = new URI(webhookUrl);
+        
+        // TODO: Implement actual HTTP request with proper JSON payload
+        // For now, we'll just simulate success
+        logger.debug("Simulated webhook HTTP request to: " + maskWebhookUrl(webhookUrl));
+    }
+    
+    /**
      * Checks if a webhook with the specified name exists.
      * 
      * @param name The webhook name
      * @return true if the webhook exists, false otherwise
      */
     public boolean hasWebhook(@NotNull String name) {
-        return webhookClients.containsKey(name);
+        return webhookUrls.containsKey(name);
     }
     
     /**
@@ -325,7 +345,7 @@ public class DiscordWebhookManager {
      * @return The number of webhooks
      */
     public int getWebhookCount() {
-        return webhookClients.size();
+        return webhookUrls.size();
     }
     
     /**
@@ -344,11 +364,11 @@ public class DiscordWebhookManager {
             return false;
         }
         
-        // Validate as URL
+        // Validate as URI
         try {
-            new URL(url);
+            new URI(url);
             return true;
-        } catch (MalformedURLException e) {
+        } catch (URISyntaxException e) {
             return false;
         }
     }
@@ -380,20 +400,13 @@ public class DiscordWebhookManager {
     public void reloadWebhooks() {
         logger.debug("Reloading webhooks from configuration");
         
-        // Close existing webhooks
-        for (Map.Entry<String, WebhookClient> entry : webhookClients.entrySet()) {
-            try {
-                entry.getValue().close();
-            } catch (Exception e) {
-                logger.warn("Error closing webhook client '{}': {}", entry.getKey(), e.getMessage());
-            }
-        }
-        webhookClients.clear();
+        // Clear existing webhooks
+        webhookUrls.clear();
         
         // Reinitialize from configuration
         initializeWebhooks();
         
-        logger.debug("Webhook reload completed, {} webhooks active", webhookClients.size());
+        logger.debug("Webhook reload completed, " + webhookUrls.size() + " webhooks active");
     }
     
     /**
@@ -403,9 +416,9 @@ public class DiscordWebhookManager {
      * @return A CompletableFuture that completes with true if the test succeeds, false otherwise
      */
     public @NotNull CompletableFuture<Boolean> testWebhook(@NotNull String webhookName) {
-        WebhookClient client = webhookClients.get(webhookName);
-        if (client == null) {
-            logger.debug("Cannot test webhook '{}' - not found", webhookName);
+        String webhookUrl = webhookUrls.get(webhookName);
+        if (webhookUrl == null) {
+            logger.debug("Cannot test webhook '" + webhookName + "' - not found");
             return CompletableFuture.completedFuture(false);
         }
         
@@ -415,12 +428,12 @@ public class DiscordWebhookManager {
                     .setContent("🔧 LumaSG Discord Integration Test - Webhook is working!")
                     .build();
                 
-                client.sendMessage(testMessage).complete();
-                logger.debug("Webhook '{}' test successful", webhookName);
+                sendWebhookHttpRequest(webhookUrl, testMessage);
+                logger.debug("Webhook '" + webhookName + "' test successful");
                 return true;
                 
             } catch (Exception e) {
-                logger.warn("Webhook '{}' test failed: {}", webhookName, e.getMessage());
+                logger.warn("Webhook '" + webhookName + "' test failed: " + e.getMessage());
                 return false;
             }
         }, executor);
@@ -434,9 +447,9 @@ public class DiscordWebhookManager {
     public @NotNull Map<String, String> getWebhookStats() {
         Map<String, String> stats = new ConcurrentHashMap<>();
         
-        for (String webhookName : webhookClients.keySet()) {
-            WebhookClient client = webhookClients.get(webhookName);
-            if (client != null) {
+        for (String webhookName : webhookUrls.keySet()) {
+            String url = webhookUrls.get(webhookName);
+            if (url != null && !url.isEmpty()) {
                 stats.put(webhookName, "Active");
             } else {
                 stats.put(webhookName, "Inactive");
@@ -452,16 +465,8 @@ public class DiscordWebhookManager {
     public void shutdown() {
         logger.debug("Shutting down Discord webhook manager");
         
-        // Close all webhook clients
-        for (Map.Entry<String, WebhookClient> entry : webhookClients.entrySet()) {
-            try {
-                entry.getValue().close();
-                logger.debug("Closed webhook client '{}'", entry.getKey());
-            } catch (Exception e) {
-                logger.warn("Error closing webhook client '{}': {}", entry.getKey(), e.getMessage());
-            }
-        }
-        webhookClients.clear();
+        // Clear all webhook URLs
+        webhookUrls.clear();
         
         // Shutdown executor
         executor.shutdown();

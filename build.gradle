@@ -49,6 +49,9 @@ dependencies {
     compileOnly 'com.nexomc:nexo:1.8.0'
 
     compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // Discord integration
+    compileOnly 'net.dv8tion:JDA:5.6.1'
 
     // Runtime-loaded dependencies (loaded by LumaSGLibraryLoader)
     // These are loaded at runtime by Paper's library system, reducing JAR size
