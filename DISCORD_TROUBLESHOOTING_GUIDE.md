@@ -81,7 +81,7 @@ If any of these fail, use the detailed troubleshooting sections below.
 ```yaml
 discord:
   enabled: true  # Must be true
-  bot-token: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+  bot-token: "YOUR_BOT_TOKEN_HERE"
   
   connection:
     reconnect-attempts: 5

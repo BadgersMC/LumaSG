@@ -445,7 +445,7 @@ debug:
 ```yaml
 discord:
   enabled: true
-  bot-token: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+  bot-token: "YOUR_BOT_TOKEN_HERE"
   
   channels:
     game-announcements: "123456789012345678"
@@ -468,7 +468,7 @@ discord:
 ```yaml
 discord:
   enabled: true
-  bot-token: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+  bot-token: "YOUR_BOT_TOKEN_HERE"
   
   connection:
     reconnect-attempts: 3

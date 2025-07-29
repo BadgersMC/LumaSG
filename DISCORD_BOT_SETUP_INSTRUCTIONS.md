@@ -231,7 +231,7 @@ This guide walks you through creating and configuring a Discord bot for LumaSG i
      enabled: true
      
      # Your bot token (keep secure!)
-     bot-token: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+     bot-token: "YOUR_BOT_TOKEN_HERE"
      
      # Channel configuration (use your channel IDs)
      channels:

@@ -29,7 +29,7 @@ Security is paramount when integrating Discord with your Minecraft server. This 
 ```yaml
 # config.yml - Acceptable for development
 discord:
-  bot-token: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+  bot-token: "YOUR_BOT_TOKEN_HERE"
 ```
 
 **File Permissions:**
