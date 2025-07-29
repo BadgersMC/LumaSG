@@ -49,7 +49,7 @@ discord:
 **Environment Variable Setup:**
 ```bash
 # In server startup script or systemd service
-export DISCORD_BOT_TOKEN="MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+export DISCORD_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
 ```
 
 #### Docker Environment

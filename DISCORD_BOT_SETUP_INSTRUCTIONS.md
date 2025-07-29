@@ -68,7 +68,7 @@ This guide walks you through creating and configuring a Discord bot for LumaSG i
 
 3. **Example Token Format**
    ```
-   MTIzNDU2Nzg5MDEyMzQ1Njc4.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx
+   YOUR_BOT_TOKEN_HERE
    ```
 
 ### Step 4: Configure Bot Permissions
