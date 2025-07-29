@@ -45,7 +45,7 @@ game:
 arena:
   default-radius: 200
   default-max-players: 24
-  default-min-players: 2
+  default-min-players: 1
   auto-save: true
   save-delay-seconds: 3  # Delay before saving arena changes (prevents excessive saves)
 
