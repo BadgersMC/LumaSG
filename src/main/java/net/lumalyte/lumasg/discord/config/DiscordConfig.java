@@ -317,9 +317,9 @@ public class DiscordConfig {
         }
         
         // Check for common placeholder values
-        return !botToken.equals("YOUR_BOT_TOKEN_HERE") && 
-               !botToken.equals("your_bot_token_here") &&
-               !botToken.equals("REPLACE_WITH_YOUR_TOKEN") &&
+        return !botToken.contains("DISCORD_BOT_TOKEN") && 
+               !botToken.contains("REPLACE_WITH_YOUR_TOKEN") &&
+               !botToken.isEmpty() &&
                botToken.length() >= 50; // Discord bot tokens are typically 59+ characters
     }
     

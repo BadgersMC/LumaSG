@@ -95,8 +95,8 @@ public class DiscordConfigValidator {
             return;
         }
         
-        if (botToken.equals("YOUR_BOT_TOKEN_HERE")) {
-            result.addError("Discord bot token is using default placeholder value");
+        if (botToken.contains("DISCORD_BOT_TOKEN") || botToken.isEmpty()) {
+            result.addError("Discord bot token is using default placeholder value or is empty");
             return;
         }
         

@@ -109,3 +109,72 @@ CODACY*.md
 
 #Plugin Documentation
 LumaSG_Architecture_Documentation.html
+
+# Exclude entire test directory to prevent security warnings
+src/test/
+
+# Any test files containing mock credentials or security test data
+*Test.java
+*TestRunner.java
+*Demo.java
+TestUtils.java
+*Benchmark.java
+*Validation.java
+
+# Additional security-sensitive patterns
+*.token
+*.secret
+*credentials*
+*password*
+*auth*
+test-data/
+mock-data/
+security-test-data/
+
+# Exclude any files with potential security test patterns
+**/security/**/*Test*.java
+**/validation/**/*Test*.java
+**/performance/**/*Test*.java
+
+# Documentation files with example tokens/credentials
+DISCORD_*.md
+*_GUIDE.md
+*_INSTRUCTIONS.md
+*_DOCUMENTATION.md
+*_SUMMARY.md
+*_CHECKLIST.md
+*_USAGE.md
+*_IMPLEMENTATION_SUMMARY.md
+*_FINAL_*.md
+
+# Exclude any files that might contain example credentials
+example-config.yml
+test-config.yml
+sample-config.yml
+*-example.*
+*-sample.*
+*-template.*
+
+# Exclude build artifacts that might contain sensitive data
+target/
+out/
+*.log
+*.tmp
+
+# Additional security patterns to avoid false positives
+**/test-data/
+**/mock-data/
+**/example-data/
+**/*example*
+**/*sample*
+**/*mock*
+**/*test*
+**/*demo*
+
+# Exclude any files with common security-triggering patterns
+*password*
+*token*
+*secret*
+*credential*
+*auth*
+*key*

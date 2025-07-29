@@ -317,7 +317,7 @@ public class DiscordConfigManager {
         String token = config.getBotToken();
         
         // Additional security: Never return placeholder tokens
-        if (token != null && (token.equals("YOUR_BOT_TOKEN_HERE") || token.isEmpty())) {
+        if (token != null && (token.contains("DISCORD_BOT_TOKEN") || token.isEmpty())) {
             logger.warn("Bot token is not properly configured - using placeholder or empty value");
             return null;
         }

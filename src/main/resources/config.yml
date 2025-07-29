@@ -52,7 +52,7 @@ arena:
 # Discord Integration Settings
 discord:
   enabled: false
-  bot-token: "YOUR_BOT_TOKEN_HERE"
+  bot-token: "${DISCORD_BOT_TOKEN:}"
   
   # Connection settings
   connection:
@@ -299,7 +299,7 @@ database:
   port: 5432  # 5432 for PostgreSQL, 3306 for MySQL
   database: "lumasg"
   username: "lumasg"
-  password: "your_password_here"
+  password: "${DB_PASSWORD:changeme}"
   
   # Connection pool settings (HikariCP)
   pool:
@@ -356,7 +356,7 @@ discord:
   enabled: false
   
   # Bot token (keep this secure and never share it)
-  bot-token: "YOUR_BOT_TOKEN_HERE"
+  bot-token: "${DISCORD_BOT_TOKEN:}"
   
   # Connection settings
   connection:
