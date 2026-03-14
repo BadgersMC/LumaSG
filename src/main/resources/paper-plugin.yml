@@ -1,40 +1,30 @@
 name: LumaSG
 version: '${version}'
-main: net.lumalyte.lumasg.LumaSG
-description: ${description}
+main: net.lumalyte.lumasg.LumaSGPlugin
 api-version: '1.21'
-authors: [BadgersMC]
 load: POSTWORLD
-bootstrapper: net.lumalyte.lumasg.LumaSGBootstrap
-loader: net.lumalyte.lumasg.LumaSGLibraryLoader
-website: https://github.com/BadgersMC/LumaSG
-dependencies:
-  server:
-    AuraSkills:
-      required: false
-      load: BEFORE
-      join-classpath: true
-    Nexo:
-      required: false
-      load: BEFORE
-      join-classpath: true
-    PlaceholderAPI:
-      required: false
-      load: BEFORE
-    Kingdoms:
-      required: false
-      load: BEFORE
-      join-classpath: true
+authors:
+  - BadgersMC
+
 permissions:
   lumasg.admin:
-    description: Allows access to all admin commands
+    description: Access to admin commands
     default: op
   lumasg.play:
-    description: Allows access to all player commands
+    description: Access to player commands
     default: true
   lumasg.*:
-    description: Allows access to all commands
+    description: All permissions
     default: op
     children:
       lumasg.admin: true
-      lumasg.play: true 
+      lumasg.play: true
+
+dependencies:
+  server:
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+    Nexo:
+      load: BEFORE
+      required: false
