@@ -21,7 +21,7 @@ repositories {
 
 dependencies {
     // Platform
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
     // Nexus DI + coroutines (local Maven)
     implementation("net.badgersmc:nexus-core:1.5.3")
