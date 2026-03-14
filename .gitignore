@@ -181,7 +181,7 @@ out/
 
 
 #Ignore vscode AI rules
-.github\instructions\codacy.instructions.md
+.github/instructions/codacy.instructions.md
 .worktrees/
 
 # Re-include Kotlin test sources (the broad **/*test* pattern above is too aggressive)

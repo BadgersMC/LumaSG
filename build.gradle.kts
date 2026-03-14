@@ -10,13 +10,13 @@ group = "net.lumalyte"
 version = "2.0.0-SNAPSHOT"
 
 repositories {
-    mavenLocal() // nexus-core, nexus-paper
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.xenondevs.xyz/releases") // InvUI
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     maven("https://jitpack.io")
     maven("https://repo.nexomc.com/releases/")
+    mavenLocal() // nexus-core, nexus-paper (not yet published to remote)
 }
 
 dependencies {
