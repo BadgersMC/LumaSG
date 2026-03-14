@@ -20,8 +20,12 @@ class LumaSGPlugin : JavaPlugin() {
         nexus = NexusContext.create(
             basePackage = "net.lumalyte.lumasg",
             classLoader = this::class.java.classLoader,
+            configDirectory = dataFolder.toPath(),
             contextName = "lumasg",
-            externalBeans = mapOf("plugin" to this)
+            externalBeans = mapOf(
+                "plugin" to this,
+                "bukkitDispatcher" to bukkitDispatcher
+            )
         )
 
         nexus.registerPaperCommands(
