@@ -56,6 +56,7 @@ dependencies {
     compileOnly("com.nexomc:nexo:1.8.0")
 
     // Testing
+    testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testImplementation("com.github.seeseemelk:MockBukkit-v1.21:3.127.0")
     testImplementation("io.mockk:mockk:1.13.10")
@@ -73,6 +74,12 @@ tasks.withType<ShadowJar> {
     relocate("xyz.xenondevs", "net.lumalyte.lumasg.shaded.invui")
     relocate("com.zaxxer.hikari", "net.lumalyte.lumasg.shaded.hikari")
     relocate("org.jetbrains.exposed", "net.lumalyte.lumasg.shaded.exposed")
+}
+
+sourceSets {
+    test {
+        java.setSrcDirs(emptyList<File>()) // exclude legacy Java tests; new tests are in src/test/kotlin
+    }
 }
 
 tasks.test {
