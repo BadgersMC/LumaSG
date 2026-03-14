@@ -1,14 +1,26 @@
 package net.lumalyte.lumasg.game
 
 import kotlinx.coroutines.*
+import net.badgersmc.nexus.paper.BukkitDispatcher
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.discord.DiscordService
+import net.lumalyte.lumasg.discord.GameEmbed
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
-import net.lumalyte.lumasg.persistence.repositories.PlayerStatsRepository
-import net.badgersmc.nexus.paper.BukkitDispatcher
+import net.lumalyte.lumasg.statistics.StatisticsService
+import org.bukkit.Bukkit
+import org.bukkit.Sound
 import org.bukkit.entity.Player
+import org.bukkit.plugin.Plugin
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+private val mm = MiniMessage.miniMessage()
 
 /**
  * A single game instance.
@@ -25,7 +37,11 @@ class Game(
     val mode: GameMode,
     parentScope: CoroutineScope,
     private val bukkitDispatcher: BukkitDispatcher,
-    private val statsRepo: PlayerStatsRepository
+    private val statisticsService: StatisticsService,
+    private val playerStateManager: PlayerStateManager,
+    private val config: LumaSGConfig,
+    private val discordService: DiscordService?,
+    private val plugin: Plugin
 ) {
     /** Child scope — supervised so game failure doesn't kill the plugin scope. */
     val scope = CoroutineScope(
@@ -37,27 +53,50 @@ class Game(
     private val _players = ConcurrentHashMap<UUID, GamePlayer>()
     val players: Map<UUID, GamePlayer> get() = _players
 
+    private val spectators = ConcurrentHashMap.newKeySet<UUID>()
+
     var phase: GamePhase = GamePhase.Waiting
         private set
+
+    private var startTime: Instant = Instant.now()
 
     val alivePlayers: List<GamePlayer>
         get() = _players.values.filter { it.isAlive }
 
-    // ─── Player management ─────────────────────────────────────────────────
+    internal val worldManager = WorldManager(arena, config)
+    private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher)
+
+    // ── Player management ─────────────────────────────────────────────────
 
     fun addPlayer(player: Player) {
+        val spawn = arena.spawnPoints.getOrNull(_players.size)?.toBukkit()
+            ?: arena.center.toBukkit()
+            ?: player.location
+        playerStateManager.saveAndPrepare(player, spawn)
         _players[player.uniqueId] = player.toGamePlayer()
+        scoreboard.addPlayer(player)
     }
 
     fun removePlayer(uuid: UUID) {
         _players.remove(uuid)
+        spectators.remove(uuid)
+        Bukkit.getPlayer(uuid)?.let { p ->
+            scoreboard.removePlayer(p)
+            playerStateManager.restore(p)
+        }
     }
 
     fun eliminate(uuid: UUID) {
         _players[uuid]?.isAlive = false
+        spectators.add(uuid)
+        Bukkit.getPlayer(uuid)?.let { p ->
+            playerStateManager.makeSpectator(p)
+        }
     }
 
-    // ─── Lifecycle ─────────────────────────────────────────────────────────
+    private fun allParticipants(): Collection<UUID> = _players.keys + spectators
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────
 
     /** Launch the full game lifecycle as a coroutine on the game scope. */
     fun launch() {
@@ -66,12 +105,24 @@ class Game(
 
     private suspend fun runLifecycle() {
         try {
+            withContext(bukkitDispatcher) {
+                worldManager.setup()
+                scoreboard.start()
+                discordService?.announce(
+                    GameEmbed.gameStarted(arena.name, players.size, mode.displayName)
+                )
+            }
+
             runCountdown()
+
+            withContext(bukkitDispatcher) { worldManager.removeBarriers() }
             runGracePhase()
             runActivePhase()
             runDeathmatch()
+
+        } catch (e: GameEndSignal) {
+            withContext(NonCancellable) { endGame(e.winner) }
         } catch (e: CancellationException) {
-            // Scope was cancelled externally (e.g. server shutdown) — clean up gracefully
             withContext(NonCancellable) { cleanup() }
         } catch (e: Exception) {
             withContext(NonCancellable) { cleanup() }
@@ -80,90 +131,146 @@ class Game(
     }
 
     private suspend fun runCountdown() {
-        phase = GamePhase.Countdown
-        for (i in 10 downTo 1) {
-            withContext(bukkitDispatcher) { broadcastCountdown(i) }
-            delay(1_000)
-        }
-    }
-
-    private suspend fun runGracePhase() {
-        val config = 60 // seconds — injected via config in real impl
-        phase = GamePhase.Grace(config)
-        for (i in config downTo 1) {
-            phase = GamePhase.Grace(i)
-            if (i == 30 || i == 10 || i <= 5) {
-                withContext(bukkitDispatcher) { broadcastGraceWarning(i) }
+        for (i in config.countdownSeconds downTo 1) {
+            phase = GamePhase.Countdown(i)
+            if (i <= 5 || i == 10 || i == 30) {
+                withContext(bukkitDispatcher) { broadcastCountdown(i) }
             }
             delay(1_000)
         }
     }
 
+    private suspend fun runGracePhase() {
+        startTime = Instant.now()
+        for (i in config.gracePeriodSeconds downTo 1) {
+            phase = GamePhase.Grace(i)
+            if (i == 30 || i == 10 || i <= 5) {
+                withContext(bukkitDispatcher) { broadcastGraceWarning(i) }
+            }
+            checkWinCondition()
+            delay(1_000)
+        }
+    }
+
     private suspend fun runActivePhase() {
-        val config = 600 // 10 minutes
-        for (i in config downTo 1) {
+        val totalSeconds = config.maxGameMinutes * 60
+        for (i in totalSeconds downTo 1) {
             phase = GamePhase.Active(i)
             checkWinCondition()
             delay(1_000)
         }
+        // Time's up — force deathmatch
     }
 
     private suspend fun runDeathmatch() {
-        phase = GamePhase.Deathmatch(120)
+        withContext(bukkitDispatcher) { worldManager.setupDeathmatch() }
         coroutineScope {
-            launch { shrinkBorder() }
             launch { runDeathmatchTimer() }
         }
     }
 
-    private suspend fun shrinkBorder() {
-        val steps = 120
-        repeat(steps) {
-            withContext(bukkitDispatcher) { updateWorldBorder(it, steps) }
-            delay(1_000)
-        }
-    }
-
     private suspend fun runDeathmatchTimer() {
-        for (i in 120 downTo 1) {
+        val dmSeconds = config.worldBorder.shrinkDurationSeconds.toInt()
+        for (i in dmSeconds downTo 1) {
             phase = GamePhase.Deathmatch(i)
             checkWinCondition()
             delay(1_000)
         }
-        endGame(winner = null)
+        throw GameEndSignal(winner = null)
     }
 
     private suspend fun checkWinCondition() {
         val alive = alivePlayers
         if (alive.size <= 1) {
-            endGame(winner = alive.firstOrNull()?.uuid)
+            throw GameEndSignal(winner = alive.firstOrNull()?.uuid)
         }
     }
 
     private suspend fun endGame(winner: UUID?) {
         phase = GamePhase.Ended(winner)
+
+        runCelebration(winner, allParticipants(), plugin, bukkitDispatcher)
+
         withContext(bukkitDispatcher) {
-            broadcastWinner(winner)
-            teleportPlayersToLobby()
+            restoreAllPlayers()
+            worldManager.cleanup()
+            scoreboard.resetAll()
+            discordService?.announce(
+                GameEmbed.gameEnded(
+                    winner = winner?.let { Bukkit.getOfflinePlayer(it).name },
+                    arena = arena.name,
+                    duration = formatDuration(startTime)
+                )
+            )
         }
-        persistStats()
+        persistStats(winner)
         scope.cancel("Game ended")
     }
 
-    private suspend fun persistStats() {
-        // Persist per-game stats for all players — runs on IO dispatcher via dbQuery
-        _players.values.forEach { _ -> }
-    }
-
     private suspend fun cleanup() {
-        withContext(bukkitDispatcher) { teleportPlayersToLobby() }
+        withContext(bukkitDispatcher) {
+            restoreAllPlayers()
+            worldManager.cleanup()
+            scoreboard.resetAll()
+        }
     }
 
-    // ─── Bukkit API calls (only called via withContext(bukkitDispatcher)) ──
+    private suspend fun persistStats(winner: UUID?) {
+        statisticsService.recordGameEnd(this, winner)
+    }
 
-    private fun broadcastCountdown(seconds: Int) { /* player.sendMessage() calls */ }
-    private fun broadcastGraceWarning(seconds: Int) { /* player.sendMessage() calls */ }
-    private fun updateWorldBorder(step: Int, totalSteps: Int) { /* world.worldBorder calls */ }
-    private fun broadcastWinner(winner: UUID?) { /* broadcast message */ }
-    private fun teleportPlayersToLobby() { /* player.teleport() calls */ }
+    private fun formatDuration(since: Instant): String {
+        val d = Duration.between(since, Instant.now())
+        val m = d.toMinutes()
+        val s = d.seconds % 60
+        return "${m}m ${s}s"
+    }
+
+    // ── Bukkit API calls (always called via withContext(bukkitDispatcher)) ──
+
+    private fun broadcastCountdown(seconds: Int) {
+        val msg = if (seconds <= 5) {
+            mm.deserialize("<gold>Game starting in <yellow><bold>$seconds</bold><gold>!")
+        } else {
+            mm.deserialize("<yellow>Game starting in <white>$seconds<yellow> seconds.")
+        }
+        broadcast(msg)
+        allParticipants().forEach { uuid ->
+            Bukkit.getPlayer(uuid)?.let { p ->
+                p.playSound(
+                    p.location,
+                    if (seconds <= 5) Sound.BLOCK_NOTE_BLOCK_PLING else Sound.UI_BUTTON_CLICK,
+                    1f, if (seconds <= 5) 1.5f else 1f
+                )
+            }
+        }
+    }
+
+    private fun broadcastGraceWarning(seconds: Int) {
+        broadcast(mm.deserialize("<green>Grace period ends in <white>$seconds<green> seconds!"))
+    }
+
+    fun broadcastDeathMessage(victim: Player, killer: Player?) {
+        val msg = deathMessage(victim, killer)
+        broadcast(msg)
+        killer?.let { k ->
+            val gp = _players[k.uniqueId]
+            k.sendMessage(killNotification(victim, gp?.kills ?: 0))
+        }
+    }
+
+    private fun broadcast(msg: Component) {
+        for (uuid in allParticipants()) {
+            Bukkit.getPlayer(uuid)?.sendMessage(msg)
+        }
+    }
+
+    private fun restoreAllPlayers() {
+        for (uuid in _players.keys + spectators) {
+            Bukkit.getPlayer(uuid)?.let { playerStateManager.restore(it) }
+        }
+    }
 }
+
+/** Thrown from within the lifecycle coroutines to signal normal game end. */
+private class GameEndSignal(val winner: UUID?) : Exception()

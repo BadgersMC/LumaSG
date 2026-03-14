@@ -3,9 +3,12 @@ package net.lumalyte.lumasg.game
 import kotlinx.coroutines.CoroutineScope
 import net.badgersmc.nexus.annotations.Service
 import net.badgersmc.nexus.paper.BukkitDispatcher
+import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.discord.DiscordService
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
-import net.lumalyte.lumasg.persistence.repositories.PlayerStatsRepository
+import net.lumalyte.lumasg.statistics.StatisticsService
+import org.bukkit.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -14,7 +17,11 @@ import java.util.concurrent.ConcurrentHashMap
 class GameManager(
     private val nexusScope: CoroutineScope,
     private val bukkitDispatcher: BukkitDispatcher,
-    private val statsRepo: PlayerStatsRepository
+    private val statisticsService: StatisticsService,
+    private val playerStateManager: PlayerStateManager,
+    private val config: LumaSGConfig,
+    private val discordService: DiscordService?,
+    private val plugin: Plugin
 ) {
     private val logger = LoggerFactory.getLogger(GameManager::class.java)
     private val activeGames = ConcurrentHashMap<UUID, Game>()
@@ -29,7 +36,11 @@ class GameManager(
             mode = mode,
             parentScope = nexusScope,
             bukkitDispatcher = bukkitDispatcher,
-            statsRepo = statsRepo
+            statisticsService = statisticsService,
+            playerStateManager = playerStateManager,
+            config = config,
+            discordService = discordService,
+            plugin = plugin
         )
         activeGames[game.id] = game
         game.launch()

@@ -102,7 +102,7 @@ class GameScoreboard(
         val totalCount = game.players.size
 
         val timeStr = when (phase) {
-            is GamePhase.Countdown -> "§eStarting..."
+            is GamePhase.Countdown -> "§eStarting in §f${phase.secondsLeft}s"
             is GamePhase.Grace     -> "§aGrace: §f${formatTime(phase.secondsRemaining)}"
             is GamePhase.Active    -> "§fTime: §e${formatTime(phase.secondsRemaining)}"
             is GamePhase.Deathmatch -> "§cDeathmatch: §f${formatTime(phase.secondsRemaining)}"
