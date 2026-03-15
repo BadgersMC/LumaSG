@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.chest.items
+package net.lumalyte.lumasg.items
 
 import org.bukkit.Material
 import org.bukkit.NamespacedKey

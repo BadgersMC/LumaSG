@@ -2,7 +2,7 @@ package net.lumalyte.lumasg.listeners
 
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
-import net.lumalyte.lumasg.chest.items.CustomItem
+import net.lumalyte.lumasg.items.CustomItem
 import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.Color
 import org.bukkit.Location

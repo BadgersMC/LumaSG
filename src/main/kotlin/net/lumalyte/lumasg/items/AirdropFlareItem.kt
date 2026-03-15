@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.chest.items
+package net.lumalyte.lumasg.items
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

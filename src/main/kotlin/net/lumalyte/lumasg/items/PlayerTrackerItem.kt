@@ -1,4 +1,4 @@
-package net.lumalyte.lumasg.chest.items
+package net.lumalyte.lumasg.items
 
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.PreDestroy
