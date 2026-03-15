@@ -6,13 +6,18 @@ import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.Material
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.Particle
 import org.bukkit.Sound
+import org.bukkit.entity.Player
 import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.EventPriority
 import org.bukkit.event.block.Action
 import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.plugin.Plugin
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 
 @Service
 class ChestListener(
@@ -53,5 +58,25 @@ class ChestListener(
             }
         }
         center.world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f)
+    }
+
+    @EventHandler
+    fun onPoisonBombHit(event: ProjectileHitEvent) {
+        val projectile = event.entity
+        if (!projectile.hasMetadata("lumasg_poison_bomb")) return
+
+        val shooterUuid = (projectile.shooter as? Player)?.uniqueId
+        val loc = projectile.location
+
+        // Apply Poison II to nearby players within 5 blocks (not the shooter)
+        loc.world.getNearbyEntities(loc, 5.0, 5.0, 5.0)
+            .filterIsInstance<Player>()
+            .filter { it.uniqueId != shooterUuid }
+            .forEach { target ->
+                target.addPotionEffect(PotionEffect(PotionEffectType.POISON, 100, 1))
+            }
+
+        loc.world.spawnParticle(Particle.SPLASH, loc, 40, 2.0, 2.0, 2.0)
+        loc.world.playSound(loc, Sound.ENTITY_SPLASH_POTION_BREAK, 1f, 0.8f)
     }
 }

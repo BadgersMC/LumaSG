@@ -3,18 +3,16 @@ package net.lumalyte.lumasg.chest.items
 import net.badgersmc.nexus.annotations.Service
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
-import org.bukkit.Particle
-import org.bukkit.Sound
 import org.bukkit.entity.Player
+import org.bukkit.entity.WindCharge
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
+import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.plugin.Plugin
-import org.bukkit.potion.PotionEffect
-import org.bukkit.potion.PotionEffectType
 
 @Service
 class PoisonBombItem(private val plugin: Plugin) : CustomItem {
-    override val material = Material.SPLASH_POTION
+    override val material = Material.WIND_CHARGE
     override val displayName = "§2Poison Bomb"
     override val key = NamespacedKey(plugin, "poison_bomb")
 
@@ -28,16 +26,10 @@ class PoisonBombItem(private val plugin: Plugin) : CustomItem {
     }
 
     override fun onUse(player: Player, item: ItemStack) {
-        val loc = player.eyeLocation.add(player.location.direction.multiply(2))
-        // Apply poison to players within 5 blocks
-        player.world.getNearbyEntities(loc, 5.0, 5.0, 5.0)
-            .filterIsInstance<Player>()
-            .filter { it.uniqueId != player.uniqueId }
-            .forEach { target ->
-                target.addPotionEffect(PotionEffect(PotionEffectType.POISON, 100, 1))
-            }
-        player.world.spawnParticle(Particle.SPLASH, loc, 30, 2.0, 2.0, 2.0)
-        player.world.playSound(loc, Sound.ENTITY_SPLASH_POTION_BREAK, 1f, 0.8f)
+        // Launch a wind charge projectile tagged for poison effect on impact
+        val charge = player.launchProjectile(WindCharge::class.java)
+        charge.velocity = player.location.direction.multiply(1.5)
+        charge.setMetadata("lumasg_poison_bomb", FixedMetadataValue(plugin, player.uniqueId.toString()))
         item.amount--
     }
 }
