@@ -28,10 +28,20 @@ class PlaceholderAPIHook(
 
             override fun onPlaceholderRequest(player: Player?, identifier: String): String? {
                 if (player == null) return null
+                val stats = statsService.getCachedPlayerStats(player.uniqueId) ?: return "0"
                 return when (identifier) {
-                    "kills" -> null // TODO: async — use cached value from statsService
-                    "wins" -> null  // TODO: async — use cached value from statsService
-                    "kdr" -> null   // TODO: async — use cached value from statsService
+                    "kills" -> stats.kills.toString()
+                    "deaths" -> stats.deaths.toString()
+                    "wins" -> stats.wins.toString()
+                    "losses" -> stats.losses.toString()
+                    "kdr" -> "%.2f".format(stats.kdr)
+                    "winrate" -> "%.1f".format(stats.winRate * 100)
+                    "games" -> stats.gamesPlayed.toString()
+                    "streak" -> stats.currentWinStreak.toString()
+                    "best_streak" -> stats.bestWinStreak.toString()
+                    "best_placement" -> stats.bestPlacement.toString()
+                    "chests" -> stats.chestsOpened.toString()
+                    "top3" -> stats.top3Finishes.toString()
                     else -> null
                 }
             }
