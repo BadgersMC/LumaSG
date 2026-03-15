@@ -18,10 +18,25 @@ data class LumaSGConfig(
     @Comment("Maximum game duration in minutes before deathmatch is forced")
     val maxGameMinutes: Int = 10,
     val worldBorder: WorldBorderConfig = WorldBorderConfig(),
+    val scoreboard: ScoreboardConfig = ScoreboardConfig(),
+    val rewards: RewardsConfig = RewardsConfig(),
     val database: DatabaseConfig = DatabaseConfig(),
     val discord: DiscordConfig = DiscordConfig(),
     val lobby: LobbyConfig = LobbyConfig()
 ) {
+    @Serializable
+    data class ScoreboardConfig(
+        val enabled: Boolean = true,
+        val title: String = "<gold><bold>Survival Games</bold></gold>"
+    )
+
+    @Serializable
+    data class RewardsConfig(
+        val enabled: Boolean = true,
+        @Comment("Command executed for the winner. Placeholders: <player>, <kills>")
+        val winCommand: String = ""
+    )
+
     @Serializable
     data class WorldBorderConfig(
         val initialRadius: Double = 500.0,
