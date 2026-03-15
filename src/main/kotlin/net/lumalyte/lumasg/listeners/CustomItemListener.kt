@@ -99,29 +99,15 @@ class CustomItemListener(
             }
         }
 
-        // Fire explosion particle effects
-        world.spawnParticle(Particle.EXPLOSION, center, 1)
+        // Molotov-style particle effects — fire and smoke, no explosion
         world.spawnParticle(Particle.FLAME, center, radius * 10,
             radius.toDouble(), 1.0, radius.toDouble(), 0.1)
         world.spawnParticle(Particle.LARGE_SMOKE, center, radius * 5,
             radius.toDouble(), 2.0, radius.toDouble(), 0.1)
 
-        // Visual debris — launch nearby block types as falling blocks
-        spawnVisualDebris(center, radius)
-
-        // Sounds
-        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1f, 0.8f)
+        // Sounds — fire woosh, no explosion
+        world.playSound(center, Sound.ITEM_FIRECHARGE_USE, 1.5f, 0.7f)
         world.playSound(center, Sound.BLOCK_FIRE_AMBIENT, 2f, 1f)
-
-        // Distance-based damage to nearby players (skip thrower)
-        world.getNearbyEntities(center, radius.toDouble(), radius.toDouble(), radius.toDouble())
-            .filterIsInstance<Player>()
-            .filter { it.uniqueId.toString() != throwerId }
-            .forEach { target ->
-                val distance = target.location.distance(center)
-                val damage = 4.0 * (1.0 - distance / radius)
-                if (damage > 0) target.damage(damage)
-            }
     }
 
     /**
@@ -148,6 +134,49 @@ class CustomItemListener(
             }
         }
         return locations
+    }
+
+    // ── Bomb: knockback explosion with visual debris, no fire ───────────────────
+
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onBombExplode(event: EntityExplodeEvent) {
+        val tnt = event.entity as? TNTPrimed ?: return
+        if (!tnt.hasMetadata("lumasg_bomb")) return
+
+        event.isCancelled = true
+        val center = event.location
+        val world = center.world
+        val throwerId = tnt.getMetadata("lumasg_bomb").firstOrNull()?.asString()
+        val radius = 5
+
+        // Visual debris — the main feature of the bomb
+        spawnVisualDebris(center, radius)
+
+        // Explosion particles and sounds
+        world.spawnParticle(Particle.EXPLOSION, center, 3, 1.0, 1.0, 1.0, 0.0)
+        world.spawnParticle(Particle.LARGE_SMOKE, center, 25, 2.0, 2.0, 2.0, 0.1)
+        world.spawnParticle(Particle.LAVA, center, 15, 1.5, 1.5, 1.5, 0.0)
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2f, 0.7f)
+        world.playSound(center, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 1.5f, 0.8f)
+
+        // Distance-based damage + knockback to nearby players (skip thrower)
+        world.getNearbyEntities(center, radius.toDouble(), radius.toDouble(), radius.toDouble())
+            .filterIsInstance<Player>()
+            .filter { it.uniqueId.toString() != throwerId }
+            .forEach { target ->
+                val distance = target.location.distance(center)
+                val multiplier = 1.0 - (distance / radius)
+                if (multiplier <= 0) return@forEach
+
+                // Damage scales with proximity (6.0 base at epicenter)
+                val damage = 6.0 * multiplier
+                target.damage(damage)
+
+                // Knockback — outward from center with upward component
+                val direction = target.location.toVector().subtract(center.toVector()).normalize()
+                val knockback = direction.multiply(1.5 * multiplier).setY(0.5 + 0.3 * multiplier)
+                target.velocity = target.velocity.add(knockback)
+            }
     }
 
     // ── Visual Debris: falling blocks that never actually place ────────────────
