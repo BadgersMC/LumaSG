@@ -33,7 +33,7 @@ class GameLifecycleTest {
     @Test
     fun `GamePhase sealed class covers all states`() {
         val waiting: GamePhase = GamePhase.Waiting
-        val countdown: GamePhase = GamePhase.Countdown
+        val countdown: GamePhase = GamePhase.Countdown(10)
         val grace: GamePhase = GamePhase.Grace(30)
         val active: GamePhase = GamePhase.Active(300)
         val deathmatch: GamePhase = GamePhase.Deathmatch(60)
