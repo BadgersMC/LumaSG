@@ -7,7 +7,9 @@ import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.statistics.StatisticsService
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.Plugin
@@ -26,13 +28,31 @@ class PlayerListener(
 
     @EventHandler
     fun onPlayerDeath(event: PlayerDeathEvent) {
+        event.deathMessage(null) // suppress default death message
         val game = gameManager.getGameForPlayer(event.entity.uniqueId) ?: return
+        val killer = event.damageSource.causingEntity as? Player
+
+        // Eliminate and track kill
         game.scope.launch {
             game.eliminate(event.entity.uniqueId)
-            val killer = event.damageSource.causingEntity as? Player ?: return@launch
-            statsService.recordKill(killer.uniqueId)
-            game.players[killer.uniqueId]?.also { it.kills++ }
+            killer?.let {
+                game.players[it.uniqueId]?.also { gp -> gp.kills++ }
+                statsService.recordKill(it.uniqueId)
+            }
         }
+
+        // Death message is broadcast on the main thread
+        game.broadcastDeathMessage(event.entity, killer)
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onDamage(event: EntityDamageByEntityEvent) {
+        val victim = event.entity as? Player ?: return
+        val attacker = event.damageSource.causingEntity as? Player ?: return
+        val game = gameManager.getGameForPlayer(victim.uniqueId) ?: return
+
+        game.players[victim.uniqueId]?.let { it.damageTaken += event.finalDamage }
+        game.players[attacker.uniqueId]?.let { it.damageDealt += event.finalDamage }
     }
 
     @EventHandler
