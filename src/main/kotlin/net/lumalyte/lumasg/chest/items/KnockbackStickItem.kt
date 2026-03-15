@@ -19,11 +19,13 @@ class KnockbackStickItem(private val plugin: Plugin) : CustomItem {
         val stack = ItemStack(material)
         val meta: ItemMeta = stack.itemMeta ?: return stack
         meta.setDisplayName(displayName)
-        meta.lore = listOf("§7Extreme knockback!", "§7One-time use")
+        meta.lore = listOf("§7Sends players flying!", "§7Right-click to swing")
+        meta.addEnchant(Enchantment.KNOCKBACK, 5, true)
         stack.itemMeta = meta
-        stack.addUnsafeEnchantment(Enchantment.KNOCKBACK, 10)
-        return stack
+        return tag(stack)
     }
 
-    override fun onUse(player: Player, item: ItemStack) { /* handled by damage event */ }
+    override fun onUse(player: Player, item: ItemStack) {
+        // Knockback handled by melee enchantment — nothing extra needed for right-click
+    }
 }

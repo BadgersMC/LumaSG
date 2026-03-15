@@ -25,7 +25,7 @@ class PlayerTrackerItem(
         meta.setDisplayName(displayName)
         meta.lore = listOf("§7Points to the nearest player", "§7Right-click to use")
         stack.itemMeta = meta
-        return stack
+        return tag(stack)
     }
 
     override fun onUse(player: Player, item: ItemStack) {
@@ -34,7 +34,11 @@ class PlayerTrackerItem(
             .filter { it.uuid != player.uniqueId }
             .mapNotNull { gp -> Bukkit.getPlayer(gp.uuid)?.location }
             .minByOrNull { it.distanceSquared(player.location) }
-            ?: run { player.sendMessage("§cNo players found."); return }
-        player.sendMessage("§cNearest player is at: §f${nearest.blockX}, ${nearest.blockY}, ${nearest.blockZ}")
+            ?: run {
+                player.sendMessage("§cNo players found.")
+                return
+            }
+        player.compassTarget = nearest
+        player.sendMessage("§cTracking nearest player: §f${nearest.blockX}, ${nearest.blockY}, ${nearest.blockZ}")
     }
 }

@@ -3,6 +3,8 @@ package net.lumalyte.lumasg.chest.items
 import net.badgersmc.nexus.annotations.Service
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
+import org.bukkit.Particle
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
@@ -22,16 +24,20 @@ class PoisonBombItem(private val plugin: Plugin) : CustomItem {
         meta.setDisplayName(displayName)
         meta.lore = listOf("§7Poisons nearby players!", "§7Right-click to throw")
         stack.itemMeta = meta
-        return stack
+        return tag(stack)
     }
 
     override fun onUse(player: Player, item: ItemStack) {
-        val nearby = player.world.getNearbyEntities(player.location, 4.0, 4.0, 4.0)
+        val loc = player.eyeLocation.add(player.location.direction.multiply(2))
+        // Apply poison to players within 5 blocks
+        player.world.getNearbyEntities(loc, 5.0, 5.0, 5.0)
             .filterIsInstance<Player>()
-            .filter { it != player }
-        nearby.forEach { target ->
-            target.addPotionEffect(PotionEffect(PotionEffectType.POISON, 100, 1))
-        }
+            .filter { it.uniqueId != player.uniqueId }
+            .forEach { target ->
+                target.addPotionEffect(PotionEffect(PotionEffectType.POISON, 100, 1))
+            }
+        player.world.spawnParticle(Particle.SPLASH, loc, 30, 2.0, 2.0, 2.0)
+        player.world.playSound(loc, Sound.ENTITY_SPLASH_POTION_BREAK, 1f, 0.8f)
         item.amount--
     }
 }
