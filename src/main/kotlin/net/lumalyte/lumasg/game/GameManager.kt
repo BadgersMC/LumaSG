@@ -7,6 +7,7 @@ import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.discord.DiscordService
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
+import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.statistics.StatisticsService
 import org.bukkit.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -54,6 +55,21 @@ class GameManager(
         activeGames.values.firstOrNull { it.players.containsKey(playerUuid) }
 
     fun getAllActiveGames(): Collection<Game> = activeGames.values
+
+    fun getDisconnectedGame(uuid: UUID): Game? =
+        activeGames.values.firstOrNull { uuid in it.disconnectedPlayers }
+
+    fun getGameByArena(arenaName: String): Game? =
+        activeGames.values.firstOrNull { it.arena.name.equals(arenaName, ignoreCase = true) }
+
+    fun getWaitingGames(): List<Game> =
+        activeGames.values.filter { it.phase is GamePhase.Waiting }
+
+    fun getGameAtLocation(location: org.bukkit.Location): Game? =
+        activeGames.values.firstOrNull { game ->
+            val center = game.arena.center.toBukkit() ?: return@firstOrNull false
+            center.world == location.world && location.distance(center) <= game.arena.radius
+        }
 
     /** Called when a game scope completes or is cancelled. */
     fun onGameEnd(gameId: UUID) {

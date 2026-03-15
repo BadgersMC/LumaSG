@@ -17,6 +17,9 @@ data class LumaSGConfig(
     val gracePeriodSeconds: Int = 60,
     @Comment("Maximum game duration in minutes before deathmatch is forced")
     val maxGameMinutes: Int = 10,
+    @Comment("Allow players to reconnect during active game")
+    val allowReconnect: Boolean = false,
+    val chest: ChestConfig = ChestConfig(),
     val worldBorder: WorldBorderConfig = WorldBorderConfig(),
     val scoreboard: ScoreboardConfig = ScoreboardConfig(),
     val rewards: RewardsConfig = RewardsConfig(),
@@ -24,8 +27,17 @@ data class LumaSGConfig(
     val messages: MessagesConfig = MessagesConfig(),
     val database: DatabaseConfig = DatabaseConfig(),
     val discord: DiscordConfig = DiscordConfig(),
+    val queue: QueueConfig = QueueConfig(),
     val lobby: LobbyConfig = LobbyConfig()
 ) {
+    @Serializable
+    data class QueueConfig(
+        @Comment("Whether to broadcast queue status to non-playing players")
+        val broadcastsEnabled: Boolean = true,
+        @Comment("Ticks between queue broadcast messages (1200 = 60s)")
+        val broadcastIntervalTicks: Long = 1200L
+    )
+
     @Serializable
     data class ScoreboardConfig(
         val enabled: Boolean = true,
@@ -98,6 +110,14 @@ data class LumaSGConfig(
         val guildId: String = "",
         val announcementsChannelId: String = "",
         val statsChannelId: String = ""
+    )
+
+    @Serializable
+    data class ChestConfig(
+        @Comment("Whether chests refill after a delay")
+        val refillEnabled: Boolean = true,
+        @Comment("Seconds after game start before chests refill")
+        val refillTimeSeconds: Int = 300
     )
 
     @Serializable

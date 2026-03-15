@@ -5,29 +5,39 @@ import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.statistics.StatisticsService
 import org.bukkit.GameMode
+import org.bukkit.Material
 import org.bukkit.entity.Firework
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.PlayerDeathEvent
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerRespawnEvent
+import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.plugin.Plugin
 
 @Service
 class PlayerListener(
     private val plugin: Plugin,
     private val gameManager: GameManager,
-    private val statsService: StatisticsService
+    private val statsService: StatisticsService,
+    private val config: LumaSGConfig
 ) : Listener {
+
+    private val mm = MiniMessage.miniMessage()
 
     @PostConstruct
     fun register() {
@@ -52,14 +62,11 @@ class PlayerListener(
 
         when (game.phase) {
             is GamePhase.Waiting, is GamePhase.Countdown -> {
-                // Cancel ALL damage during waiting/countdown
                 event.isCancelled = true
             }
             is GamePhase.Grace -> {
-                // During grace: cancel only PvP, allow environmental damage
                 if (event is EntityDamageByEntityEvent) {
                     event.isCancelled = true
-                    // Notify attacker if they are a player
                     val attacker = event.damageSource.causingEntity as? Player
                     attacker?.sendMessage(
                         Component.text("PvP is currently disabled!", NamedTextColor.RED)
@@ -90,7 +97,6 @@ class PlayerListener(
         val game = gameManager.getGameForPlayer(event.entity.uniqueId) ?: return
         val killer = event.damageSource.causingEntity as? Player
 
-        // Prevent normal death handling and clear drops
         event.isCancelled = true
         event.drops.clear()
 
@@ -113,11 +119,9 @@ class PlayerListener(
 
         if (game.phase is GamePhase.Waiting) return
 
-        // Set respawn location to the arena's first spawn point
         val spawnLocation = game.arena.spawnPoints.firstOrNull()?.toBukkit() ?: return
         event.respawnLocation = spawnLocation
 
-        // Set to spectator mode 1 tick later
         plugin.server.scheduler.runTaskLater(plugin, Runnable {
             event.player.gameMode = GameMode.SPECTATOR
         }, 1L)
@@ -136,17 +140,99 @@ class PlayerListener(
             is GamePhase.Grace, is GamePhase.Active, is GamePhase.Deathmatch -> {
                 game.worldManager.trackPlacedBlock(event.block.location)
             }
-            else -> { /* Ended — no special handling */ }
+            else -> {}
         }
     }
 
-    // ── Player quit ──────────────────────────────────────────────────────
+    // ── Block break restrictions ─────────────────────────────────────────
+
+    companion object {
+        private val BREAKABLE_BLOCKS = setOf(
+            Material.OAK_LEAVES, Material.BIRCH_LEAVES,
+            Material.SPRUCE_LEAVES, Material.JUNGLE_LEAVES,
+            Material.ACACIA_LEAVES, Material.DARK_OAK_LEAVES,
+            Material.MANGROVE_LEAVES, Material.CHERRY_LEAVES,
+            Material.AZALEA_LEAVES, Material.FLOWERING_AZALEA_LEAVES,
+            Material.SHORT_GRASS, Material.TALL_GRASS,
+            Material.FERN, Material.LARGE_FERN,
+            Material.DEAD_BUSH
+        )
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onBlockBreak(event: BlockBreakEvent) {
+        val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
+        val phase = game.phase
+        if (phase !is GamePhase.Grace && phase !is GamePhase.Active && phase !is GamePhase.Deathmatch) {
+            event.isCancelled = true
+            return
+        }
+        if (event.block.type !in BREAKABLE_BLOCKS) {
+            event.isCancelled = true
+        }
+    }
+
+    // ── Teleport restriction during active game ──────────────────────────
+
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onPlayerTeleport(event: PlayerTeleportEvent) {
+        val player = event.player
+        val game = gameManager.getGameForPlayer(player.uniqueId) ?: return
+        val phase = game.phase
+
+        if (phase is GamePhase.Waiting || phase is GamePhase.Ended) return
+
+        // Allow internal game teleports (spawn enforcement, deathmatch teleport)
+        if (event.cause == PlayerTeleportEvent.TeleportCause.PLUGIN) return
+
+        val center = game.arena.center.toBukkit() ?: return
+        val to = event.to
+        val distSq = to.distanceSquared(center)
+        if (distSq > game.arena.radius * game.arena.radius) {
+            event.isCancelled = true
+            player.sendMessage(mm.deserialize("<red>You cannot teleport outside the arena during a game!"))
+        }
+    }
+
+    // ── Entity explosion block damage prevention ─────────────────────────
+
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onEntityExplode(event: EntityExplodeEvent) {
+        val entity = event.entity
+
+        // Prevent celebration firework block damage
+        if (entity.hasMetadata("celebration_firework")) {
+            event.blockList().clear()
+            return
+        }
+
+        // Prevent all firework block damage in game areas
+        if (entity is Firework) {
+            val game = gameManager.getGameAtLocation(entity.location)
+            if (game != null) {
+                event.blockList().clear()
+            }
+        }
+    }
+
+    // ── Player reconnection ──────────────────────────────────────────────
+
+    @EventHandler
+    fun onPlayerJoin(event: PlayerJoinEvent) {
+        val game = gameManager.getDisconnectedGame(event.player.uniqueId) ?: return
+        val phase = game.phase
+        val canReconnect = phase is GamePhase.Waiting || phase is GamePhase.Countdown
+            || (config.allowReconnect && (phase is GamePhase.Grace || phase is GamePhase.Active || phase is GamePhase.Deathmatch))
+        if (canReconnect && game.reconnectPlayer(event.player)) {
+            event.player.sendMessage(mm.deserialize("<green>Reconnected to your game!"))
+        }
+    }
+
+    // ── Player quit — track disconnect instead of immediate elimination ──
 
     @EventHandler
     fun onPlayerQuit(event: PlayerQuitEvent) {
         val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
-        game.scope.launch {
-            game.eliminate(event.player.uniqueId)
-        }
+        game.handleDisconnect(event.player.uniqueId)
     }
 }

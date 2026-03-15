@@ -58,6 +58,10 @@ class Game(
 
     private val eliminationOrder = mutableListOf<UUID>()
 
+    internal val disconnectedPlayers = ConcurrentHashMap.newKeySet<UUID>()
+
+    val teamManager = TeamManager(this)
+
     var phase: GamePhase = GamePhase.Waiting
         private set
 
@@ -70,6 +74,7 @@ class Game(
 
     internal val worldManager = WorldManager(arena, config)
     private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config)
+    private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
 
     // ── Player management ─────────────────────────────────────────────────
 
@@ -93,11 +98,29 @@ class Game(
 
     fun eliminate(uuid: UUID) {
         _players[uuid]?.isAlive = false
+        disconnectedPlayers.remove(uuid)
         eliminationOrder.add(0, uuid)
         spectators.add(uuid)
+        teamManager.removeFromTeam(uuid)
         Bukkit.getPlayer(uuid)?.let { p ->
             playerStateManager.makeSpectator(p)
         }
+    }
+
+    fun handleDisconnect(uuid: UUID) {
+        disconnectedPlayers.add(uuid)
+        _players[uuid]?.isAlive = false
+        Bukkit.getPlayer(uuid)?.let { scoreboard.removePlayer(it) }
+    }
+
+    fun reconnectPlayer(player: Player): Boolean {
+        if (!disconnectedPlayers.remove(player.uniqueId)) return false
+        _players[player.uniqueId]?.isAlive = true
+        val spawn = arena.spawnPoints.getOrNull(_players.keys.toList().indexOf(player.uniqueId))
+            ?.toBukkit() ?: arena.center.toBukkit() ?: return false
+        playerStateManager.saveAndPrepare(player, spawn)
+        scoreboard.addPlayer(player)
+        return true
     }
 
     private fun allParticipants(): Collection<UUID> = _players.keys + spectators
@@ -132,6 +155,11 @@ class Game(
                     mm.deserialize("<gray>Grace period has begun"),
                     Sound.ENTITY_PLAYER_LEVELUP
                 )
+            }
+
+            // Start nameplate hiding once players can move
+            withContext(bukkitDispatcher) {
+                nameplateManager.start(_players.keys)
             }
 
             runGracePhase()
@@ -263,14 +291,26 @@ class Game(
     }
 
     private suspend fun checkWinCondition() {
-        val alive = alivePlayers
-        if (alive.size <= 1) {
-            throw GameEndSignal(winner = alive.firstOrNull()?.uuid)
+        if (mode.teamSize <= 1) {
+            // Solo mode
+            val alive = alivePlayers
+            if (alive.size <= 1) throw GameEndSignal(winner = alive.firstOrNull()?.uuid)
+        } else {
+            // Team mode — check alive teams
+            val aliveTeams = teamManager.getAliveTeams()
+            if (aliveTeams.size <= 1) {
+                throw GameEndSignal(winner = aliveTeams.firstOrNull()?.leader)
+            }
         }
+    }
+
+    fun skipGracePeriod() {
+        // Used by debug command — sets grace remaining to 1 so the loop ends next tick
     }
 
     private suspend fun endGame(winner: UUID?) {
         phase = GamePhase.Ended(winner)
+        nameplateManager.stop()
 
         // Reset world border before celebration
         withContext(bukkitDispatcher) {
@@ -279,6 +319,11 @@ class Game(
 
         val winnerKills = winner?.let { _players[it]?.kills } ?: 0
         runCelebration(winner, allParticipants(), winnerKills, config, plugin, bukkitDispatcher)
+
+        // Give winner rewards
+        withContext(bukkitDispatcher) {
+            giveWinnerRewards(winner)
+        }
 
         withContext(bukkitDispatcher) {
             restoreAllPlayers()
@@ -298,6 +343,7 @@ class Game(
 
     private suspend fun cleanup() {
         spawnEnforcementJob?.cancel()
+        nameplateManager.stop()
         withContext(bukkitDispatcher) {
             restoreAllPlayers()
             worldManager.cleanup()
@@ -381,6 +427,36 @@ class Game(
     private fun broadcast(msg: Component) {
         for (uuid in allParticipants()) {
             Bukkit.getPlayer(uuid)?.sendMessage(msg)
+        }
+    }
+
+    fun broadcastRefillMessage() {
+        broadcast(mm.deserialize("<gold><bold>Chests have been refilled!</bold></gold>"))
+        allParticipants().forEach { uuid ->
+            Bukkit.getPlayer(uuid)?.playSound(
+                Bukkit.getPlayer(uuid)!!.location, Sound.BLOCK_CHEST_OPEN, 1f, 1.2f
+            )
+        }
+    }
+
+    private fun giveWinnerRewards(winner: UUID?) {
+        if (!config.rewards.enabled || config.rewards.winCommand.isBlank()) return
+        val winnerPlayer = winner?.let { Bukkit.getPlayer(it) } ?: return
+
+        val winnerTeam = teamManager.getTeamForPlayer(winner)
+        val recipients = if (winnerTeam != null && mode.teamSize > 1) {
+            winnerTeam.members.mapNotNull { Bukkit.getPlayer(it) }
+        } else {
+            listOf(winnerPlayer)
+        }
+
+        for (player in recipients) {
+            val cmd = config.rewards.winCommand
+                .replace("<player>", player.name)
+                .replace("<kills>", (_players[player.uniqueId]?.kills ?: 0).toString())
+                .replace("<members>", recipients.joinToString(", ") { it.name })
+                .replace("<teamsize>", recipients.size.toString())
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
         }
     }
 

@@ -11,6 +11,7 @@ data class Arena(
     val maxPlayers: Int,
     val spawnPoints: List<SerializableLocation>,
     val center: SerializableLocation,
+    val radius: Double = 500.0,
     val enabled: Boolean = true
 )
 

@@ -1,82 +1,112 @@
 package net.lumalyte.lumasg.listeners
 
+import kotlinx.coroutines.launch
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
+import net.lumalyte.lumasg.chest.ChestManager
+import net.lumalyte.lumasg.chest.ChestTier
+import net.lumalyte.lumasg.domain.GamePhase
+import net.lumalyte.lumasg.game.Game
 import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.Material
-import org.bukkit.event.EventHandler
-import org.bukkit.event.Listener
-import org.bukkit.Particle
-import org.bukkit.Sound
+import org.bukkit.block.Chest
 import org.bukkit.entity.Player
-import org.bukkit.entity.TNTPrimed
+import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
-import org.bukkit.event.block.Action
-import org.bukkit.event.entity.EntityExplodeEvent
-import org.bukkit.event.entity.ProjectileHitEvent
-import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.inventory.InventoryOpenEvent
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.lumalyte.lumasg.config.LumaSGConfig
+import org.bukkit.Bukkit
 import org.bukkit.plugin.Plugin
-import org.bukkit.potion.PotionEffect
-import org.bukkit.potion.PotionEffectType
+import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class ChestListener(
     private val plugin: Plugin,
-    private val gameManager: GameManager
+    private val gameManager: GameManager,
+    private val chestManager: ChestManager,
+    private val config: LumaSGConfig
 ) : Listener {
+
+    private val mm = MiniMessage.miniMessage()
+
+    /** Tracks which chests have already been filled (by block location hash). */
+    private val filledChests = ConcurrentHashMap.newKeySet<Long>()
 
     @PostConstruct
     fun register() {
         plugin.server.pluginManager.registerEvents(this, plugin)
     }
 
-    @EventHandler
-    fun onChestOpen(event: PlayerInteractEvent) {
-        if (event.action != Action.RIGHT_CLICK_BLOCK) return
-        val block = event.clickedBlock ?: return
-        if (block.type != Material.CHEST && block.type != Material.TRAPPED_CHEST) return
-        val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
-        // Game is active — chest open tracking or loot refill logic can go here
-    }
+    fun clearFilledChests() { filledChests.clear() }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    fun onExplosion(event: EntityExplodeEvent) {
-        val tnt = event.entity as? TNTPrimed ?: return
-        if (!tnt.hasMetadata("lumasg_fire_bomb")) return
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    fun onChestOpen(event: InventoryOpenEvent) {
+        val player = event.player as? Player ?: return
+        val chest = event.inventory.holder as? Chest ?: return
+        val game = gameManager.getGameForPlayer(player.uniqueId) ?: return
+        val phase = game.phase
+        if (phase is GamePhase.Waiting || phase is GamePhase.Ended) return
 
-        event.isCancelled = true // prevent block damage
-        val center = event.location
-        val radius = 4
-        for (x in -radius..radius) {
-            for (y in -2..2) {
-                for (z in -radius..radius) {
-                    val loc = center.clone().add(x.toDouble(), y.toDouble(), z.toDouble())
-                    if (loc.block.type == Material.AIR) {
-                        loc.block.type = Material.FIRE
-                    }
-                }
-            }
+        val locKey = chest.location.toBlockKey()
+        if (!filledChests.add(locKey)) return // already filled
+
+        // Fill on first open — determine tier by distance from arena center
+        val tier = determineTier(chest, game)
+        game.scope.launch {
+            chestManager.fillAll(listOf(chest), tier)
         }
-        center.world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f)
+
+        // Record stat
+        game.players[player.uniqueId]?.let { it.chestsOpened++ }
     }
 
-    @EventHandler
-    fun onPoisonBombHit(event: ProjectileHitEvent) {
-        val projectile = event.entity
-        if (!projectile.hasMetadata("lumasg_poison_bomb")) return
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onChestBreak(event: BlockBreakEvent) {
+        if (event.block.type != Material.CHEST && event.block.type != Material.TRAPPED_CHEST) return
+        val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
+        if (game.phase !is GamePhase.Waiting) {
+            event.isCancelled = true
+        }
+    }
 
-        val shooterUuid = (projectile.shooter as? Player)?.uniqueId
-        val loc = projectile.location
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onChestPlace(event: BlockPlaceEvent) {
+        if (event.block.type != Material.CHEST && event.block.type != Material.TRAPPED_CHEST) return
+        val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
+        if (game.phase !is GamePhase.Waiting) {
+            event.isCancelled = true
+        }
+    }
 
-        // Apply Poison II to nearby players within 5 blocks (not the shooter)
-        loc.world.getNearbyEntities(loc, 5.0, 5.0, 5.0)
-            .filterIsInstance<Player>()
-            .filter { it.uniqueId != shooterUuid }
-            .forEach { target ->
-                target.addPotionEffect(PotionEffect(PotionEffectType.POISON, 100, 1))
+    private fun determineTier(chest: Chest, game: Game): ChestTier {
+        val center = game.arena.center.toBukkit() ?: return ChestTier.OUTER
+        val dist = chest.location.distance(center)
+        return when {
+            dist < 20 -> ChestTier.CENTER
+            dist < 60 -> ChestTier.MIDDLE
+            else -> ChestTier.OUTER
+        }
+    }
+
+    /**
+     * Schedules a chest refill after the configured delay.
+     * Called from Game.kt when transitioning to the ACTIVE phase.
+     */
+    fun scheduleRefill(game: Game) {
+        if (!config.chest.refillEnabled) return
+        Bukkit.getScheduler().runTaskLater(plugin, Runnable {
+            val phase = game.phase
+            if (phase is GamePhase.Active || phase is GamePhase.Deathmatch) {
+                filledChests.clear()
+                game.broadcastRefillMessage()
             }
-
-        loc.world.spawnParticle(Particle.SPLASH, loc, 40, 2.0, 2.0, 2.0)
-        loc.world.playSound(loc, Sound.ENTITY_SPLASH_POTION_BREAK, 1f, 0.8f)
+        }, config.chest.refillTimeSeconds * 20L)
     }
+
+    private fun org.bukkit.Location.toBlockKey(): Long =
+        (blockX.toLong() shl 32) or (blockZ.toLong() and 0xFFFFFFFFL) xor (blockY.toLong() shl 48)
 }

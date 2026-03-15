@@ -14,11 +14,15 @@ import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.entity.FallingBlock
 import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityChangeBlockEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.util.Vector
+import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
@@ -102,6 +106,9 @@ class CustomItemListener(
         world.spawnParticle(Particle.LARGE_SMOKE, center, radius * 5,
             radius.toDouble(), 2.0, radius.toDouble(), 0.1)
 
+        // Visual debris — launch nearby block types as falling blocks
+        spawnVisualDebris(center, radius)
+
         // Sounds
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1f, 0.8f)
         world.playSound(center, Sound.BLOCK_FIRE_AMBIENT, 2f, 1f)
@@ -141,6 +148,75 @@ class CustomItemListener(
             }
         }
         return locations
+    }
+
+    // ── Visual Debris: falling blocks that never actually place ────────────────
+
+    /**
+     * Samples block types around the explosion center and launches them as
+     * FallingBlock entities with random outward velocities. Tagged with metadata
+     * so they get cancelled on land — purely cosmetic, no terrain changes.
+     */
+    private fun spawnVisualDebris(center: Location, radius: Int) {
+        val world = center.world
+        val rng = java.util.Random()
+        val debrisCount = radius * 5 // scale with explosion size
+
+        // Collect unique solid block types in a sphere around center for realistic debris
+        val sampleRadius = radius.coerceAtMost(4)
+        val blockTypes = mutableSetOf<Material>()
+        for (x in -sampleRadius..sampleRadius) {
+            for (y in -1..2) {
+                for (z in -sampleRadius..sampleRadius) {
+                    val block = world.getBlockAt(
+                        center.blockX + x, center.blockY + y, center.blockZ + z
+                    )
+                    if (block.type.isSolid && !block.type.isAir) {
+                        blockTypes.add(block.type)
+                    }
+                }
+            }
+        }
+        if (blockTypes.isEmpty()) blockTypes.add(Material.STONE)
+        val typeList = blockTypes.toList()
+
+        for (i in 0 until debrisCount) {
+            val material = typeList[rng.nextInt(typeList.size)]
+            val spawnLoc = center.clone().add(
+                (rng.nextDouble() - 0.5) * 2,
+                rng.nextDouble() * 1.5 + 0.5,
+                (rng.nextDouble() - 0.5) * 2
+            )
+
+            val fallingBlock = world.spawnFallingBlock(
+                spawnLoc, material.createBlockData()
+            )
+            fallingBlock.dropItem = false
+            fallingBlock.setHurtEntities(false)
+            fallingBlock.setMetadata("lumasg_debris", FixedMetadataValue(plugin, true))
+
+            // Random outward velocity with upward bias
+            val angle = rng.nextDouble() * Math.PI * 2
+            val speed = 0.3 + rng.nextDouble() * 0.8
+            val upward = 0.4 + rng.nextDouble() * 0.7
+            fallingBlock.velocity = Vector(
+                Math.cos(angle) * speed,
+                upward,
+                Math.sin(angle) * speed
+            )
+        }
+    }
+
+    /**
+     * Prevents visual debris falling blocks from actually placing when they land.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    fun onDebrisLand(event: EntityChangeBlockEvent) {
+        val entity = event.entity as? FallingBlock ?: return
+        if (entity.hasMetadata("lumasg_debris")) {
+            event.isCancelled = true
+            entity.remove()
+        }
     }
 
     // ── Poison Bomb: animated poison cloud with green dust particles ─────────
