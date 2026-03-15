@@ -91,6 +91,18 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
         border.changeSize(cfg.finalRadius * 2, cfg.shrinkDurationSeconds * 20L)
     }
 
+    /**
+     * Resets the world border to the initial safe size for celebration phase.
+     * Prevents players from taking border damage during winner celebration.
+     */
+    fun resetBorderForCelebration() {
+        val world = arenaWorld() ?: return
+        val center = arenaCenter() ?: return
+        val border = world.worldBorder
+        border.center = center
+        border.setSize(config.worldBorder.initialRadius * 2)
+    }
+
     // ── Cleanup ─────────────────────────────────────────────────────────────
 
     /**

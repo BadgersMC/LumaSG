@@ -62,7 +62,7 @@ class PlayerStateManager {
         player.gameMode = GameMode.SURVIVAL
         player.health = player.maxHealth
         player.foodLevel = 20
-        player.saturation = 20f
+        player.saturation = 0f // Zero saturation so hunger depletes naturally during game
         player.exp = 0f
         player.level = 0
         player.teleport(spawnLocation)

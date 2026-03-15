@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.title.Title
 import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.discord.DiscordService
 import net.lumalyte.lumasg.discord.GameEmbed
@@ -55,16 +56,20 @@ class Game(
 
     private val spectators = ConcurrentHashMap.newKeySet<UUID>()
 
+    private val eliminationOrder = mutableListOf<UUID>()
+
     var phase: GamePhase = GamePhase.Waiting
         private set
 
     private var startTime: Instant = Instant.now()
 
+    private var spawnEnforcementJob: Job? = null
+
     val alivePlayers: List<GamePlayer>
         get() = _players.values.filter { it.isAlive }
 
     internal val worldManager = WorldManager(arena, config)
-    private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher)
+    private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config)
 
     // ── Player management ─────────────────────────────────────────────────
 
@@ -88,6 +93,7 @@ class Game(
 
     fun eliminate(uuid: UUID) {
         _players[uuid]?.isAlive = false
+        eliminationOrder.add(0, uuid)
         spectators.add(uuid)
         Bukkit.getPlayer(uuid)?.let { p ->
             playerStateManager.makeSpectator(p)
@@ -113,10 +119,32 @@ class Game(
                 )
             }
 
+            startSpawnEnforcement()
             runCountdown()
 
-            withContext(bukkitDispatcher) { worldManager.removeBarriers() }
+            // Game start announcement
+            spawnEnforcementJob?.cancel()
+            spawnEnforcementJob = null
+            withContext(bukkitDispatcher) {
+                worldManager.removeBarriers()
+                broadcastTitle(
+                    mm.deserialize("<green><bold>Game Started!"),
+                    mm.deserialize("<gray>Grace period has begun"),
+                    Sound.ENTITY_PLAYER_LEVELUP
+                )
+            }
+
             runGracePhase()
+
+            // PvP announcement
+            withContext(bukkitDispatcher) {
+                broadcastTitle(
+                    mm.deserialize("<red><bold>Grace Period Ended!"),
+                    mm.deserialize("<gray>PvP is now enabled!"),
+                    Sound.ENTITY_ENDER_DRAGON_GROWL
+                )
+            }
+
             runActivePhase()
             runDeathmatch()
 
@@ -127,6 +155,30 @@ class Game(
         } catch (e: Exception) {
             withContext(NonCancellable) { cleanup() }
             throw e
+        }
+    }
+
+    private fun startSpawnEnforcement() {
+        spawnEnforcementJob = scope.launch {
+            while (isActive) {
+                delay(2_000)
+                val currentPhase = phase
+                if (currentPhase !is GamePhase.Waiting && currentPhase !is GamePhase.Countdown) {
+                    break
+                }
+                withContext(bukkitDispatcher) {
+                    for ((index, entry) in _players.entries.withIndex()) {
+                        if (!entry.value.isAlive) continue
+                        val player = Bukkit.getPlayer(entry.key) ?: continue
+                        val spawn = arena.spawnPoints.getOrNull(index)?.toBukkit()
+                            ?: arena.center.toBukkit()
+                            ?: continue
+                        if (player.location.distanceSquared(spawn) > 1.5 * 1.5) {
+                            player.teleport(spawn)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -156,6 +208,9 @@ class Game(
         val totalSeconds = config.maxGameMinutes * 60
         for (i in totalSeconds downTo 1) {
             phase = GamePhase.Active(i)
+            if (i in setOf(300, 180, 120, 60, 30, 10)) {
+                withContext(bukkitDispatcher) { broadcastDeathmatchReminder(i) }
+            }
             checkWinCondition()
             delay(1_000)
         }
@@ -163,7 +218,25 @@ class Game(
     }
 
     private suspend fun runDeathmatch() {
-        withContext(bukkitDispatcher) { worldManager.setupDeathmatch() }
+        withContext(bukkitDispatcher) {
+            worldManager.setupDeathmatch()
+
+            // Teleport alive players to spawn points
+            val alive = alivePlayers
+            for ((index, gp) in alive.withIndex()) {
+                val player = Bukkit.getPlayer(gp.uuid) ?: continue
+                val spawn = arena.spawnPoints.getOrNull(index)?.toBukkit()
+                    ?: arena.center.toBukkit()
+                    ?: continue
+                player.teleport(spawn)
+            }
+
+            broadcastTitle(
+                mm.deserialize("<dark_red><bold>DEATHMATCH"),
+                mm.deserialize("<red>Fight to the death!"),
+                Sound.ENTITY_WITHER_SPAWN
+            )
+        }
         coroutineScope {
             launch { runDeathmatchTimer() }
         }
@@ -171,8 +244,18 @@ class Game(
 
     private suspend fun runDeathmatchTimer() {
         val dmSeconds = config.worldBorder.shrinkDurationSeconds.toInt()
+        val quarter = dmSeconds / 4
+        val half = dmSeconds / 2
+        val threeQuarter = (dmSeconds * 3) / 4
         for (i in dmSeconds downTo 1) {
             phase = GamePhase.Deathmatch(i)
+            val elapsed = dmSeconds - i
+            if (elapsed == quarter || elapsed == half || elapsed == threeQuarter) {
+                val percentThrough = (elapsed * 100) / dmSeconds
+                withContext(bukkitDispatcher) {
+                    broadcastBorderWarning("The border has shrunk to $percentThrough% — keep fighting!")
+                }
+            }
             checkWinCondition()
             delay(1_000)
         }
@@ -189,7 +272,13 @@ class Game(
     private suspend fun endGame(winner: UUID?) {
         phase = GamePhase.Ended(winner)
 
-        runCelebration(winner, allParticipants(), plugin, bukkitDispatcher)
+        // Reset world border before celebration
+        withContext(bukkitDispatcher) {
+            worldManager.resetBorderForCelebration()
+        }
+
+        val winnerKills = winner?.let { _players[it]?.kills } ?: 0
+        runCelebration(winner, allParticipants(), winnerKills, config, plugin, bukkitDispatcher)
 
         withContext(bukkitDispatcher) {
             restoreAllPlayers()
@@ -208,6 +297,7 @@ class Game(
     }
 
     private suspend fun cleanup() {
+        spawnEnforcementJob?.cancel()
         withContext(bukkitDispatcher) {
             restoreAllPlayers()
             worldManager.cleanup()
@@ -227,6 +317,35 @@ class Game(
     }
 
     // ── Bukkit API calls (always called via withContext(bukkitDispatcher)) ──
+
+    private fun broadcastTitle(title: Component, subtitle: Component, sound: Sound) {
+        val titleObj = Title.title(
+            title, subtitle,
+            Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(2_000), Duration.ofMillis(1_000))
+        )
+        for (uuid in allParticipants()) {
+            Bukkit.getPlayer(uuid)?.let { p ->
+                p.showTitle(titleObj)
+                p.playSound(p.location, sound, 1f, 1f)
+            }
+        }
+    }
+
+    private fun broadcastDeathmatchReminder(secondsRemaining: Int) {
+        val minutes = secondsRemaining / 60
+        val seconds = secondsRemaining % 60
+        val timeStr = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
+        val color = when {
+            secondsRemaining >= 180 -> "yellow"
+            secondsRemaining >= 30 -> "gold"
+            else -> "red"
+        }
+        broadcast(mm.deserialize("<$color><bold>Deathmatch</bold> starts in <white>$timeStr<$color>!"))
+    }
+
+    private fun broadcastBorderWarning(message: String) {
+        broadcast(mm.deserialize("<red><bold>Warning:</bold> <gray>$message"))
+    }
 
     private fun broadcastCountdown(seconds: Int) {
         val msg = if (seconds <= 5) {

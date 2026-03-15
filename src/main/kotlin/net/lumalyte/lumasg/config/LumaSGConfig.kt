@@ -20,6 +20,8 @@ data class LumaSGConfig(
     val worldBorder: WorldBorderConfig = WorldBorderConfig(),
     val scoreboard: ScoreboardConfig = ScoreboardConfig(),
     val rewards: RewardsConfig = RewardsConfig(),
+    val deathmatchReminders: DeathmatchReminderConfig = DeathmatchReminderConfig(),
+    val messages: MessagesConfig = MessagesConfig(),
     val database: DatabaseConfig = DatabaseConfig(),
     val discord: DiscordConfig = DiscordConfig(),
     val lobby: LobbyConfig = LobbyConfig()
@@ -27,14 +29,49 @@ data class LumaSGConfig(
     @Serializable
     data class ScoreboardConfig(
         val enabled: Boolean = true,
-        val title: String = "<gold><bold>Survival Games</bold></gold>"
+        val title: String = "<gold><bold>Survival Games</bold></gold>",
+        @Comment("Lines displayed on the sidebar. Placeholders: <arena>, <alive>, <total>, <time>, <phase>")
+        val lines: List<String> = listOf(
+            "<gray><st>--------------------</st></gray>",
+            "<gold>Arena: <white><arena></white></gold>",
+            "<gold>Players: <white><alive></white><gray>/</gray><white><total></white></gold>",
+            "<time>",
+            "<gray><st>--------------------</st></gray>"
+        )
     )
 
     @Serializable
     data class RewardsConfig(
         val enabled: Boolean = true,
         @Comment("Command executed for the winner. Placeholders: <player>, <kills>")
-        val winCommand: String = ""
+        val winCommand: String = "",
+        val pixelArt: PixelArtConfig = PixelArtConfig()
+    )
+
+    @Serializable
+    data class PixelArtConfig(
+        val enabled: Boolean = true,
+        @Comment("API URL to fetch player head. <uuid> is replaced with the player's UUID")
+        val apiUrl: String = "https://crafatar.com/avatars/<uuid>?size=8&overlay",
+        val size: Int = 8,
+        val character: String = "\u2B1B"
+    )
+
+    @Serializable
+    data class DeathmatchReminderConfig(
+        val enabled: Boolean = true,
+        @Comment("Seconds before deathmatch to show reminders")
+        val reminderTimes: List<Int> = listOf(300, 180, 120, 60, 30, 10),
+        val playSounds: Boolean = true
+    )
+
+    @Serializable
+    data class MessagesConfig(
+        @Comment("Death message templates. Placeholders: <victim>, <killer>, <weapon>")
+        val deathByPlayer: String = "<red><victim> <gray>was killed by <red><killer> <gray>with <white><weapon>",
+        val deathNatural: String = "<red><victim> died",
+        @Comment("Kill notification sent to the killer. Placeholders: <victim>, <kills>")
+        val killNotification: String = "<green>You killed <white><victim><green>! (<gold><kills> kills<green>)"
     )
 
     @Serializable

@@ -4,18 +4,27 @@ import kotlinx.coroutines.*
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
+import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.FireworkEffect
 import org.bukkit.Sound
 import org.bukkit.entity.Firework
 import org.bukkit.entity.Player
+import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.plugin.Plugin
+import java.awt.image.BufferedImage
+import java.net.URI
 import java.time.Duration
 import java.util.UUID
+import javax.imageio.ImageIO
 import kotlin.random.Random
+
+private val mm = MiniMessage.miniMessage()
 
 private val FIREWORK_COLORS = listOf(
     Color.RED, Color.BLUE, Color.GREEN,
@@ -29,30 +38,147 @@ private val FIREWORK_TYPES = listOf(
     FireworkEffect.Type.CREEPER
 )
 
+private const val PIXEL_CHAR = "\u2B1B" // ⬛
+
+/**
+ * Fetches the winner's 8x8 face from Crafatar and renders pixel art + winner
+ * info into chat for all participants.
+ *
+ * The HTTP fetch runs on [Dispatchers.IO]; chat messages are sent on
+ * [bukkitDispatcher]. If the fetch fails for any reason the pixel art is
+ * silently skipped.
+ *
+ * @param winnerUuid    UUID of the winning player
+ * @param winnerName    Display name of the winner
+ * @param kills         Winner's kill count
+ * @param deathMessage  Optional last-death message to display
+ * @param participants  UUIDs of everyone who should see the render
+ * @param bukkitDispatcher Main-thread dispatcher
+ */
+private suspend fun renderPixelArtHead(
+    winnerUuid: UUID,
+    winnerName: String,
+    kills: Int,
+    deathMessage: String?,
+    participants: Collection<UUID>,
+    config: LumaSGConfig,
+    bukkitDispatcher: BukkitDispatcher
+) {
+    if (!config.rewards.pixelArt.enabled) return
+
+    val apiUrl = config.rewards.pixelArt.apiUrl
+        .replace("<uuid>", winnerUuid.toString())
+    val pixelChar = config.rewards.pixelArt.character.ifEmpty { PIXEL_CHAR }
+    val size = config.rewards.pixelArt.size
+
+    val image: BufferedImage? = withContext(Dispatchers.IO) {
+        try {
+            ImageIO.read(URI(apiUrl).toURL())
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    if (image == null) return
+
+    // Build rows of colored pixel squares using configured size and character
+    val imgWidth = minOf(size, image.width)
+    val imgHeight = minOf(size, image.height)
+    val pixelRows = Array(imgHeight) { y ->
+        var row = Component.empty()
+        for (x in 0 until imgWidth) {
+            val rgb = image.getRGB(x, y)
+            val alpha = (rgb shr 24) and 0xFF
+            val r = (rgb shr 16) and 0xFF
+            val g = (rgb shr 8) and 0xFF
+            val b = rgb and 0xFF
+            val color = if (alpha < 128) NamedTextColor.BLACK else TextColor.color(r, g, b)
+            row = row.append(Component.text(pixelChar).color(color))
+        }
+        row
+    }
+
+    // Build the info lines that appear alongside the pixel art
+    val separator = Component.text("  ")
+    val borderTop = Component.text("\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557")
+        .color(NamedTextColor.GOLD) // ╔══════════════════╗
+    val winnerLine = Component.text("\u2551 \uD83D\uDC51 WINNER: ")
+        .color(NamedTextColor.GOLD)
+        .append(
+            Component.text(winnerName)
+                .color(NamedTextColor.GOLD)
+                .decorate(TextDecoration.BOLD)
+        )
+        .append(
+            Component.text(" \uD83D\uDC51 \u2551")
+                .color(NamedTextColor.GOLD)
+                .decoration(TextDecoration.BOLD, false)
+        ) // ║ 👑 WINNER: <name> 👑 ║
+    val borderBottom = Component.text("\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D")
+        .color(NamedTextColor.GOLD) // ╚══════════════════╝
+    val deathLine = if (deathMessage != null) {
+        Component.text(deathMessage).color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC)
+    } else {
+        null
+    }
+
+    // Compose full lines: pixel art on the left, info on the right for rows 1-4 (indices 1-4)
+    val lines = mutableListOf<Component>()
+    for (y in 0 until imgHeight) {
+        var line = pixelRows[y]
+        when (y) {
+            1 -> line = line.append(separator).append(borderTop)
+            2 -> line = line.append(separator).append(winnerLine)
+            3 -> line = line.append(separator).append(borderBottom)
+            4 -> if (deathLine != null) {
+                line = line.append(separator).append(deathLine)
+            }
+        }
+        lines.add(line)
+    }
+
+    withContext(bukkitDispatcher) {
+        for (id in participants) {
+            val p = Bukkit.getPlayer(id) ?: continue
+            p.sendMessage(Component.empty()) // blank line before art
+            for (line in lines) {
+                p.sendMessage(line)
+            }
+            p.sendMessage(Component.empty()) // blank line after art
+        }
+    }
+}
+
 /**
  * Runs the end-game celebration sequence.
  *
  * Must be called from a coroutine. Bukkit API calls are dispatched to the
  * main thread via [bukkitDispatcher]. Runs for ~5 seconds total.
  *
- * @param winnerUuid  UUID of the winner, or null if time ran out
+ * @param winnerUuid   UUID of the winner, or null if time ran out
  * @param participants UUIDs of all players + spectators in the game
- * @param plugin      Plugin instance for firework spawning
+ * @param kills        Winner's kill count (used in messages/commands)
+ * @param config       Plugin config for rewards and announcements
+ * @param plugin       Plugin instance for firework spawning
  */
 suspend fun runCelebration(
     winnerUuid: UUID?,
     participants: Collection<UUID>,
+    kills: Int,
+    config: LumaSGConfig,
     plugin: Plugin,
-    bukkitDispatcher: BukkitDispatcher
+    bukkitDispatcher: BukkitDispatcher,
+    deathMessage: String? = null
 ) {
     val winner: Player? = winnerUuid?.let { Bukkit.getPlayer(it) }
 
     withContext(bukkitDispatcher) {
+        // MiniMessage gradient titles (matching Java CelebrationManager)
         val title = if (winner != null) {
             Title.title(
-                Component.text("WINNER!", NamedTextColor.GOLD, TextDecoration.BOLD),
-                Component.text(winner.name, NamedTextColor.YELLOW, TextDecoration.BOLD),
-                Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(3_000), Duration.ofMillis(1_000))
+                mm.deserialize("<gradient:gold:yellow:gold><bold>WINNER!</bold></gradient>"),
+                mm.deserialize("<gradient:#FFFF00:#FFA500:#FF4500><bold>${winner.name}</bold></gradient>"),
+                Title.Times.times(Duration.ofMillis(1_000), Duration.ofMillis(3_000), Duration.ofMillis(1_000))
             )
         } else {
             Title.title(
@@ -68,6 +194,37 @@ suspend fun runCelebration(
             p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f)
             p.playSound(p.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f)
         }
+
+        // Broadcast winner message with kill count
+        if (winner != null) {
+            val winMsg = mm.deserialize(
+                "<green>The game has ended! <gray>${winner.name} <green>is the winner with <yellow>$kills<green> kill${if (kills != 1) "s" else ""}!"
+            )
+            for (id in participants) {
+                Bukkit.getPlayer(id)?.sendMessage(winMsg)
+            }
+        }
+
+        // Execute winner reward command
+        if (winner != null && config.rewards.enabled && config.rewards.winCommand.isNotEmpty()) {
+            val cmd = config.rewards.winCommand
+                .replace("<player>", winner.name)
+                .replace("<kills>", kills.toString())
+            plugin.server.dispatchCommand(plugin.server.consoleSender, cmd)
+        }
+    }
+
+    // Render pixel art head for the winner
+    if (winner != null && winnerUuid != null) {
+        renderPixelArtHead(
+            winnerUuid = winnerUuid,
+            winnerName = winner.name,
+            kills = kills,
+            deathMessage = deathMessage,
+            participants = participants,
+            config = config,
+            bukkitDispatcher = bukkitDispatcher
+        )
     }
 
     // Fireworks every 250 ms for 5 seconds
@@ -93,6 +250,7 @@ suspend fun runCelebration(
                     meta.addEffect(effect)
                     meta.power = Random.nextInt(1, 3)
                 }
+                firework.setMetadata("celebration_firework", FixedMetadataValue(plugin, true))
                 firework.setPersistent(false)
             }
         }
