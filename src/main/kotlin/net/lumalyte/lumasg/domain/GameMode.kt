@@ -16,7 +16,7 @@ sealed class GameMode(val displayName: String, val teamSize: Int, val descriptio
 
     companion object {
         /** All game mode instances. */
-        val entries: List<GameMode> = listOf(Solo, Duos, Trios)
+        val entries: List<GameMode> by lazy { listOf(Solo, Duos, Trios) }
 
         /** Find a game mode by display name (case-insensitive). */
         fun fromDisplayName(name: String): GameMode? =
