@@ -11,15 +11,6 @@ import org.bukkit.plugin.Plugin
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-data class TeamInvitation(
-    val inviter: UUID,
-    val invitee: UUID,
-    val team: Team,
-    val expiresAt: Long = System.currentTimeMillis() + 60_000
-) {
-    fun isExpired(): Boolean = System.currentTimeMillis() > expiresAt
-}
-
 @Service
 class TeamQueueManager(
     private val plugin: Plugin,

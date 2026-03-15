@@ -12,7 +12,9 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.statistics.StatisticsService
+import org.bukkit.Location
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
@@ -72,6 +74,11 @@ class Game(
     val alivePlayers: List<GamePlayer>
         get() = _players.values.filter { it.isAlive }
 
+    @Volatile
+    private var shuttingDown = false
+
+    private var countdownJob: Job? = null
+
     internal val worldManager = WorldManager(arena, config)
     private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config)
     private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
@@ -123,7 +130,89 @@ class Game(
         return true
     }
 
+    /** Add a player as a spectator (not an active participant). */
+    fun addSpectator(player: Player) {
+        spectators.add(player.uniqueId)
+        playerStateManager.makeSpectator(player)
+        scoreboard.addPlayer(player)
+    }
+
+    /**
+     * Remove a player from the game.
+     * @param teleportToLobby whether to teleport the player back to lobby
+     * @param restoreState whether to restore the player's saved state
+     */
+    fun removePlayer(player: Player, teleportToLobby: Boolean = true, restoreState: Boolean = true) {
+        _players.remove(player.uniqueId)
+        spectators.remove(player.uniqueId)
+        scoreboard.removePlayer(player)
+        if (restoreState) playerStateManager.restore(player)
+    }
+
     private fun allParticipants(): Collection<UUID> = _players.keys + spectators
+
+    // ── Public queries ────────────────────────────────────────────────────
+
+    /** Get the set of spectator UUIDs. */
+    fun getSpectators(): Set<UUID> = spectators.toSet()
+
+    /** Whether PvP is currently enabled (true after grace period ends). */
+    fun isPvpEnabled(): Boolean = phase is GamePhase.Active || phase is GamePhase.Deathmatch
+
+    /** Number of players (alive + dead, not spectators-only). */
+    fun getPlayerCount(): Int = _players.size
+
+    /** Map of player UUID to their current location. */
+    fun getPlayerLocations(): Map<UUID, Location> = _players.keys.mapNotNull { uuid ->
+        Bukkit.getPlayer(uuid)?.let { uuid to it.location }
+    }.toMap()
+
+    /** Whether this game is shutting down. */
+    fun isShuttingDown(): Boolean = shuttingDown
+
+    /** Seconds remaining in the current phase. */
+    fun getTimeRemaining(): Int = when (val p = phase) {
+        is GamePhase.Countdown -> p.secondsLeft
+        is GamePhase.Grace -> p.secondsRemaining
+        is GamePhase.Active -> p.secondsRemaining
+        is GamePhase.Deathmatch -> p.secondsRemaining
+        else -> 0
+    }
+
+    /** Whether a block material is allowed to be broken in this game's arena. */
+    fun isBlockAllowed(material: Material): Boolean = arena.isBlockAllowed(material)
+
+    /** Send a message to all participants (players + spectators). */
+    fun broadcastMessage(message: Component) = broadcast(message)
+
+    /** Cancel an active countdown. */
+    fun cancelCountdown() {
+        countdownJob?.cancel()
+        countdownJob = null
+        phase = GamePhase.Waiting
+    }
+
+    // ── Statistics recording ──────────────────────────────────────────────
+
+    fun recordDamageDealt(uuid: UUID, amount: Double) {
+        _players[uuid]?.let { it.damageDealt += amount }
+    }
+
+    fun recordDamageTaken(uuid: UUID, amount: Double) {
+        _players[uuid]?.let { it.damageTaken += amount }
+    }
+
+    fun recordChestOpened(uuid: UUID) {
+        _players[uuid]?.let { it.chestsOpened++ }
+    }
+
+    fun getPlayerKills(uuid: UUID): Int = _players[uuid]?.kills ?: 0
+    fun getPlayerDamageDealt(uuid: UUID): Double = _players[uuid]?.damageDealt ?: 0.0
+    fun getPlayerDamageTaken(uuid: UUID): Double = _players[uuid]?.damageTaken ?: 0.0
+    fun getPlayerChestsOpened(uuid: UUID): Int = _players[uuid]?.chestsOpened ?: 0
+
+    /** Get the elimination order (first eliminated = last in list). */
+    fun getEliminationOrder(): List<UUID> = eliminationOrder.toList()
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -309,6 +398,7 @@ class Game(
     }
 
     private suspend fun endGame(winner: UUID?) {
+        shuttingDown = true
         phase = GamePhase.Ended(winner)
         nameplateManager.stop()
 
@@ -342,6 +432,7 @@ class Game(
     }
 
     private suspend fun cleanup() {
+        shuttingDown = true
         spawnEnforcementJob?.cancel()
         nameplateManager.stop()
         withContext(bukkitDispatcher) {

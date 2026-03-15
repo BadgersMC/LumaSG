@@ -1,6 +1,9 @@
 package net.lumalyte.lumasg.game
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.config.LumaSGConfig
@@ -9,6 +12,7 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.statistics.StatisticsService
+import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.util.UUID
@@ -62,6 +66,8 @@ class GameManager(
     fun getGameByArena(arenaName: String): Game? =
         activeGames.values.firstOrNull { it.arena.name.equals(arenaName, ignoreCase = true) }
 
+    fun getGameByArena(arena: Arena): Game? = getGameByArena(arena.name)
+
     fun getWaitingGames(): List<Game> =
         activeGames.values.filter { it.phase is GamePhase.Waiting }
 
@@ -71,9 +77,66 @@ class GameManager(
             center.world == location.world && location.distance(center) <= game.arena.radius
         }
 
+    /** Find an available (waiting) game on the given arena. */
+    fun findAvailableGame(arena: Arena): Game? =
+        activeGames.values.firstOrNull {
+            it.arena.name.equals(arena.name, ignoreCase = true) &&
+            it.phase is GamePhase.Waiting &&
+            it.getPlayerCount() < it.arena.maxPlayers
+        }
+
+    /** Find all games running on the given arena. */
+    fun findGamesByArena(arena: Arena): List<Game> =
+        activeGames.values.filter { it.arena.name.equals(arena.name, ignoreCase = true) }
+
+    /** Whether a player is currently in any game. */
+    fun isPlayerInGame(player: Player): Boolean = getGameForPlayer(player.uniqueId) != null
+
+    fun isPlayerInGame(uuid: UUID): Boolean = getGameForPlayer(uuid) != null
+
+    /** Number of active games. */
+    fun getActiveGameCount(): Int = activeGames.size
+
+    /** Total number of games (same as active, since finished games are removed). */
+    fun getTotalGameCount(): Int = activeGames.size
+
+    /** Number of active games on a specific arena. */
+    fun getActiveGameCountInArena(arena: Arena): Int =
+        findGamesByArena(arena).size
+
+    /** Whether there are any active games on a specific arena. */
+    fun hasActiveGames(arena: Arena): Boolean =
+        activeGames.values.any { it.arena.name.equals(arena.name, ignoreCase = true) }
+
+    /** Get or create a waiting game on the given arena. */
+    fun getOrCreateGame(arena: Arena, mode: GameMode = GameMode.Solo): Game =
+        findAvailableGame(arena) ?: createGame(arena, mode)
+
+    /** Remove orphaned games (stuck in non-active states with no players). */
+    fun cleanupOrphanedGames(): Int {
+        val orphaned = activeGames.values.filter { game ->
+            game.getPlayerCount() == 0 && game.phase !is GamePhase.Waiting
+        }
+        orphaned.forEach { game ->
+            activeGames.remove(game.id)
+            game.scope.cancel(CancellationException("Orphaned game cleanup"))
+            logger.warn("Cleaned up orphaned game ${game.id}")
+        }
+        return orphaned.size
+    }
+
     /** Called when a game scope completes or is cancelled. */
     fun onGameEnd(gameId: UUID) {
         activeGames.remove(gameId)
         logger.info("Game $gameId removed from active registry")
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        logger.info("Shutting down GameManager — cancelling ${activeGames.size} active games")
+        activeGames.values.forEach { game ->
+            game.scope.cancel(CancellationException("Server shutdown"))
+        }
+        activeGames.clear()
     }
 }

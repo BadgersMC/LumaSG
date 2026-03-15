@@ -19,6 +19,8 @@ class NameplateManager(
 ) {
     private val visibility = ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Boolean>>()
     private var job: Job? = null
+    @Volatile
+    private var hidingEnabled = true
 
     fun start(players: Set<UUID>) {
         for (p in players) visibility[p] = ConcurrentHashMap()
@@ -38,6 +40,19 @@ class NameplateManager(
         visibility.values.forEach { it.remove(uuid) }
     }
 
+    /** Disable nameplate hiding (show all players). Used during celebration. */
+    fun disableNameplateHiding() {
+        hidingEnabled = false
+        scope.launch {
+            withContext(bukkitDispatcher) { restoreAll() }
+        }
+    }
+
+    /** Re-enable nameplate hiding. */
+    fun enableNameplateHiding() {
+        hidingEnabled = true
+    }
+
     private suspend fun updateLoop() {
         while (coroutineContext.isActive) {
             withContext(bukkitDispatcher) { updateVisibility() }
@@ -46,6 +61,7 @@ class NameplateManager(
     }
 
     private fun updateVisibility() {
+        if (!hidingEnabled) return
         val uuids = visibility.keys.toList()
         for (viewerUuid in uuids) {
             val viewer = Bukkit.getPlayer(viewerUuid) ?: continue

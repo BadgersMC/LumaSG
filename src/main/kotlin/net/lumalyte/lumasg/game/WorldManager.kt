@@ -126,6 +126,25 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
         placedBlocks.add(location.clone())
     }
 
+    /** Get the set of all player-placed block locations. */
+    fun getPlacedBlocks(): Set<Location> = placedBlocks.toSet()
+
+    /** Whether a block material is allowed to be broken during the game. */
+    fun isBlockAllowed(material: Material): Boolean = arena.isBlockAllowed(material)
+
+    /** Clears all item drops within the arena radius. Returns the number removed. */
+    fun clearAllDrops(): Int {
+        val world = arenaWorld() ?: return 0
+        val center = arenaCenter() ?: return 0
+        val radiusSq = arena.radius * arena.radius
+        val items = world.entities
+            .filterIsInstance<Item>()
+            .filter { it.location.distanceSquared(center) <= radiusSq }
+        val count = items.size
+        items.forEach { it.remove() }
+        return count
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     /**

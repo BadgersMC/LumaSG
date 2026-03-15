@@ -12,6 +12,7 @@ class TeamManager(private val game: Game) {
     private val playerTeams = ConcurrentHashMap<UUID, Int>()
     private val pendingInvites = ConcurrentHashMap<UUID, UUID>() // invitee -> inviter
     private var nextTeamId = 1
+    private var glowEnabled = true
 
     val teamSize: Int get() = game.mode.teamSize
 
@@ -54,8 +55,40 @@ class TeamManager(private val game: Game) {
 
     fun declineInvite(invitee: UUID) { pendingInvites.remove(invitee) }
 
+    /** Check whether two players are on the same team. */
+    fun areTeammates(a: Player, b: Player): Boolean = areTeammates(a.uniqueId, b.uniqueId)
+
+    fun areTeammates(a: UUID, b: UUID): Boolean {
+        val teamA = playerTeams[a] ?: return false
+        val teamB = playerTeams[b] ?: return false
+        return teamA == teamB
+    }
+
+    /** Mark a team as eliminated. */
+    fun eliminateTeam(team: Team) {
+        team.eliminate()
+    }
+
+    /** Disband all teams and clear assignments. */
+    fun disbandAllTeams() {
+        teams.values.forEach { it.cleanup() }
+        teams.clear()
+        playerTeams.clear()
+        pendingInvites.clear()
+        nextTeamId = 1
+    }
+
+    /** Auto-balance teams by redistributing players evenly. */
+    fun autoBalanceTeams() {
+        val allPlayers = playerTeams.keys.toList()
+        disbandAllTeams()
+        for (uuid in allPlayers) {
+            assignToTeam(uuid)
+        }
+    }
+
     fun applyGlowingToTeammates() {
-        if (teamSize <= 1) return
+        if (teamSize <= 1 || !glowEnabled) return
         for (team in teams.values) {
             for (member in team.members) {
                 val player = Bukkit.getPlayer(member) ?: continue
@@ -68,7 +101,45 @@ class TeamManager(private val game: Game) {
         }
     }
 
+    /** Remove glow effects from a specific player. */
+    fun removePlayerTeamEffects(player: Player) {
+        player.removePotionEffect(PotionEffectType.GLOWING)
+    }
+
+    /** Refresh glow effects for all teams. */
+    fun refreshTeamEffects() {
+        // Remove all glowing first
+        for (team in teams.values) {
+            for (member in team.members) {
+                Bukkit.getPlayer(member)?.removePotionEffect(PotionEffectType.GLOWING)
+            }
+        }
+        // Re-apply
+        applyGlowingToTeammates()
+    }
+
+    /** Enable or disable glow effects. */
+    fun setGlowEffectsEnabled(enabled: Boolean) {
+        glowEnabled = enabled
+        if (!enabled) {
+            for (team in teams.values) {
+                for (member in team.members) {
+                    Bukkit.getPlayer(member)?.removePotionEffect(PotionEffectType.GLOWING)
+                }
+            }
+        } else {
+            applyGlowingToTeammates()
+        }
+    }
+
     fun getAliveTeams(): List<Team> = teams.values.filter { it.isAlive }
 
     fun getAllTeams(): Collection<Team> = teams.values
+
+    fun getActiveTeamCount(): Int = getAliveTeams().size
+
+    /** Clean up all team state. */
+    fun cleanup() {
+        disbandAllTeams()
+    }
 }
