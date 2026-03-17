@@ -175,9 +175,12 @@ suspend fun runCelebration(
     withContext(bukkitDispatcher) {
         // MiniMessage gradient titles (matching Java CelebrationManager)
         val title = if (winner != null) {
+            val titleText = config.rewards.winnerAnnouncement.title
+            val subtitleText = config.rewards.winnerAnnouncement.subtitle
+                .replace("<player>", winner.name)
             Title.title(
-                mm.deserialize("<gradient:gold:yellow:gold><bold>WINNER!</bold></gradient>"),
-                mm.deserialize("<gradient:#FFFF00:#FFA500:#FF4500><bold>${winner.name}</bold></gradient>"),
+                mm.deserialize(titleText),
+                mm.deserialize(subtitleText),
                 Title.Times.times(Duration.ofMillis(1_000), Duration.ofMillis(3_000), Duration.ofMillis(1_000))
             )
         } else {
@@ -197,9 +200,10 @@ suspend fun runCelebration(
 
         // Broadcast winner message with kill count
         if (winner != null) {
-            val winMsg = mm.deserialize(
-                "<green>The game has ended! <gray>${winner.name} <green>is the winner with <yellow>$kills<green> kill${if (kills != 1) "s" else ""}!"
-            )
+            val template = config.rewards.winnerAnnouncement.message
+                .replace("<player>", winner.name)
+                .replace("<kills>", kills.toString())
+            val winMsg = mm.deserialize(template)
             for (id in participants) {
                 Bukkit.getPlayer(id)?.sendMessage(winMsg)
             }
@@ -227,9 +231,10 @@ suspend fun runCelebration(
         )
     }
 
-    // Fireworks every 250 ms for 5 seconds
-    if (winner != null) {
-        repeat(20) {
+    // Fireworks every 250 ms
+    if (winner != null && config.rewards.winnerAnnouncement.fireworks) {
+        val fireworkCount = config.rewards.winnerAnnouncement.fireworkCount
+        repeat(fireworkCount) {
             delay(250)
             withContext(bukkitDispatcher) {
                 if (!winner.isOnline) return@withContext

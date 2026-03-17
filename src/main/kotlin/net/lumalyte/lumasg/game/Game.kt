@@ -430,11 +430,6 @@ class Game(
         val winnerKills = winner?.let { _players[it]?.kills } ?: 0
         runCelebration(winner, allParticipants(), winnerKills, config, plugin, bukkitDispatcher)
 
-        // Give winner rewards
-        withContext(bukkitDispatcher) {
-            giveWinnerRewards(winner)
-        }
-
         withContext(bukkitDispatcher) {
             restoreAllPlayers()
             worldManager.cleanup()
@@ -546,27 +541,6 @@ class Game(
             Bukkit.getPlayer(uuid)?.playSound(
                 Bukkit.getPlayer(uuid)!!.location, Sound.BLOCK_CHEST_OPEN, 1f, 1.2f
             )
-        }
-    }
-
-    private fun giveWinnerRewards(winner: UUID?) {
-        if (!config.rewards.enabled || config.rewards.winCommand.isBlank()) return
-        val winnerPlayer = winner?.let { Bukkit.getPlayer(it) } ?: return
-
-        val winnerTeam = teamManager.getTeamForPlayer(winner)
-        val recipients = if (winnerTeam != null && mode.teamSize > 1) {
-            winnerTeam.members.mapNotNull { Bukkit.getPlayer(it) }
-        } else {
-            listOf(winnerPlayer)
-        }
-
-        for (player in recipients) {
-            val cmd = config.rewards.winCommand
-                .replace("<player>", player.name)
-                .replace("<kills>", (_players[player.uniqueId]?.kills ?: 0).toString())
-                .replace("<members>", recipients.joinToString(", ") { it.name })
-                .replace("<teamsize>", recipients.size.toString())
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
         }
     }
 

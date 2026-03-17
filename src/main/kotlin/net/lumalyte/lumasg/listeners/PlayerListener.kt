@@ -107,6 +107,12 @@ class PlayerListener(
             killer?.let {
                 game.players[it.uniqueId]?.also { gp -> gp.kills++ }
                 statsService.recordKill(it.uniqueId)
+                if (config.rewards.enabled && config.rewards.killCommand.isNotEmpty()) {
+                    val cmd = config.rewards.killCommand
+                        .replace("<player>", it.name)
+                        .replace("<kills>", (game.players[it.uniqueId]?.kills ?: 0).toString())
+                    plugin.server.dispatchCommand(plugin.server.consoleSender, cmd)
+                }
             }
         }
 
