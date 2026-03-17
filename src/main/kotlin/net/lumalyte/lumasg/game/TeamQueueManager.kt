@@ -8,6 +8,7 @@ import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -49,10 +50,21 @@ class TeamQueueManager(
             inviter.sendMessage(miniMessage.deserialize("<red>${invitee.name} already has a pending invitation."))
             return false
         }
+        val maxSize = config.game.teams.maxTeamSize
         val team = preGameTeams.getOrPut(inviter.uniqueId) {
-            Team(id = 0, members = mutableListOf(inviter.uniqueId))
+            Team(id = 0, maxSize = maxSize, members = mutableListOf(inviter.uniqueId))
         }
-        val invitation = TeamInvitation(inviter.uniqueId, invitee.uniqueId, team)
+        if (team.members.size >= maxSize) {
+            inviter.sendMessage(miniMessage.deserialize("<red>Team is full (max $maxSize players)."))
+            return false
+        }
+        val timeoutSeconds = config.game.teams.invitationTimeout.toLong()
+        val invitation = TeamInvitation(
+            inviter = inviter.uniqueId,
+            invitee = invitee.uniqueId,
+            team = team,
+            expiresAt = Instant.now().plusSeconds(timeoutSeconds)
+        )
         pendingInvitations[invitee.uniqueId] = invitation
         inviter.sendMessage(miniMessage.deserialize("<green>Invitation sent to ${invitee.name}."))
         invitee.sendMessage(miniMessage.deserialize(

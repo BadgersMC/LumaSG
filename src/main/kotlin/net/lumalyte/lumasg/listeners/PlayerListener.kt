@@ -75,7 +75,16 @@ class PlayerListener(
                     )
                 }
             }
-            else -> { /* Active / Deathmatch / Ended — allow all damage */ }
+            else -> {
+                // Friendly fire check
+                if (event is EntityDamageByEntityEvent && !config.game.teams.friendlyFire && game.mode.teamSize > 1) {
+                    val attacker = event.damageSource.causingEntity as? Player
+                    if (attacker != null && game.teamManager.areTeammates(attacker, player)) {
+                        event.isCancelled = true
+                        return
+                    }
+                }
+            }
         }
     }
 

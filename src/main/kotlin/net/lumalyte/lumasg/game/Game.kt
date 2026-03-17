@@ -269,6 +269,11 @@ class Game(
                 )
             }
 
+            // Wire team glow effects from config
+            withContext(bukkitDispatcher) {
+                teamManager.setGlowEffectsEnabled(config.game.teams.glowEffects)
+            }
+
             // Start nameplate hiding once players can move
             withContext(bukkitDispatcher) {
                 nameplateManager.start(_players.keys)
