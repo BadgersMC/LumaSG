@@ -124,10 +124,14 @@ class Game(
         _players[uuid]?.isAlive = false
         disconnectedPlayers.remove(uuid)
         eliminationOrder.add(0, uuid)
-        spectators.add(uuid)
         teamManager.removeFromTeam(uuid)
-        Bukkit.getPlayer(uuid)?.let { p ->
-            playerStateManager.makeSpectator(p)
+
+        val canSpectate = config.game.allowSpectating && config.spectator.enabled
+        if (canSpectate) {
+            spectators.add(uuid)
+            Bukkit.getPlayer(uuid)?.let { playerStateManager.makeSpectator(it) }
+        } else {
+            Bukkit.getPlayer(uuid)?.let { removePlayer(it) }
         }
     }
 

@@ -1,6 +1,8 @@
 package net.lumalyte.lumasg.game
 
 import net.badgersmc.nexus.annotations.Service
+import net.lumalyte.lumasg.config.LumaSGConfig
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
@@ -17,7 +19,13 @@ import java.util.concurrent.ConcurrentHashMap
  * Call [restore] when the game ends or the player leaves mid-game.
  */
 @Service
-class PlayerStateManager {
+class PlayerStateManager(private val config: LumaSGConfig) {
+
+    fun getLobbyLocation(): Location? {
+        val lobby = config.lobby
+        val world = Bukkit.getWorld(lobby.world) ?: return null
+        return Location(world, lobby.x, lobby.y, lobby.z, lobby.yaw, lobby.pitch)
+    }
 
     private data class SavedState(
         val location: Location,
@@ -42,7 +50,7 @@ class PlayerStateManager {
      */
     fun saveAndPrepare(player: Player, spawnLocation: Location) {
         saved[player.uniqueId] = SavedState(
-            location = player.location.clone(),
+            location = if (config.game.saveLocation) player.location.clone() else spawnLocation,
             gameMode = player.gameMode,
             inventory = player.inventory.contents.map { it?.clone() }.toTypedArray(),
             armor = player.inventory.armorContents.map { it?.clone() }.toTypedArray(),
@@ -56,9 +64,11 @@ class PlayerStateManager {
         )
 
         player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
-        player.inventory.clear()
-        player.inventory.setArmorContents(arrayOfNulls(4))
-        player.setItemOnCursor(null)
+        if (config.game.clearInventory) {
+            player.inventory.clear()
+            player.inventory.setArmorContents(arrayOfNulls(4))
+            player.setItemOnCursor(null)
+        }
         player.gameMode = GameMode.SURVIVAL
         player.health = player.maxHealth
         player.foodLevel = 20
@@ -77,10 +87,12 @@ class PlayerStateManager {
         val state = saved.remove(player.uniqueId) ?: return
 
         player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
-        player.inventory.clear()
-        player.inventory.contents = state.inventory
-        player.inventory.armorContents = state.armor
-        player.inventory.setItemInOffHand(state.offhand)
+        if (config.game.restoreInventory) {
+            player.inventory.clear()
+            player.inventory.contents = state.inventory
+            player.inventory.armorContents = state.armor
+            player.inventory.setItemInOffHand(state.offhand)
+        }
         player.health = minOf(state.health, player.maxHealth)
         player.foodLevel = state.foodLevel
         player.saturation = state.saturation
@@ -88,7 +100,14 @@ class PlayerStateManager {
         player.exp = state.expProgress
         state.potionEffects.forEach { player.addPotionEffect(it) }
         player.gameMode = state.gameMode
-        player.teleport(state.location)
+
+        // Teleport: lobby if configured, otherwise saved location
+        val destination = if (config.lobby.teleportOnEnd) {
+            getLobbyLocation() ?: state.location
+        } else {
+            state.location
+        }
+        player.teleport(destination)
     }
 
     /** Set a player to spectator mode (used when eliminated mid-game). */
