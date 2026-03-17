@@ -1,6 +1,7 @@
 package net.lumalyte.lumasg.statistics
 
 import net.badgersmc.nexus.annotations.Service
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.PlayerStats
 import net.lumalyte.lumasg.domain.StatType
 import net.lumalyte.lumasg.game.Game
@@ -12,7 +13,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class StatisticsService(
-    private val statsRepo: PlayerStatsRepository
+    private val statsRepo: PlayerStatsRepository,
+    private val config: LumaSGConfig
 ) {
     private val cache = ConcurrentHashMap<UUID, PlayerStats>()
 
@@ -72,6 +74,7 @@ class StatisticsService(
 
     /** Record game end stats for all participants. */
     suspend fun recordGameEnd(game: Game, winnerUuid: UUID?) {
+        if (!config.statistics.enabled) return
         val gameTime = game.getTimeRemaining().toLong()
         val totalPlayers = game.players.size
 

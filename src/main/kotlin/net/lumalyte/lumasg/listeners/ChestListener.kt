@@ -62,7 +62,9 @@ class ChestListener(
         }
 
         // Record stat
-        game.players[player.uniqueId]?.let { it.chestsOpened++ }
+        if (config.statistics.trackChests) {
+            game.players[player.uniqueId]?.let { it.chestsOpened++ }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

@@ -103,6 +103,10 @@ class TeamQueueManager(
     }
 
     fun toggleMute(player: Player) {
+        if (!config.queue.allowMute) {
+            player.sendMessage(miniMessage.deserialize("<red>Muting is not enabled on this server."))
+            return
+        }
         if (mutedPlayers.remove(player.uniqueId)) {
             player.sendMessage(miniMessage.deserialize("<green>Queue broadcasts unmuted."))
         } else {

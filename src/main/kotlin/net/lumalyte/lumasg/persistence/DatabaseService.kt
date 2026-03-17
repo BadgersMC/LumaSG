@@ -30,6 +30,10 @@ class DatabaseService(
         val hikariConfig = HikariConfig().apply {
             poolName = "LumaSG-DB"
             maximumPoolSize = db.pool.maximumPoolSize
+            minimumIdle = db.pool.minimumIdle
+            connectionTimeout = db.pool.connectionTimeout
+            idleTimeout = db.pool.idleTimeout
+            maxLifetime = db.pool.maxLifetime
 
             when (db.type.uppercase()) {
                 "SQLITE" -> {
@@ -39,13 +43,15 @@ class DatabaseService(
                     maximumPoolSize = 1 // SQLite only supports one writer
                 }
                 "MYSQL", "MARIADB" -> {
-                    jdbcUrl = "jdbc:mariadb://${db.host}:${db.port}/${db.database}"
+                    val sslParam = if (!db.useSsl) "&useSSL=false" else ""
+                    jdbcUrl = "jdbc:mariadb://${db.host}:${db.port}/${db.database}?$sslParam"
                     username = db.username
                     password = db.password
                     driverClassName = "org.mariadb.jdbc.Driver"
                 }
                 "POSTGRESQL" -> {
-                    jdbcUrl = "jdbc:postgresql://${db.host}:${db.port}/${db.database}"
+                    val sslParam = if (!db.useSsl) "&sslmode=disable" else ""
+                    jdbcUrl = "jdbc:postgresql://${db.host}:${db.port}/${db.database}?$sslParam"
                     username = db.username
                     password = db.password
                     driverClassName = "org.postgresql.Driver"

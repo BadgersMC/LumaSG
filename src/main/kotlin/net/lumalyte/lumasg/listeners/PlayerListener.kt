@@ -96,8 +96,10 @@ class PlayerListener(
         val attacker = event.damageSource.causingEntity as? Player ?: return
         val game = gameManager.getGameForPlayer(victim.uniqueId) ?: return
 
-        game.players[victim.uniqueId]?.let { it.damageTaken += event.finalDamage }
-        game.players[attacker.uniqueId]?.let { it.damageDealt += event.finalDamage }
+        if (config.statistics.trackDamage) {
+            game.players[victim.uniqueId]?.let { it.damageTaken += event.finalDamage }
+            game.players[attacker.uniqueId]?.let { it.damageDealt += event.finalDamage }
+        }
     }
 
     // ── Player death ─────────────────────────────────────────────────────

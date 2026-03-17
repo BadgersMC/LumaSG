@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.service
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.SerializableLocation
 import net.lumalyte.lumasg.persistence.repositories.ArenaRepository
@@ -13,7 +14,10 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
-class ArenaService(private val arenaRepo: ArenaRepository) {
+class ArenaService(
+    private val arenaRepo: ArenaRepository,
+    private val config: LumaSGConfig
+) {
     private val logger = LoggerFactory.getLogger(ArenaService::class.java)
     private val cache = ConcurrentHashMap<String, Arena>()
     private val selectedArenas = ConcurrentHashMap<UUID, String>()
@@ -62,8 +66,8 @@ class ArenaService(private val arenaRepo: ArenaRepository) {
             name = name,
             displayName = name,
             worldName = center.world?.name ?: "world",
-            minPlayers = 2,
-            maxPlayers = 24,
+            minPlayers = config.arena.defaultMinPlayers,
+            maxPlayers = config.arena.defaultMaxPlayers,
             spawnPoints = emptyList(),
             center = SerializableLocation.fromBukkit(center),
             radius = radius.toDouble()

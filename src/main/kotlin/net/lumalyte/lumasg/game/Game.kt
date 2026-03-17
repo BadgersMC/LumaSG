@@ -532,6 +532,7 @@ class Game(
     }
 
     fun broadcastDeathMessage(victim: Player, killer: Player?) {
+        if (!config.messages.deathMessages.enabled) return
         val msg = deathMessage(victim, killer)
         broadcast(msg)
         killer?.let { k ->
