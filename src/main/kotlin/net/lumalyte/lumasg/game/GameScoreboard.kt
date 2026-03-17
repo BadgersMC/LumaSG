@@ -48,10 +48,11 @@ class GameScoreboard(
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
     fun start() {
+        if (!config.scoreboard.enabled) return
         updateJob = scope.launch {
             while (isActive) {
                 withContext(bukkitDispatcher) { render() }
-                delay(2_000)
+                delay(config.scoreboard.updateInterval.toLong() * 50) // ticks → ms
             }
         }
     }
@@ -108,35 +109,42 @@ class GameScoreboard(
         val aliveCount = game.alivePlayers.size
         val totalCount = game.players.size
 
-        val timeStr = when (phase) {
+        val phaseStr = when (phase) {
             is GamePhase.Countdown  -> "§eStarting in §f${phase.secondsLeft}s"
             is GamePhase.Grace      -> "§aGrace: §f${formatTime(phase.secondsRemaining)}"
-            is GamePhase.Active     -> "§fTime: §e${formatTime(phase.secondsRemaining)}"
+            is GamePhase.Active     -> "§fTime: §e${formatTime(game.getTimeRemaining())}"
             is GamePhase.Deathmatch -> "§c§lDeathmatch: §f${formatTime(phase.secondsRemaining)}"
             is GamePhase.Waiting    -> "§7Waiting..."
             is GamePhase.Ended      -> "§aGame Over"
         }
 
-        val lines = mutableListOf(
-            "§7§m--------------------",
-            "§6Arena: §f${arena.displayName}",
-            "§6Players: §f$aliveCount§7/§f$totalCount",
-            timeStr
-        )
+        val lines = mutableListOf<String>()
 
-        // Show kills for the viewing player (per-player line uses a unique suffix)
-        // Since Bukkit scoreboards are shared, we show a generic kills line
-        if (phase !is GamePhase.Waiting && phase !is GamePhase.Countdown) {
-            lines.add("§6Kills: §f(see tab)")
+        for (template in config.scoreboard.lines) {
+            lines.add(
+                template
+                    .replace("<alive>", aliveCount.toString())
+                    .replace("<total>", totalCount.toString())
+                    .replace("<time>", phaseStr)
+                    .replace("<arena>", arena.displayName)
+            )
         }
 
-        // Show deathmatch-specific info
         if (phase is GamePhase.Deathmatch) {
-            lines.add("§c§lBorder shrinking!")
+            for (dmLine in config.scoreboard.deathmatchLines) {
+                lines.add(dmLine)
+            }
         }
 
-        lines.add("§7§m--------------------")
-        return lines
+        return lines.map { legacyFromMiniMessage(it) }
+    }
+
+    /** Convert MiniMessage to legacy section-codes for scoreboard string entries. */
+    private fun legacyFromMiniMessage(input: String): String {
+        if (input.contains("§")) return input
+        val component = mm.deserialize(input)
+        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+            .legacySection().serialize(component)
     }
 
     private fun formatTime(seconds: Int): String =
