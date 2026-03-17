@@ -9,6 +9,7 @@ import net.badgersmc.nexus.paper.commands.annotations.Async
 import net.badgersmc.nexus.paper.commands.annotations.Permission
 import net.badgersmc.nexus.paper.commands.annotations.PlayerOnly
 import net.badgersmc.nexus.paper.commands.annotations.Subcommand
+import net.badgersmc.nexus.paper.commands.annotations.Suggests
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
@@ -167,7 +168,7 @@ class SGCommand(
     /** /sg start <arena> — start a game in an arena */
     @Subcommand("start")
     @Permission("lumasg.admin")
-    fun start(@Context sender: CommandSender, @Arg("arena") arenaName: String) {
+    fun start(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val arena = arenaService.getArena(arenaName) ?: run {
             sender.sendMessage("§cArena '$arenaName' not found.")
             return
@@ -184,7 +185,7 @@ class SGCommand(
     /** /sg stop <arena> — stop a game in an arena */
     @Subcommand("stop")
     @Permission("lumasg.admin")
-    fun stop(@Context sender: CommandSender, @Arg("arena") arenaName: String) {
+    fun stop(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val game = gameManager.getGameByArena(arenaName) ?: run {
             sender.sendMessage("§cNo active game found in arena '$arenaName'.")
             return
@@ -203,7 +204,7 @@ class SGCommand(
     fun addPlayer(
         @Context sender: CommandSender,
         @Arg("player") targetName: String,
-        @Arg("arena") arenaName: String
+        @Arg("arena") @Suggests("arenaNames") arenaName: String
     ) {
         val target = Bukkit.getPlayer(targetName) ?: run {
             sender.sendMessage("§cPlayer '$targetName' not found or offline.")
@@ -252,7 +253,7 @@ class SGCommand(
     /** /sg forcestart <arena> — force start a game regardless of player count */
     @Subcommand("forcestart")
     @Permission("lumasg.admin")
-    fun forceStart(@Context sender: CommandSender, @Arg("arena") arenaName: String) {
+    fun forceStart(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val arena = arenaService.getArena(arenaName) ?: run {
             sender.sendMessage("§cArena '$arenaName' not found.")
             return
@@ -301,7 +302,7 @@ class SGCommand(
 
     /** /sg info <arena> — show arena information */
     @Subcommand("info")
-    fun info(@Context sender: CommandSender, @Arg("arena") arenaName: String) {
+    fun info(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val arena = arenaService.getArena(arenaName) ?: run {
             sender.sendMessage("§cArena '$arenaName' not found.")
             return
@@ -377,7 +378,7 @@ class SGCommand(
     @Subcommand("arena select")
     @Permission("lumasg.admin")
     @PlayerOnly
-    fun arenaSelect(@Context player: Player, @Arg("arena") arenaName: String) {
+    fun arenaSelect(@Context player: Player, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val arena = arenaService.getArena(arenaName) ?: run {
             player.sendMessage("§cArena '$arenaName' not found.")
             return
@@ -424,7 +425,7 @@ class SGCommand(
     /** /sg debug skip-pvp <arena> — skip grace period on an arena */
     @Subcommand("debug skip-pvp")
     @Permission("lumasg.admin")
-    fun debugSkipPvp(@Context sender: CommandSender, @Arg("arena") arenaName: String) {
+    fun debugSkipPvp(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val game = gameManager.getGameByArena(arenaName)
         if (game != null && game.phase is GamePhase.Grace) {
             game.skipGracePeriod()

@@ -1,8 +1,11 @@
 package net.lumalyte.lumasg
 
+import com.mojang.brigadier.suggestion.SuggestionProvider
+import io.papermc.paper.command.brigadier.CommandSourceStack
 import net.badgersmc.nexus.core.NexusContext
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.badgersmc.nexus.paper.registerPaperCommands
+import net.lumalyte.lumasg.service.ArenaService
 import net.lumalyte.lumasg.util.SplashScreen
 import org.bukkit.plugin.java.JavaPlugin
 import xyz.xenondevs.invui.InvUI
@@ -30,10 +33,17 @@ class LumaSGPlugin : JavaPlugin() {
             )
         )
 
+        val arenaService = nexus.getBean<ArenaService>()
         nexus.registerPaperCommands(
             basePackage = "net.lumalyte.lumasg",
             classLoader = this::class.java.classLoader,
-            plugin = this
+            plugin = this,
+            suggestionProviders = mapOf(
+                "arenaNames" to SuggestionProvider<CommandSourceStack> { _, builder ->
+                    arenaService.getAllArenas().forEach { builder.suggest(it.name) }
+                    builder.buildFuture()
+                }
+            )
         )
 
         SplashScreen.print(this)

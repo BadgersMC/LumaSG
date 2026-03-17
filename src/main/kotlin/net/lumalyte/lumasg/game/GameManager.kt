@@ -51,6 +51,13 @@ class GameManager(
             scoreboardCache = scoreboardCache
         )
         activeGames[game.id] = game
+
+        // Auto-remove from registry when scope completes (normal end, stop, or crash)
+        game.scope.coroutineContext[kotlinx.coroutines.Job]!!.invokeOnCompletion {
+            activeGames.remove(game.id)
+            logger.info("Game ${game.id} removed from active registry (arena '${arena.name}')")
+        }
+
         game.launch()
         logger.info("Game ${game.id} launched on arena '${arena.name}' (${mode.displayName})")
         return game
@@ -126,12 +133,6 @@ class GameManager(
             logger.warn("Cleaned up orphaned game ${game.id}")
         }
         return orphaned.size
-    }
-
-    /** Called when a game scope completes or is cancelled. */
-    fun onGameEnd(gameId: UUID) {
-        activeGames.remove(gameId)
-        logger.info("Game $gameId removed from active registry")
     }
 
     @PreDestroy
