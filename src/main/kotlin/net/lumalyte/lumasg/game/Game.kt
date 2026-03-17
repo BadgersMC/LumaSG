@@ -391,10 +391,12 @@ class Game(
         for (i in dmSeconds downTo 1) {
             phase = GamePhase.Deathmatch(i)
             val elapsed = dmSeconds - i
-            if (elapsed == quarter || elapsed == half || elapsed == threeQuarter) {
-                val percentThrough = (elapsed * 100) / dmSeconds
-                withContext(bukkitDispatcher) {
-                    broadcastBorderWarning("The border has shrunk to $percentThrough% — keep fighting!")
+            if (config.worldBorder.deathmatch.showWarnings) {
+                if (elapsed == quarter || elapsed == half || elapsed == threeQuarter) {
+                    val percentThrough = (elapsed * 100) / dmSeconds
+                    withContext(bukkitDispatcher) {
+                        broadcastBorderWarning("The border has shrunk to $percentThrough% — keep fighting!")
+                    }
                 }
             }
             checkWinCondition()

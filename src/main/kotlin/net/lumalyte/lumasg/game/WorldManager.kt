@@ -84,11 +84,16 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
         val world = arenaWorld() ?: return
         val center = arenaCenter() ?: return
         val border = world.worldBorder
-        val cfg = config.worldBorder
+        val cfg = config.worldBorder.deathmatch
 
         border.center = center
-        // 1.21.11: setSize(double, long) is deprecated for removal — use changeSize(double, ticks)
-        border.changeSize(cfg.deathmatch.endSize * 2, cfg.deathmatch.shrinkDurationSeconds * 20L)
+        // Set initial deathmatch border size (before shrink)
+        border.setSize(cfg.startSize * 2) // diameter, instant set
+
+        if (cfg.enableShrinking) {
+            // Paper 1.21: changeSize(targetDiameter, ticks)
+            border.changeSize(cfg.endSize * 2, cfg.shrinkDurationSeconds * 20L)
+        }
     }
 
     /**
