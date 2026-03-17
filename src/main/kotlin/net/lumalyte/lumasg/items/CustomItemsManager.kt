@@ -6,7 +6,7 @@ import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.chest.ChestManager
 import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.inventory.ItemStack
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import org.slf4j.LoggerFactory
 
 /**
@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
  */
 @Service
 class CustomItemsManager(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager,
     private val chestManager: ChestManager,
     private val bukkitDispatcher: BukkitDispatcher

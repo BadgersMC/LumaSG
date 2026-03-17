@@ -7,10 +7,10 @@ import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
-class KnockbackStickItem(private val plugin: Plugin) : CustomItem {
+class KnockbackStickItem(private val plugin: JavaPlugin) : CustomItem {
     override val material = Material.STICK
     override val displayName = "§eKnockback Stick"
     override val key = NamespacedKey(plugin, "knockback_stick")

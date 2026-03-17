@@ -1,132 +1,230 @@
 package net.lumalyte.lumasg.config
 
-import kotlinx.serialization.Serializable
 import net.badgersmc.nexus.config.Comment
 import net.badgersmc.nexus.config.ConfigFile
 
-@ConfigFile("config.yml")
-@Serializable
+@ConfigFile("config")
 data class LumaSGConfig(
-    @Comment("Minimum players required to start a game")
-    val minPlayers: Int = 2,
-    @Comment("Maximum players per game instance")
-    val maxPlayers: Int = 24,
-    @Comment("Countdown duration in seconds before game starts")
-    val countdownSeconds: Int = 30,
-    @Comment("Grace period duration in seconds (no PvP)")
-    val gracePeriodSeconds: Int = 60,
-    @Comment("Maximum game duration in minutes before deathmatch is forced")
-    val maxGameMinutes: Int = 10,
-    @Comment("Allow players to reconnect during active game")
-    val allowReconnect: Boolean = false,
-    val chest: ChestConfig = ChestConfig(),
-    val worldBorder: WorldBorderConfig = WorldBorderConfig(),
-    val scoreboard: ScoreboardConfig = ScoreboardConfig(),
-    val rewards: RewardsConfig = RewardsConfig(),
-    val deathmatchReminders: DeathmatchReminderConfig = DeathmatchReminderConfig(),
-    val messages: MessagesConfig = MessagesConfig(),
-    val database: DatabaseConfig = DatabaseConfig(),
-    val discord: DiscordConfig = DiscordConfig(),
-    val queue: QueueConfig = QueueConfig(),
-    val lobby: LobbyConfig = LobbyConfig()
+    var lobby: LobbyConfig = LobbyConfig(),
+    var game: GameConfig = GameConfig(),
+    var arena: ArenaConfig = ArenaConfig(),
+    var worldBorder: WorldBorderConfig = WorldBorderConfig(),
+    var scoreboard: ScoreboardConfig = ScoreboardConfig(),
+    var chest: ChestConfig = ChestConfig(),
+    var spectator: SpectatorConfig = SpectatorConfig(),
+    var rewards: RewardsConfig = RewardsConfig(),
+    var messages: MessagesSection = MessagesSection(),
+    var statistics: StatisticsConfig = StatisticsConfig(),
+    var database: DatabaseConfig = DatabaseConfig(),
+    var discord: DiscordConfig = DiscordConfig(),
+    var queue: QueueConfig = QueueConfig(),
+    var debug: DebugConfig = DebugConfig()
 ) {
-    @Serializable
-    data class QueueConfig(
-        @Comment("Whether to broadcast queue status to non-playing players")
-        val broadcastsEnabled: Boolean = true,
-        @Comment("Ticks between queue broadcast messages (1200 = 60s)")
-        val broadcastIntervalTicks: Long = 1200L
+
+    data class LobbyConfig(
+        var world: String = "world",
+        var x: Double = 0.0,
+        var y: Double = 64.0,
+        var z: Double = 0.0,
+        var yaw: Float = 0f,
+        var pitch: Float = 0f,
+        var teleportOnLeave: Boolean = true,
+        var teleportOnEnd: Boolean = true
     )
 
-    @Serializable
+    data class GameConfig(
+        @Comment("Minimum players required to start a game")
+        var minPlayers: Int = 2,
+        @Comment("Maximum players per game instance")
+        var maxPlayers: Int = 24,
+        var countdownSeconds: Int = 30,
+        var gracePeriodSeconds: Int = 60,
+        var gameTimeMinutes: Int = 10,
+        var deathmatchTimeMinutes: Int = 3,
+        var teleportDelay: Int = 1,
+        var allowSpectating: Boolean = true,
+        var clearInventory: Boolean = true,
+        var restoreInventory: Boolean = true,
+        var saveLocation: Boolean = true,
+        var defaultMode: String = "SOLO",
+        var setupPeriodSeconds: Int = 120,
+        @Comment("Allow players to reconnect during active game")
+        var allowReconnect: Boolean = false,
+        var teams: TeamsConfig = TeamsConfig()
+    )
+
+    data class TeamsConfig(
+        var glowEffects: Boolean = true,
+        var autoBalance: Boolean = true,
+        var friendlyFire: Boolean = false,
+        var invitationTimeout: Int = 60,
+        var maxTeamSize: Int = 3
+    )
+
+    data class ArenaConfig(
+        var defaultRadius: Int = 200,
+        var defaultMaxPlayers: Int = 24,
+        var defaultMinPlayers: Int = 1,
+        var autoSave: Boolean = true,
+        var saveDelaySeconds: Int = 3
+    )
+
+    data class WorldBorderConfig(
+        var initialSize: Double = 500.0,
+        var deathmatch: DeathmatchBorderConfig = DeathmatchBorderConfig()
+    )
+
+    data class DeathmatchBorderConfig(
+        var enableShrinking: Boolean = true,
+        var startSize: Double = 75.0,
+        var endSize: Double = 10.0,
+        var shrinkDurationSeconds: Long = 120L,
+        var showWarnings: Boolean = true
+    )
+
     data class ScoreboardConfig(
-        val enabled: Boolean = true,
-        val title: String = "<gold><bold>Survival Games</bold></gold>",
-        @Comment("Lines displayed on the sidebar. Placeholders: <arena>, <alive>, <total>, <time>, <phase>")
-        val lines: List<String> = listOf(
+        var enabled: Boolean = true,
+        var title: String = "<gold><bold>Survival Games</bold></gold>",
+        var updateInterval: Int = 40,
+        var lines: List<String> = listOf(
             "<gray><st>--------------------</st></gray>",
-            "<gold>Arena: <white><arena></white></gold>",
             "<gold>Players: <white><alive></white><gray>/</gray><white><total></white></gold>",
-            "<time>",
+            "<gold>Time: <white><time></white></gold>",
             "<gray><st>--------------------</st></gray>"
+        ),
+        var deathmatchLines: List<String> = listOf(
+            "<red><bold>DEATHMATCH</bold></red>"
         )
     )
 
-    @Serializable
-    data class RewardsConfig(
-        val enabled: Boolean = true,
-        @Comment("Command executed for the winner. Placeholders: <player>, <kills>")
-        val winCommand: String = "",
-        val pixelArt: PixelArtConfig = PixelArtConfig()
-    )
-
-    @Serializable
-    data class PixelArtConfig(
-        val enabled: Boolean = true,
-        @Comment("API URL to fetch player head. <uuid> is replaced with the player's UUID")
-        val apiUrl: String = "https://crafatar.com/avatars/<uuid>?size=8&overlay",
-        val size: Int = 8,
-        val character: String = "\u2B1B"
-    )
-
-    @Serializable
-    data class DeathmatchReminderConfig(
-        val enabled: Boolean = true,
-        @Comment("Seconds before deathmatch to show reminders")
-        val reminderTimes: List<Int> = listOf(300, 180, 120, 60, 30, 10),
-        val playSounds: Boolean = true
-    )
-
-    @Serializable
-    data class MessagesConfig(
-        @Comment("Death message templates. Placeholders: <victim>, <killer>, <weapon>")
-        val deathByPlayer: String = "<red><victim> <gray>was killed by <red><killer> <gray>with <white><weapon>",
-        val deathNatural: String = "<red><victim> died",
-        @Comment("Kill notification sent to the killer. Placeholders: <victim>, <kills>")
-        val killNotification: String = "<green>You killed <white><victim><green>! (<gold><kills> kills<green>)"
-    )
-
-    @Serializable
-    data class WorldBorderConfig(
-        val initialRadius: Double = 500.0,
-        val finalRadius: Double = 10.0,
-        val shrinkDurationSeconds: Long = 120L
-    )
-
-    @Serializable
-    data class DatabaseConfig(
-        val host: String = "localhost",
-        val port: Int = 3306,
-        val database: String = "lumasg",
-        val username: String = "root",
-        val password: String = "password",
-        val poolSize: Int = 10
-    )
-
-    @Serializable
-    data class DiscordConfig(
-        val enabled: Boolean = false,
-        val botToken: String = "",
-        val guildId: String = "",
-        val announcementsChannelId: String = "",
-        val statsChannelId: String = ""
-    )
-
-    @Serializable
     data class ChestConfig(
+        var minItems: Int = 3,
+        var maxItems: Int = 8,
+        var refillChests: Boolean = true,
+        var refillTime: Int = 300,
         @Comment("Whether chests refill after a delay")
-        val refillEnabled: Boolean = true,
+        var refillEnabled: Boolean = true,
         @Comment("Seconds after game start before chests refill")
-        val refillTimeSeconds: Int = 300
+        var refillTimeSeconds: Int = 300,
+        var distanceBasedLoot: Boolean = true
     )
 
-    @Serializable
-    data class LobbyConfig(
-        val world: String = "world",
-        val x: Double = 0.0,
-        val y: Double = 64.0,
-        val z: Double = 0.0,
-        val yaw: Float = 0f,
-        val pitch: Float = 0f
+    data class SpectatorConfig(
+        var enabled: Boolean = true,
+        var teleportToLobbyAfterGame: Boolean = true
+    )
+
+    data class RewardsConfig(
+        var enabled: Boolean = true,
+        var mobCoins: Int = 1000,
+        var winCommand: String = "",
+        var killCommand: String = "",
+        var winnerAnnouncement: WinnerAnnouncementConfig = WinnerAnnouncementConfig()
+    )
+
+    data class WinnerAnnouncementConfig(
+        var enabled: Boolean = true,
+        var usePixelArt: Boolean = true,
+        var title: String = "<gradient:gold:yellow><bold>WINNER!</bold></gradient>",
+        var subtitle: String = "<bold><player></bold>",
+        var message: String = "<green>The game has ended! <player> is the winner!",
+        var teamMessage: String = "<green>Team <yellow><members> <green>is victorious!",
+        var fireworks: Boolean = true,
+        var fireworkCount: Int = 20,
+        var pixelArt: PixelArtConfig = PixelArtConfig()
+    )
+
+    data class PixelArtConfig(
+        var enabled: Boolean = true,
+        var apiUrl: String = "https://crafatar.com/avatars/<uuid>?size=8&overlay",
+        var size: Int = 8,
+        var character: String = "\u2B1B",
+        var cacheEnabled: Boolean = true,
+        var cacheDurationMinutes: Int = 30,
+        var preCacheEnabled: Boolean = true
+    )
+
+    data class MessagesSection(
+        var prefix: String = "<dark_gray>[<gold>LumaSG</gold>] <reset>",
+        var broadcastEvents: Boolean = true,
+        var gameStart: String = "<green>The game has started! Good luck!",
+        var gracePeriodStart: String = "<yellow>Grace period has started! PvP is disabled for <time> seconds.",
+        var gracePeriodEnd: String = "<red>Grace period has ended! PvP is now enabled!",
+        var playerJoin: String = "<gray><player> <yellow>has joined! <gray>(<current>/<max>)",
+        var playerLeave: String = "<gray><player> <yellow>has left. <gray>(<current>/<max>)",
+        var playerDeath: String = "<gray><player> <red>has been eliminated!",
+        var playerKill: String = "<gray><player> <red>was eliminated by <gray><killer><red>!",
+        var gameEnd: String = "<green>The game has ended! <player> wins!",
+        var countdown: String = "<yellow>Game starting in <gray><time> <yellow>seconds!",
+        @Comment("Death message templates. Placeholders: <victim>, <killer>, <weapon>")
+        var deathByPlayer: String = "<red><victim> <gray>was killed by <red><killer> <gray>with <white><weapon>",
+        var deathNatural: String = "<red><victim> died",
+        @Comment("Kill notification sent to the killer. Placeholders: <victim>, <kills>")
+        var killNotification: String = "<green>You killed <white><victim><green>! (<gold><kills> kills<green>)",
+        var deathMessages: DeathMessagesConfig = DeathMessagesConfig(),
+        var deathmatchReminders: DeathmatchReminderConfig = DeathmatchReminderConfig()
+    )
+
+    data class DeathMessagesConfig(
+        var enabled: Boolean = true,
+        var format: String = "<dark_red>\u2620 <red><victim> <gray>was <action> <gray>by <killer>! <yellow><remaining> players remain!",
+        var finalTwoFormat: String = "<dark_red>\u2694 FINAL BATTLE \u2694\n<victim> vs <killer>",
+        var winnerFormat: String = "<gold>\u2694 VICTORY \u2694\n<winner> is victorious!"
+    )
+
+    data class DeathmatchReminderConfig(
+        var enabled: Boolean = true,
+        @Comment("Seconds before deathmatch to show reminders")
+        var reminderTimes: List<Int> = listOf(300, 180, 120, 60, 30, 10),
+        var playSounds: Boolean = true
+    )
+
+    data class StatisticsConfig(
+        var enabled: Boolean = true,
+        var saveIntervalSeconds: Int = 300,
+        var preloadOnJoin: Boolean = true,
+        var trackDamage: Boolean = true,
+        var trackChests: Boolean = true
+    )
+
+    data class DatabaseConfig(
+        var type: String = "SQLITE",
+        var sqliteFile: String = "lumasg.db",
+        var host: String = "localhost",
+        var port: Int = 3306,
+        var database: String = "lumasg",
+        var username: String = "root",
+        var password: String = "password",
+        var pool: PoolConfig = PoolConfig(),
+        var useSsl: Boolean = false,
+        var autoMigrate: Boolean = true
+    )
+
+    data class PoolConfig(
+        var minimumIdle: Int = 2,
+        var maximumPoolSize: Int = 8,
+        var connectionTimeout: Long = 30000L,
+        var idleTimeout: Long = 600000L,
+        var maxLifetime: Long = 1800000L
+    )
+
+    data class DiscordConfig(
+        var enabled: Boolean = false,
+        var botToken: String = "",
+        var guildId: String = "",
+        var announcementsChannelId: String = "",
+        var statsChannelId: String = ""
+    )
+
+    data class QueueConfig(
+        @Comment("Whether to broadcast queue status to non-playing players")
+        var broadcastsEnabled: Boolean = true,
+        var broadcastInterval: Int = 30,
+        var allowMute: Boolean = true
+    )
+
+    data class DebugConfig(
+        var enabled: Boolean = false,
+        var logLevel: String = "INFO"
     )
 }

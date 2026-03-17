@@ -16,7 +16,7 @@ import org.bukkit.Sound
 import org.bukkit.entity.Firework
 import org.bukkit.entity.Player
 import org.bukkit.metadata.FixedMetadataValue
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import java.awt.image.BufferedImage
 import java.net.URI
 import java.time.Duration
@@ -64,12 +64,12 @@ private suspend fun renderPixelArtHead(
     config: LumaSGConfig,
     bukkitDispatcher: BukkitDispatcher
 ) {
-    if (!config.rewards.pixelArt.enabled) return
+    if (!config.rewards.winnerAnnouncement.pixelArt.enabled) return
 
-    val apiUrl = config.rewards.pixelArt.apiUrl
+    val apiUrl = config.rewards.winnerAnnouncement.pixelArt.apiUrl
         .replace("<uuid>", winnerUuid.toString())
-    val pixelChar = config.rewards.pixelArt.character.ifEmpty { PIXEL_CHAR }
-    val size = config.rewards.pixelArt.size
+    val pixelChar = config.rewards.winnerAnnouncement.pixelArt.character.ifEmpty { PIXEL_CHAR }
+    val size = config.rewards.winnerAnnouncement.pixelArt.size
 
     val image: BufferedImage? = withContext(Dispatchers.IO) {
         try {
@@ -166,7 +166,7 @@ suspend fun runCelebration(
     participants: Collection<UUID>,
     kills: Int,
     config: LumaSGConfig,
-    plugin: Plugin,
+    plugin: JavaPlugin,
     bukkitDispatcher: BukkitDispatcher,
     deathMessage: String? = null
 ) {

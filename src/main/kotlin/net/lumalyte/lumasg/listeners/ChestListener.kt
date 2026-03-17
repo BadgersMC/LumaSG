@@ -4,10 +4,10 @@ import kotlinx.coroutines.launch
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.chest.ChestManager
-import net.lumalyte.lumasg.chest.ChestTier
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.Game
 import net.lumalyte.lumasg.game.GameManager
+import net.lumalyte.lumasg.util.cache.ConcurrentChestFiller
 import org.bukkit.Material
 import org.bukkit.block.Chest
 import org.bukkit.entity.Player
@@ -20,14 +20,15 @@ import org.bukkit.event.inventory.InventoryOpenEvent
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class ChestListener(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager,
     private val chestManager: ChestManager,
+    private val chestFiller: ConcurrentChestFiller,
     private val config: LumaSGConfig
 ) : Listener {
 
@@ -57,7 +58,7 @@ class ChestListener(
         // Fill on first open — determine tier by distance from arena center
         val tier = determineTier(chest, game)
         game.scope.launch {
-            chestManager.fillAll(listOf(chest), tier)
+            chestFiller.fillChestFromCache(chest, tier)
         }
 
         // Record stat
@@ -82,13 +83,13 @@ class ChestListener(
         }
     }
 
-    private fun determineTier(chest: Chest, game: Game): ChestTier {
-        val center = game.arena.center.toBukkit() ?: return ChestTier.OUTER
+    private fun determineTier(chest: Chest, game: Game): String {
+        val center = game.arena.center.toBukkit() ?: return "common"
         val dist = chest.location.distance(center)
         return when {
-            dist < 20 -> ChestTier.CENTER
-            dist < 60 -> ChestTier.MIDDLE
-            else -> ChestTier.OUTER
+            dist < 20 -> "rare"
+            dist < 60 -> "uncommon"
+            else -> "common"
         }
     }
 

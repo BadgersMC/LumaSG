@@ -8,10 +8,10 @@ import org.bukkit.entity.TNTPrimed
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.metadata.FixedMetadataValue
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
-class FireBombItem(private val plugin: Plugin) : CustomItem {
+class FireBombItem(private val plugin: JavaPlugin) : CustomItem {
     override val material = Material.FIRE_CHARGE
     override val displayName = "§cFire Bomb"
     override val key = NamespacedKey(plugin, "fire_bomb")

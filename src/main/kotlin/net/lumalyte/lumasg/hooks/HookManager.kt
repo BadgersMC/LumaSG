@@ -11,7 +11,6 @@ import org.bukkit.entity.Player
 @Service
 class HookManager(
     private val nexoHook: NexoHook,
-    private val kingdomsXHook: KingdomsXHook,
     private val lumaGuildsHook: LumaGuildsHook,
     private val placeholderAPIHook: PlaceholderAPIHook,
     private val gameManager: GameManager
@@ -19,7 +18,6 @@ class HookManager(
     /** Check if a named hook's plugin is available. */
     fun isHookAvailable(hookName: String): Boolean = when (hookName.lowercase()) {
         "nexo" -> nexoHook.isAvailable()
-        "kingdoms", "kingdomsx" -> kingdomsXHook.isAvailable()
         "lumaguilds" -> lumaGuildsHook.isAvailable()
         "placeholderapi" -> placeholderAPIHook.isAvailable()
         else -> false
@@ -28,8 +26,6 @@ class HookManager(
     fun getNexoHook(): NexoHook? = nexoHook.takeIf { it.isAvailable() }
 
     fun getLumaGuildsHook(): LumaGuildsHook? = lumaGuildsHook.takeIf { it.isAvailable() }
-
-    fun getKingdomsXHook(): KingdomsXHook? = kingdomsXHook.takeIf { it.isAvailable() }
 
     /** Whether a player is in an active PvP game. */
     fun isPlayerInActivePvPGame(player: Player): Boolean {

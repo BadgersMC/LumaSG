@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.persistence.repositories
 import net.badgersmc.nexus.annotations.Repository
 import net.lumalyte.lumasg.domain.PlayerStats
 import net.lumalyte.lumasg.domain.StatType
+import net.lumalyte.lumasg.persistence.DatabaseService
 import net.lumalyte.lumasg.persistence.dbQuery
 import net.lumalyte.lumasg.persistence.tables.PlayerStatsTable
 import org.jetbrains.exposed.sql.*
@@ -10,7 +11,7 @@ import java.time.Instant
 import java.util.UUID
 
 @Repository
-class PlayerStatsRepository {
+class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService) {
 
     suspend fun findByUuid(uuid: UUID): PlayerStats? = dbQuery {
         PlayerStatsTable

@@ -59,7 +59,7 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
 
         // World border
         border.center = center
-        border.setSize(config.worldBorder.initialRadius * 2) // WorldBorder size = diameter
+        border.setSize(config.worldBorder.initialSize * 2) // WorldBorder size = diameter
 
         // Barriers at each spawn point
         arena.spawnPoints.forEach { spLoc ->
@@ -88,7 +88,7 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
 
         border.center = center
         // 1.21.11: setSize(double, long) is deprecated for removal — use changeSize(double, ticks)
-        border.changeSize(cfg.finalRadius * 2, cfg.shrinkDurationSeconds * 20L)
+        border.changeSize(cfg.deathmatch.endSize * 2, cfg.deathmatch.shrinkDurationSeconds * 20L)
     }
 
     /**
@@ -100,7 +100,7 @@ class WorldManager(private val arena: Arena, private val config: LumaSGConfig) {
         val center = arenaCenter() ?: return
         val border = world.worldBorder
         border.center = center
-        border.setSize(config.worldBorder.initialRadius * 2)
+        border.setSize(config.worldBorder.initialSize * 2)
     }
 
     // ── Cleanup ─────────────────────────────────────────────────────────────

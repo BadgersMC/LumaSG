@@ -12,12 +12,13 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.statistics.StatisticsService
+import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.Location
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -44,7 +45,8 @@ class Game(
     private val playerStateManager: PlayerStateManager,
     private val config: LumaSGConfig,
     private val discordService: DiscordService?,
-    private val plugin: Plugin
+    private val plugin: JavaPlugin,
+    private val scoreboardCache: ScoreboardCache? = null
 ) {
     /** Child scope — supervised so game failure doesn't kill the plugin scope. */
     val scope = CoroutineScope(
@@ -80,7 +82,7 @@ class Game(
     private var countdownJob: Job? = null
 
     internal val worldManager = WorldManager(arena, config)
-    private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config)
+    private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config, scoreboardCache)
     private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
 
     // ── Player management ─────────────────────────────────────────────────
@@ -300,7 +302,7 @@ class Game(
     }
 
     private suspend fun runCountdown() {
-        for (i in config.countdownSeconds downTo 1) {
+        for (i in config.game.countdownSeconds downTo 1) {
             phase = GamePhase.Countdown(i)
             if (i <= 5 || i == 10 || i == 30) {
                 withContext(bukkitDispatcher) { broadcastCountdown(i) }
@@ -311,7 +313,7 @@ class Game(
 
     private suspend fun runGracePhase() {
         startTime = Instant.now()
-        for (i in config.gracePeriodSeconds downTo 1) {
+        for (i in config.game.gracePeriodSeconds downTo 1) {
             phase = GamePhase.Grace(i)
             if (i == 30 || i == 10 || i <= 5) {
                 withContext(bukkitDispatcher) { broadcastGraceWarning(i) }
@@ -322,7 +324,7 @@ class Game(
     }
 
     private suspend fun runActivePhase() {
-        val totalSeconds = config.maxGameMinutes * 60
+        val totalSeconds = config.game.gameTimeMinutes * 60
         for (i in totalSeconds downTo 1) {
             phase = GamePhase.Active(i)
             if (i in setOf(300, 180, 120, 60, 30, 10)) {
@@ -360,7 +362,7 @@ class Game(
     }
 
     private suspend fun runDeathmatchTimer() {
-        val dmSeconds = config.worldBorder.shrinkDurationSeconds.toInt()
+        val dmSeconds = config.worldBorder.deathmatch.shrinkDurationSeconds.toInt()
         val quarter = dmSeconds / 4
         val half = dmSeconds / 2
         val threeQuarter = (dmSeconds * 3) / 4

@@ -6,12 +6,12 @@ import net.badgersmc.nexus.paper.BukkitDispatcher
 import org.bukkit.Bukkit
 import org.bukkit.FluidCollisionMode
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class NameplateManager(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val bukkitDispatcher: BukkitDispatcher,
     private val scope: CoroutineScope,
     private val maxDistance: Double = 50.0,

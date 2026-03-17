@@ -23,7 +23,7 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.util.Vector
 import org.bukkit.metadata.FixedMetadataValue
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.scheduler.BukkitRunnable
@@ -33,7 +33,7 @@ import kotlin.math.sqrt
 
 @Service
 class CustomItemListener(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager,
     private val customItems: List<CustomItem>
 ) : Listener {

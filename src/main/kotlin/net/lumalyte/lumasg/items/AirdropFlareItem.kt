@@ -7,7 +7,6 @@ import net.badgersmc.nexus.annotations.Service
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.chest.ChestManager
-import net.lumalyte.lumasg.chest.ChestTier
 import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.Bukkit
 import org.bukkit.Color
@@ -20,13 +19,13 @@ import org.bukkit.block.Chest
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.util.Vector
 import kotlin.math.*
 
 @Service
 class AirdropFlareItem(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager,
     private val chestManager: ChestManager,
     private val bukkitDispatcher: BukkitDispatcher
@@ -215,7 +214,7 @@ class AirdropFlareItem(
                 chestLoc.block.type = Material.CHEST
                 val chest = chestLoc.block.state as? Chest
                 if (chest != null) {
-                    chestManager.fillAll(listOf(chest), ChestTier.CENTER)
+                    chestManager.fillAll(listOf(chest), "rare")
                 }
 
                 // Announce arrival

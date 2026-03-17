@@ -1,10 +1,5 @@
 package net.lumalyte.lumasg.config
 
-import kotlinx.serialization.Serializable
-import net.badgersmc.nexus.config.ConfigFile
-
-@ConfigFile("messages.yml")
-@Serializable
 data class MessagesConfig(
     val gameStart: String = "<green>Game starting in <gold>{countdown}</gold> seconds!",
     val gameEnd: String = "<gold>{winner}</gold> <green>has won the game!",

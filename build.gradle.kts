@@ -2,6 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     kotlin("jvm") version "2.1.0"
+    kotlin("plugin.noarg") version "2.1.0"
     id("com.gradleup.shadow") version "8.3.5"
     `maven-publish`
 }
@@ -27,23 +28,23 @@ dependencies {
     implementation("net.badgersmc:nexus-core:1.5.3")
     implementation("net.badgersmc:nexus-paper:1.5.3")
 
-    // Kotlin
-    implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    // Kotlin (downloaded at startup by LumaSGLoader)
+    compileOnly(kotlin("stdlib"))
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
-    // Database
-    implementation("org.jetbrains.exposed:exposed-core:0.55.0")
-    implementation("org.jetbrains.exposed:exposed-dao:0.55.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.55.0")
-    implementation("org.jetbrains.exposed:exposed-java-time:0.55.0")
-    implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.3.3")
+    // Database (downloaded at startup by LumaSGLoader)
+    compileOnly("org.jetbrains.exposed:exposed-core:0.55.0")
+    compileOnly("org.jetbrains.exposed:exposed-dao:0.55.0")
+    compileOnly("org.jetbrains.exposed:exposed-jdbc:0.55.0")
+    compileOnly("org.jetbrains.exposed:exposed-java-time:0.55.0")
+    compileOnly("com.zaxxer:HikariCP:5.1.0")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.3.3")
 
-    // GUI
-    implementation("xyz.xenondevs.invui:invui:1.46")
+    // GUI (downloaded at startup by LumaSGLoader)
+    compileOnly("xyz.xenondevs.invui:invui:1.49")
 
-    // Discord
-    implementation("net.dv8tion:JDA:5.6.1") {
+    // Discord (downloaded at startup by LumaSGLoader)
+    compileOnly("net.dv8tion:JDA:5.6.1") {
         exclude(module = "opus-java")
     }
 
@@ -62,6 +63,12 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("com.h2database:h2:2.2.224") // in-memory DB for Exposed tests
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.jetbrains.exposed:exposed-core:0.55.0")
+    testImplementation("org.jetbrains.exposed:exposed-dao:0.55.0")
+    testImplementation("org.jetbrains.exposed:exposed-jdbc:0.55.0")
+    testImplementation("org.jetbrains.exposed:exposed-java-time:0.55.0")
+    testImplementation(kotlin("stdlib"))
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 }
 
 kotlin {
@@ -71,15 +78,38 @@ kotlin {
 tasks.withType<ShadowJar> {
     archiveClassifier.set("")
     mergeServiceFiles()
-    relocate("xyz.xenondevs", "net.lumalyte.lumasg.shaded.invui")
-    relocate("com.zaxxer.hikari", "net.lumalyte.lumasg.shaded.hikari")
-    relocate("org.jetbrains.exposed", "net.lumalyte.lumasg.shaded.exposed")
+    // Only nexus-core and nexus-paper are shaded (internal, not on public Maven).
+    // No relocation — NexusContext uses reflection to scan @Service annotations and
+    // relocating the package would break its ability to match annotation class references.
+    //
+    // Exclude Kotlin runtime — downloaded at startup by LumaSGLoader via MavenLibraryResolver.
+    // Shading these causes LinkageError (two classloaders loading the same class).
+    // Be targeted: only exclude what the loader downloads. Keep kotlinx.serialization
+    // (needed by Nexus/kaml, not downloaded separately).
+    exclude("kotlin/**")
+    exclude("kotlinx/coroutines/**")
+    exclude("META-INF/kotlin*")
+    exclude("_COROUTINE/**")
+}
+
+tasks.processResources {
+    filesMatching("paper-plugin.yml") {
+        expand("version" to project.version)
+    }
+}
+
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
 }
 
 sourceSets {
     test {
         java.setSrcDirs(emptyList<File>()) // exclude legacy Java tests; new tests are in src/test/kotlin
     }
+}
+
+noArg {
+    annotation("net.badgersmc.nexus.config.ConfigFile")
 }
 
 tasks.test {

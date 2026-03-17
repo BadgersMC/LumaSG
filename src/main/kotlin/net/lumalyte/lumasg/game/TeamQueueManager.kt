@@ -7,13 +7,13 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class TeamQueueManager(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val config: LumaSGConfig,
     private val gameManager: GameManager
 ) {
@@ -29,7 +29,7 @@ class TeamQueueManager(
         if (config.queue.broadcastsEnabled) {
             broadcastTask = Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
                 broadcastQueueStatus()
-            }, 0L, config.queue.broadcastIntervalTicks).taskId
+            }, 0L, config.queue.broadcastInterval * 20L).taskId
         }
         cleanupTask = Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
             pendingInvitations.entries.removeIf { it.value.isExpired() }

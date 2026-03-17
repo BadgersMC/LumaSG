@@ -5,6 +5,7 @@ import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GamePhase
+import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
@@ -31,7 +32,8 @@ class GameScoreboard(
     private val game: Game,
     private val scope: CoroutineScope,
     private val bukkitDispatcher: BukkitDispatcher,
-    private val config: LumaSGConfig = LumaSGConfig()
+    private val config: LumaSGConfig = LumaSGConfig(),
+    private val scoreboardCache: ScoreboardCache? = null
 ) {
     private val scoreboard: Scoreboard = Bukkit.getScoreboardManager().newScoreboard
     private val objective = scoreboard.registerNewObjective(
@@ -137,9 +139,7 @@ class GameScoreboard(
         return lines
     }
 
-    private fun formatTime(seconds: Int): String {
-        val m = seconds / 60
-        val s = seconds % 60
-        return "%02d:%02d".format(m, s)
-    }
+    private fun formatTime(seconds: Int): String =
+        scoreboardCache?.getCachedTimeFormat(seconds)
+            ?: "%02d:%02d".format(seconds / 60, seconds % 60)
 }

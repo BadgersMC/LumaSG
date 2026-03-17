@@ -1,6 +1,11 @@
 package net.lumalyte.lumasg.gui
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import net.badgersmc.nexus.annotations.Service
+import net.badgersmc.nexus.paper.BukkitDispatcher
+import net.lumalyte.lumasg.util.cache.GuiComponentCache
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import xyz.xenondevs.invui.gui.Gui
@@ -12,8 +17,11 @@ import xyz.xenondevs.invui.window.Window
 class MainMenu(
     private val gameBrowserMenu: GameBrowserMenu,
     private val leaderboardMenu: LeaderboardMenu,
-    private val setupMenu: SetupMenu
+    private val setupMenu: SetupMenu,
+    private val guiCache: GuiComponentCache,
+    private val bukkitDispatcher: BukkitDispatcher
 ) {
+    private val scope = CoroutineScope(bukkitDispatcher + SupervisorJob())
     fun open(player: Player) {
         val gui = Gui.normal()
             .setStructure(
@@ -21,7 +29,7 @@ class MainMenu(
                 "# # b # l # s # #",
                 "# # # # # # # # #"
             )
-            .addIngredient('#', MenuUtils.createBorderItem())
+            .addIngredient('#', guiCache.createBorderItem("gray"))
             .addIngredient('b', SimpleItem(
                 ItemBuilder(Material.IRON_SWORD)
                     .setDisplayName("§6Browse Games")
@@ -36,7 +44,7 @@ class MainMenu(
                     .addLoreLines("§7View top players")
             ) { click ->
                 click.player.closeInventory()
-                // Leaderboard is suspend, launch in scope
+                scope.launch { leaderboardMenu.open(click.player) }
             })
             .addIngredient('s', SimpleItem(
                 ItemBuilder(Material.REDSTONE_TORCH)

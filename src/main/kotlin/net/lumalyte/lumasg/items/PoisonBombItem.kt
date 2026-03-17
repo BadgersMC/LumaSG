@@ -8,10 +8,10 @@ import org.bukkit.entity.WindCharge
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.metadata.FixedMetadataValue
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
-class PoisonBombItem(private val plugin: Plugin) : CustomItem {
+class PoisonBombItem(private val plugin: JavaPlugin) : CustomItem {
     override val material = Material.WIND_CHARGE
     override val displayName = "§2Poison Bomb"
     override val key = NamespacedKey(plugin, "poison_bomb")

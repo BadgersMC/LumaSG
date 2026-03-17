@@ -12,8 +12,9 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.statistics.StatisticsService
+import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +27,8 @@ class GameManager(
     private val playerStateManager: PlayerStateManager,
     private val config: LumaSGConfig,
     private val discordService: DiscordService?,
-    private val plugin: Plugin
+    private val plugin: JavaPlugin,
+    private val scoreboardCache: ScoreboardCache
 ) {
     private val logger = LoggerFactory.getLogger(GameManager::class.java)
     private val activeGames = ConcurrentHashMap<UUID, Game>()
@@ -45,7 +47,8 @@ class GameManager(
             playerStateManager = playerStateManager,
             config = config,
             discordService = discordService,
-            plugin = plugin
+            plugin = plugin,
+            scoreboardCache = scoreboardCache
         )
         activeGames[game.id] = game
         game.launch()

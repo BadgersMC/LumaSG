@@ -31,7 +31,7 @@ class PlayerStatsRepositoryTest {
         }
     }
 
-    private val repo = PlayerStatsRepository()
+    private val repo = PlayerStatsRepository(db = io.mockk.mockk(relaxed = true))
 
     @Test
     fun `upsert and retrieve player stats`() = runTest {

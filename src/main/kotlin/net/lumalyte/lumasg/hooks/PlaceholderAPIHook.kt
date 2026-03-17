@@ -5,11 +5,11 @@ import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.statistics.StatisticsService
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
 class PlaceholderAPIHook(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val statsService: StatisticsService
 ) : PluginHook {
     override val pluginName = "PlaceholderAPI"

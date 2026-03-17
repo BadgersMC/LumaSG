@@ -7,17 +7,17 @@ import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
+import net.lumalyte.lumasg.util.ItemUtils
 import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.configuration.file.YamlConfiguration
-import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerFishEvent
 import org.bukkit.inventory.ItemStack
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.random.Random
@@ -32,7 +32,7 @@ private val mm = MiniMessage.miniMessage()
  */
 @Service
 class FishingListener(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager
 ) : Listener {
 
@@ -106,34 +106,16 @@ class FishingListener(
         event.isCancelled = true
         event.caught?.remove()
 
-        // Create item from config
-        val itemConfig = itemsSection.getConfigurationSection(selectedItem) ?: return
-        val materialName = itemConfig.getString("material") ?: return
-        val material = Material.matchMaterial(materialName) ?: return
+        // Create item from config using ItemUtils (handles name, enchantments, lore, etc.)
+        val item = ItemUtils.createItemFromConfig(plugin, itemsSection, selectedItem) ?: return
 
-        val minAmount = itemConfig.getInt("min-amount", 1)
-        val maxAmount = itemConfig.getInt("max-amount", 1)
-        val amount = if (maxAmount > minAmount) Random.nextInt(minAmount, maxAmount + 1) else minAmount
-
-        val item = ItemStack(material, amount)
-
-        // Apply display name from config
-        val displayName = itemConfig.getString("name")
-        if (displayName != null) {
-            val meta = item.itemMeta
-            meta.displayName(mm.deserialize(displayName))
-            item.itemMeta = meta
-        }
-
-        // Apply enchantments from config
-        val enchSection = itemConfig.getConfigurationSection("enchantments")
-        if (enchSection != null) {
-            for (enchKey in enchSection.getKeys(false)) {
-                val enchantment = Enchantment.getByName(enchKey.uppercase())
-                if (enchantment != null) {
-                    item.addUnsafeEnchantment(enchantment, enchSection.getInt(enchKey))
-                }
-            }
+        // Apply random amount from config range
+        val itemConfig = itemsSection.getConfigurationSection(selectedItem)
+        if (itemConfig != null) {
+            val minAmount = itemConfig.getInt("min-amount", 1)
+            val maxAmount = itemConfig.getInt("max-amount", 1)
+            val amount = if (maxAmount > minAmount) Random.nextInt(minAmount, maxAmount + 1) else minAmount
+            item.amount = amount
         }
 
         // Give to player (drop overflow on ground)
@@ -144,7 +126,7 @@ class FishingListener(
 
         // Notify player of special catch
         val itemName = item.itemMeta?.displayName()
-            ?: Component.text(material.name.lowercase().replace('_', ' '))
+            ?: Component.text(item.type.name.lowercase().replace('_', ' '))
         player.sendMessage(
             Component.text()
                 .append(Component.text("You caught ", NamedTextColor.AQUA))

@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken
 import net.badgersmc.nexus.annotations.Repository
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.SerializableLocation
+import net.lumalyte.lumasg.persistence.DatabaseService
 import net.lumalyte.lumasg.persistence.dbQuery
 import net.lumalyte.lumasg.persistence.tables.ArenaTable
 import org.bukkit.Material
@@ -19,7 +20,7 @@ private val locationListType = object : TypeToken<List<SerializableLocation>>() 
 private val stringListType = object : TypeToken<List<String>>() {}.type
 
 @Repository
-class ArenaRepository {
+class ArenaRepository(@Suppress("unused") private val db: DatabaseService) {
 
     suspend fun findAll(): List<Arena> = dbQuery {
         ArenaTable.selectAll().map { row -> row.toArena() }

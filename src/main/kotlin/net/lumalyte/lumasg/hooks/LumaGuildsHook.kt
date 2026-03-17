@@ -9,7 +9,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 /**
  * Overrides LumaGuilds PvP protections during active Survival Games.
@@ -21,7 +21,7 @@ import org.bukkit.plugin.Plugin
  */
 @Service
 class LumaGuildsHook(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager
 ) : PluginHook, Listener {
 

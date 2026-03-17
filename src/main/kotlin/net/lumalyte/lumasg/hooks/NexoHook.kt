@@ -1,12 +1,13 @@
 package net.lumalyte.lumasg.hooks
 
+import com.nexomc.nexo.api.NexoItems
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import org.bukkit.inventory.ItemStack
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
-class NexoHook(private val plugin: Plugin) : PluginHook {
+class NexoHook(private val plugin: JavaPlugin) : PluginHook {
     override val pluginName = "Nexo"
 
     private var nexoAvailable = false
@@ -28,14 +29,19 @@ class NexoHook(private val plugin: Plugin) : PluginHook {
     fun getNexoItem(id: String): ItemStack? {
         if (!nexoAvailable) return null
         return try {
-            // Use reflection to access Nexo API without compile-time dependency
-            val nexoItemsClass = Class.forName("com.nexomc.nexo.api.NexoItems")
-            val itemByIdMethod = nexoItemsClass.getMethod("itemFromId", String::class.java)
-            val builder = itemByIdMethod.invoke(null, id) ?: return null
-            val buildMethod = builder.javaClass.getMethod("build")
-            buildMethod.invoke(builder) as? ItemStack
+            NexoItems.itemFromId(id)?.build()
         } catch (_: Exception) {
             null
+        }
+    }
+
+    /** Check whether a Nexo item ID exists. */
+    fun exists(id: String): Boolean {
+        if (!nexoAvailable) return false
+        return try {
+            NexoItems.exists(id)
+        } catch (_: Exception) {
+            false
         }
     }
 }

@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.gui
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.domain.StatType
 import net.lumalyte.lumasg.statistics.StatisticsService
+import net.lumalyte.lumasg.util.cache.GuiComponentCache
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import xyz.xenondevs.invui.gui.PagedGui
@@ -13,7 +14,10 @@ import xyz.xenondevs.invui.item.impl.controlitem.PageItem
 import xyz.xenondevs.invui.window.Window
 
 @Service
-class LeaderboardMenu(private val statsService: StatisticsService) {
+class LeaderboardMenu(
+    private val statsService: StatisticsService,
+    private val guiCache: GuiComponentCache
+) {
 
     /** Open the default leaderboard (kills). */
     suspend fun open(player: Player) {
@@ -59,7 +63,7 @@ class LeaderboardMenu(private val statsService: StatisticsService) {
                 "# # # < # > # # #"
             )
             .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
-            .addIngredient('#', SimpleItem(ItemBuilder(Material.GRAY_STAINED_GLASS_PANE).setDisplayName(" ")))
+            .addIngredient('#', guiCache.createBorderItem("gray"))
             .addIngredient('<', object : PageItem(false) {
                 override fun getItemProvider(gui: PagedGui<*>) =
                     ItemBuilder(Material.ARROW).setDisplayName("§7Previous")

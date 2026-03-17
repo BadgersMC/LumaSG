@@ -1,6 +1,7 @@
 name: LumaSG
 version: '${version}'
 main: net.lumalyte.lumasg.LumaSGPlugin
+loader: net.lumalyte.lumasg.LumaSGLoader
 api-version: '1.21'
 load: POSTWORLD
 authors:

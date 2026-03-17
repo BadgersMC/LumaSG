@@ -10,6 +10,7 @@ import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.statistics.StatisticsService
+import net.lumalyte.lumasg.util.cache.PlayerDataCache
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.entity.Firework
@@ -27,14 +28,15 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerRespawnEvent
 import org.bukkit.event.player.PlayerTeleportEvent
-import org.bukkit.plugin.Plugin
+import org.bukkit.plugin.java.JavaPlugin
 
 @Service
 class PlayerListener(
-    private val plugin: Plugin,
+    private val plugin: JavaPlugin,
     private val gameManager: GameManager,
     private val statsService: StatisticsService,
-    private val config: LumaSGConfig
+    private val config: LumaSGConfig,
+    private val playerDataCache: PlayerDataCache
 ) : Listener {
 
     private val mm = MiniMessage.miniMessage()
@@ -219,10 +221,13 @@ class PlayerListener(
 
     @EventHandler
     fun onPlayerJoin(event: PlayerJoinEvent) {
+        // Preload player data into cache for fast access
+        playerDataCache.preloadPlayerData(event.player)
+
         val game = gameManager.getDisconnectedGame(event.player.uniqueId) ?: return
         val phase = game.phase
         val canReconnect = phase is GamePhase.Waiting || phase is GamePhase.Countdown
-            || (config.allowReconnect && (phase is GamePhase.Grace || phase is GamePhase.Active || phase is GamePhase.Deathmatch))
+            || (config.game.allowReconnect && (phase is GamePhase.Grace || phase is GamePhase.Active || phase is GamePhase.Deathmatch))
         if (canReconnect && game.reconnectPlayer(event.player)) {
             event.player.sendMessage(mm.deserialize("<green>Reconnected to your game!"))
         }
@@ -232,6 +237,9 @@ class PlayerListener(
 
     @EventHandler
     fun onPlayerQuit(event: PlayerQuitEvent) {
+        // Invalidate cached player data on disconnect
+        playerDataCache.invalidatePlayer(event.player.uniqueId)
+
         val game = gameManager.getGameForPlayer(event.player.uniqueId) ?: return
         game.handleDisconnect(event.player.uniqueId)
     }
