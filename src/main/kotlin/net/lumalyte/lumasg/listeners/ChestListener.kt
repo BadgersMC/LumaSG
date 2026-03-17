@@ -84,6 +84,7 @@ class ChestListener(
     }
 
     private fun determineTier(chest: Chest, game: Game): String {
+        if (!config.chest.distanceBasedLoot) return "common"
         val center = game.arena.center.toBukkit() ?: return "common"
         val dist = chest.location.distance(center)
         return when {

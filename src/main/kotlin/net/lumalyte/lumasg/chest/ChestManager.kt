@@ -13,6 +13,7 @@ import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.hooks.NexoHook
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -30,7 +31,8 @@ import java.util.concurrent.ThreadLocalRandom
 class ChestManager(
     private val plugin: JavaPlugin,
     private val bukkitDispatcher: BukkitDispatcher,
-    private val nexoHook: NexoHook
+    private val nexoHook: NexoHook,
+    private val config: LumaSGConfig
 ) {
     private val logger = LoggerFactory.getLogger(ChestManager::class.java)
 
@@ -166,8 +168,8 @@ class ChestManager(
         }
 
         val settings = tierSettings[tier]
-        val minItems = settings?.minItems ?: 3
-        val maxItems = settings?.maxItems ?: 6
+        val minItems = settings?.minItems ?: config.chest.minItems
+        val maxItems = settings?.maxItems ?: config.chest.maxItems
         val itemCount = ThreadLocalRandom.current().nextInt(minItems, maxItems + 1)
         var filledSlots = 0
         var attempts = 0
