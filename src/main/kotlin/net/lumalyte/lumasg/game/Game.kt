@@ -94,14 +94,29 @@ class Game(
         playerStateManager.saveAndPrepare(player, spawn)
         _players[player.uniqueId] = player.toGamePlayer()
         scoreboard.addPlayer(player)
+        if (config.messages.broadcastEvents) {
+            val msg = config.messages.playerJoin
+                .replace("<player>", player.name)
+                .replace("<current>", _players.size.toString())
+                .replace("<max>", arena.maxPlayers.toString())
+            broadcast(mm.deserialize(msg))
+        }
     }
 
     fun removePlayer(uuid: UUID) {
+        val playerName = Bukkit.getPlayer(uuid)?.name ?: Bukkit.getOfflinePlayer(uuid).name ?: "Unknown"
         _players.remove(uuid)
         spectators.remove(uuid)
         Bukkit.getPlayer(uuid)?.let { p ->
             scoreboard.removePlayer(p)
             playerStateManager.restore(p)
+        }
+        if (config.messages.broadcastEvents) {
+            val msg = config.messages.playerLeave
+                .replace("<player>", playerName)
+                .replace("<current>", _players.size.toString())
+                .replace("<max>", arena.maxPlayers.toString())
+            broadcast(mm.deserialize(msg))
         }
     }
 
@@ -241,9 +256,11 @@ class Game(
             spawnEnforcementJob = null
             withContext(bukkitDispatcher) {
                 worldManager.removeBarriers()
+                val graceMsg = config.messages.gracePeriodStart
+                    .replace("<time>", config.game.gracePeriodSeconds.toString())
                 broadcastTitle(
-                    mm.deserialize("<green><bold>Game Started!"),
-                    mm.deserialize("<gray>Grace period has begun"),
+                    mm.deserialize(config.messages.gameStart),
+                    mm.deserialize(graceMsg),
                     Sound.ENTITY_PLAYER_LEVELUP
                 )
             }
@@ -258,7 +275,7 @@ class Game(
             // PvP announcement
             withContext(bukkitDispatcher) {
                 broadcastTitle(
-                    mm.deserialize("<red><bold>Grace Period Ended!"),
+                    mm.deserialize(config.messages.gracePeriodEnd),
                     mm.deserialize("<gray>PvP is now enabled!"),
                     Sound.ENTITY_ENDER_DRAGON_GROWL
                 )
@@ -325,9 +342,10 @@ class Game(
 
     private suspend fun runActivePhase() {
         val totalSeconds = config.game.gameTimeMinutes * 60
+        val reminderTimes = config.messages.deathmatchReminders.reminderTimes.toSet()
         for (i in totalSeconds downTo 1) {
             phase = GamePhase.Active(i)
-            if (i in setOf(300, 180, 120, 60, 30, 10)) {
+            if (config.messages.deathmatchReminders.enabled && i in reminderTimes) {
                 withContext(bukkitDispatcher) { broadcastDeathmatchReminder(i) }
             }
             checkWinCondition()
@@ -487,19 +505,18 @@ class Game(
     }
 
     private fun broadcastCountdown(seconds: Int) {
-        val msg = if (seconds <= 5) {
-            mm.deserialize("<gold>Game starting in <yellow><bold>$seconds</bold><gold>!")
-        } else {
-            mm.deserialize("<yellow>Game starting in <white>$seconds<yellow> seconds.")
-        }
+        val template = config.messages.countdown
+        val msg = mm.deserialize(template.replace("<time>", seconds.toString()))
         broadcast(msg)
-        allParticipants().forEach { uuid ->
-            Bukkit.getPlayer(uuid)?.let { p ->
-                p.playSound(
-                    p.location,
-                    if (seconds <= 5) Sound.BLOCK_NOTE_BLOCK_PLING else Sound.UI_BUTTON_CLICK,
-                    1f, if (seconds <= 5) 1.5f else 1f
-                )
+        if (config.messages.deathmatchReminders.playSounds) {
+            allParticipants().forEach { uuid ->
+                Bukkit.getPlayer(uuid)?.let { p ->
+                    p.playSound(
+                        p.location,
+                        if (seconds <= 5) Sound.BLOCK_NOTE_BLOCK_PLING else Sound.UI_BUTTON_CLICK,
+                        1f, if (seconds <= 5) 1.5f else 1f
+                    )
+                }
             }
         }
     }
