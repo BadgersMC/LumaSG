@@ -87,6 +87,14 @@ class Game(
 
     // ── Player management ─────────────────────────────────────────────────
 
+    /**
+     * Add a non-player dummy to the game (for testing).
+     * Skips all Bukkit Player operations (state save, scoreboard, teleport).
+     */
+    fun addDummy(uuid: UUID, name: String) {
+        _players[uuid] = GamePlayer(uuid, name)
+    }
+
     fun addPlayer(player: Player) {
         val spawn = arena.spawnPoints.getOrNull(_players.size)?.toBukkit()
             ?: arena.center.toBukkit()

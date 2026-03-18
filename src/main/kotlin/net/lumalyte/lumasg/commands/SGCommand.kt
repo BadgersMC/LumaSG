@@ -21,6 +21,7 @@ import net.lumalyte.lumasg.hooks.LumaGuildsHook
 import net.lumalyte.lumasg.listeners.AdminWandListener
 import net.lumalyte.lumasg.service.ArenaService
 import net.lumalyte.lumasg.statistics.StatisticsService
+import net.lumalyte.lumasg.debug.DummyManager
 import net.lumalyte.lumasg.util.ConfigurationManager
 import net.lumalyte.lumasg.util.cache.PlayerDataCache
 import org.bukkit.Bukkit
@@ -42,7 +43,8 @@ class SGCommand(
     private val lumaGuildsHook: LumaGuildsHook,
     private val adminWandListener: AdminWandListener,
     private val configurationManager: ConfigurationManager,
-    private val playerDataCache: PlayerDataCache
+    private val playerDataCache: PlayerDataCache,
+    private val dummyManager: DummyManager
 ) {
     // ── Player commands ──────────────────────────────────────────────────
 
@@ -458,6 +460,46 @@ class SGCommand(
         for (game in games) {
             sender.sendMessage("§6${game.arena.name} §7— §f${game.phase::class.simpleName} §7| ${game.alivePlayers.size} alive / ${game.players.size} total")
         }
+    }
+
+    /** /sg debug dummies <arena> [count] — spawn test dummy villagers on spawn points */
+    @Subcommand("debug dummies")
+    @Permission("lumasg.admin")
+    @PlayerOnly
+    fun debugDummies(
+        @Context player: Player,
+        @Arg("arena") @Suggests("arenaNames") arenaName: String
+    ) {
+        val arena = arenaService.getArena(arenaName) ?: run {
+            player.sendMessage("§cArena '$arenaName' not found.")
+            return
+        }
+        val game = gameManager.getGameByArena(arena) ?: gameManager.createGame(arena, GameMode.Solo)
+        if (game.phase !is GamePhase.Waiting) {
+            player.sendMessage("§cCannot spawn dummies — game is already in progress.")
+            return
+        }
+        // Add the player first if not already in the game
+        if (!gameManager.isPlayerInGame(player)) {
+            game.addPlayer(player)
+        }
+        val maxDummies = arena.spawnPoints.size - game.players.size
+        val toSpawn = maxDummies
+        if (toSpawn <= 0) {
+            player.sendMessage("§cNo spawn points available for dummies.")
+            return
+        }
+        val spawned = dummyManager.spawnDummies(game, toSpawn)
+        player.sendMessage("§aSpawned $spawned dummy villagers in arena '$arenaName'.")
+        player.sendMessage("§7Use §e/sg start $arenaName §7to begin the game.")
+    }
+
+    /** /sg debug remove-dummies — remove all dummy villagers */
+    @Subcommand("debug remove-dummies")
+    @Permission("lumasg.admin")
+    fun debugRemoveDummies(@Context sender: CommandSender) {
+        dummyManager.removeAll()
+        sender.sendMessage("§aAll dummy villagers removed.")
     }
 
     /** /sg debug cache-stats — show cache performance statistics */
