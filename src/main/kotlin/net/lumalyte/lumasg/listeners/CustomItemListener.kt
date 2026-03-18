@@ -4,6 +4,7 @@ import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.items.CustomItem
 import net.lumalyte.lumasg.game.GameManager
+import net.lumalyte.lumasg.util.MeteorUtils
 import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Material
@@ -21,8 +22,6 @@ import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.util.Vector
-import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
@@ -150,7 +149,7 @@ class CustomItemListener(
         val radius = 5
 
         // Visual debris — the main feature of the bomb
-        spawnVisualDebris(center, radius)
+        MeteorUtils.spawnVisualDebris(center, radius, plugin = plugin)
 
         // Explosion particles and sounds
         world.spawnParticle(Particle.EXPLOSION, center, 3, 1.0, 1.0, 1.0, 0.0)
@@ -177,63 +176,6 @@ class CustomItemListener(
                 val knockback = direction.multiply(1.5 * multiplier).setY(0.5 + 0.3 * multiplier)
                 target.velocity = target.velocity.add(knockback)
             }
-    }
-
-    // ── Visual Debris: falling blocks that never actually place ────────────────
-
-    /**
-     * Samples block types around the explosion center and launches them as
-     * FallingBlock entities with random outward velocities. Tagged with metadata
-     * so they get cancelled on land — purely cosmetic, no terrain changes.
-     */
-    private fun spawnVisualDebris(center: Location, radius: Int) {
-        val world = center.world
-        val rng = java.util.Random()
-        val debrisCount = radius * 5 // scale with explosion size
-
-        // Collect unique solid block types in a sphere around center for realistic debris
-        val sampleRadius = radius.coerceAtMost(4)
-        val blockTypes = mutableSetOf<Material>()
-        for (x in -sampleRadius..sampleRadius) {
-            for (y in -1..2) {
-                for (z in -sampleRadius..sampleRadius) {
-                    val block = world.getBlockAt(
-                        center.blockX + x, center.blockY + y, center.blockZ + z
-                    )
-                    if (block.type.isSolid && !block.type.isAir) {
-                        blockTypes.add(block.type)
-                    }
-                }
-            }
-        }
-        if (blockTypes.isEmpty()) blockTypes.add(Material.STONE)
-        val typeList = blockTypes.toList()
-
-        for (i in 0 until debrisCount) {
-            val material = typeList[rng.nextInt(typeList.size)]
-            val spawnLoc = center.clone().add(
-                (rng.nextDouble() - 0.5) * 2,
-                rng.nextDouble() * 1.5 + 0.5,
-                (rng.nextDouble() - 0.5) * 2
-            )
-
-            val fallingBlock = world.spawnFallingBlock(
-                spawnLoc, material.createBlockData()
-            )
-            fallingBlock.dropItem = false
-            fallingBlock.setHurtEntities(false)
-            fallingBlock.setMetadata("lumasg_debris", FixedMetadataValue(plugin, true))
-
-            // Random outward velocity with upward bias
-            val angle = rng.nextDouble() * Math.PI * 2
-            val speed = 0.3 + rng.nextDouble() * 0.8
-            val upward = 0.4 + rng.nextDouble() * 0.7
-            fallingBlock.velocity = Vector(
-                Math.cos(angle) * speed,
-                upward,
-                Math.sin(angle) * speed
-            )
-        }
     }
 
     /**
