@@ -17,12 +17,15 @@ import org.bukkit.entity.Firework
 import org.bukkit.entity.Player
 import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.plugin.java.JavaPlugin
+import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.net.URI
 import java.time.Duration
 import java.util.UUID
 import javax.imageio.ImageIO
 import kotlin.random.Random
+
+private val logger = LoggerFactory.getLogger("LumaSG-Celebration")
 
 private val mm = MiniMessage.miniMessage()
 
@@ -71,15 +74,29 @@ private suspend fun renderPixelArtHead(
     val pixelChar = config.rewards.winnerAnnouncement.pixelArt.character.ifEmpty { PIXEL_CHAR }
     val size = config.rewards.winnerAnnouncement.pixelArt.size
 
+    logger.info("Fetching Crafatar head for $winnerName ($winnerUuid) from: $apiUrl")
+
     val image: BufferedImage? = withContext(Dispatchers.IO) {
         try {
-            ImageIO.read(URI(apiUrl).toURL())
+            val url = URI(apiUrl).toURL()
+            val conn = url.openConnection().apply {
+                connectTimeout = 5_000
+                readTimeout = 5_000
+                setRequestProperty("User-Agent", "LumaSG-Plugin")
+            }
+            ImageIO.read(conn.getInputStream())
         } catch (e: Exception) {
+            logger.warn("Failed to fetch Crafatar head for $winnerName: ${e::class.simpleName}: ${e.message}")
             null
         }
     }
 
-    if (image == null) return
+    if (image == null) {
+        logger.warn("Pixel art render skipped — image was null for $winnerName")
+        return
+    }
+
+    logger.info("Crafatar image loaded: ${image.width}x${image.height} — rendering pixel art")
 
     // Build rows of colored pixel squares using configured size and character
     val imgWidth = minOf(size, image.width)

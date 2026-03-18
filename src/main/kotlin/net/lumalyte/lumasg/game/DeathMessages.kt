@@ -13,7 +13,7 @@ private val mm = MiniMessage.miniMessage()
 
 /**
  * Builds a kill-feed message for a player death.
- * Uses configurable message templates from [LumaSGConfig.MessagesConfig].
+ * Uses configurable message templates from [LumaSGConfig.MessagesSection].
  *
  * @param victim  The player who died
  * @param killer  The player who dealt the killing blow, or null for environmental death
@@ -37,7 +37,7 @@ fun deathMessage(victim: Player, killer: Player?, config: LumaSGConfig? = null):
 
 /**
  * Builds a personal kill-notification sent only to the killer.
- * Uses configurable message template from [LumaSGConfig.MessagesConfig].
+ * Uses configurable message template from [LumaSGConfig.MessagesSection].
  */
 fun killNotification(victim: Player, killerKills: Int, config: LumaSGConfig? = null): Component {
     val template = config?.messages?.killNotification

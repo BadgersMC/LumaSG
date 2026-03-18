@@ -1,6 +1,5 @@
 package net.lumalyte.lumasg.listeners
 
-import kotlinx.coroutines.launch
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.chest.ChestManager
@@ -17,10 +16,13 @@ import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.inventory.InventoryOpenEvent
+import org.bukkit.event.world.ChunkLoadEvent
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
+import org.bukkit.block.BlockState
 import org.bukkit.plugin.java.JavaPlugin
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
@@ -32,6 +34,7 @@ class ChestListener(
     private val config: LumaSGConfig
 ) : Listener {
 
+    private val logger = LoggerFactory.getLogger(ChestListener::class.java)
     private val mm = MiniMessage.miniMessage()
 
     /** Tracks which chests have already been filled (by block location hash). */
@@ -44,6 +47,52 @@ class ChestListener(
 
     fun clearFilledChests() { filledChests.clear() }
 
+    // ── Chunk-load filling ──────────────────────────────────────────────────
+
+    /**
+     * When a chunk loads within a player's sim distance during an active game,
+     * fill all chests in the chunk immediately. By the time the player reaches
+     * the chest, it's already populated — zero interaction delay.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    fun onChunkLoad(event: ChunkLoadEvent) {
+        val chunk = event.chunk
+        val worldName = chunk.world.name
+
+        // Find the game running in this world (if any)
+        val game = gameManager.getAllActiveGames().firstOrNull {
+            it.arena.worldName == worldName
+        } ?: return
+
+        // Only fill during active gameplay phases
+        val phase = game.phase
+        if (phase is GamePhase.Waiting || phase is GamePhase.Countdown || phase is GamePhase.Ended) return
+
+        // Scan chunk tile entities for chests and fill any that haven't been filled yet
+        val tileEntities = chunk.tileEntities
+        var filled = 0
+        for (state: BlockState in tileEntities) {
+            if (state !is Chest) continue
+            val locKey = state.location.toBlockKey()
+            if (!filledChests.add(locKey)) continue // already filled
+
+            val tier = determineTier(state, game)
+            chestFiller.fillChestSync(state, tier, game.lootMode)
+            filled++
+        }
+
+        if (filled > 0) {
+            logger.debug("Chunk [{}, {}] loaded — filled {} chests (arena '{}')",
+                chunk.x, chunk.z, filled, game.arena.name)
+        }
+    }
+
+    // ── Chest open (fallback + stat tracking) ───────────────────────────────
+
+    /**
+     * If a chest wasn't filled by chunk-load (edge case: already loaded chunk),
+     * fill it synchronously on first open as a fallback.
+     */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     fun onChestOpen(event: InventoryOpenEvent) {
         val player = event.player as? Player ?: return
@@ -53,12 +102,10 @@ class ChestListener(
         if (phase is GamePhase.Waiting || phase is GamePhase.Ended) return
 
         val locKey = chest.location.toBlockKey()
-        if (!filledChests.add(locKey)) return // already filled
-
-        // Fill on first open — determine tier by distance from arena center
-        val tier = determineTier(chest, game)
-        game.scope.launch {
-            chestFiller.fillChestFromCache(chest, tier, game.lootMode)
+        if (filledChests.add(locKey)) {
+            // Wasn't filled by chunk-load — fill now as fallback
+            val tier = determineTier(chest, game)
+            chestFiller.fillChestSync(chest, tier, game.lootMode)
         }
 
         // Record stat
@@ -66,6 +113,8 @@ class ChestListener(
             game.players[player.uniqueId]?.let { it.chestsOpened++ }
         }
     }
+
+    // ── Chest protection ────────────────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onChestBreak(event: BlockBreakEvent) {
@@ -84,6 +133,8 @@ class ChestListener(
             event.isCancelled = true
         }
     }
+
+    // ── Tier + refill ───────────────────────────────────────────────────────
 
     private fun determineTier(chest: Chest, game: Game): String {
         if (!config.chest.distanceBasedLoot) return "common"

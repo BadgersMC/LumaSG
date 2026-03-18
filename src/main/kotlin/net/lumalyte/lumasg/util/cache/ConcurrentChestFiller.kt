@@ -88,6 +88,29 @@ class ConcurrentChestFiller(
         }
     }
 
+    /**
+     * Synchronously fills a single chest on the current (main) thread.
+     * Prefers pre-generated loot from the cache, falling back to
+     * [ChestManager.fillChest]. Must be called from the main thread.
+     *
+     * This avoids the async race where a player opens an empty chest
+     * before the coroutine dispatches back to the main thread.
+     */
+    fun fillChestSync(chest: Chest, tier: String, mode: LootMode = LootMode.MODERN): Boolean {
+        return try {
+            val preGenerated = lootTableCache.getPreGeneratedChest(tier, mode)
+            if (preGenerated != null) {
+                applyPreGeneratedChest(chest, preGenerated)
+            } else {
+                logger.debug("No cached loot for tier={}, mode={}, falling back to direct fill", tier, mode)
+                chestManager.fillChest(chest.location, tier, mode)
+            }
+        } catch (e: Exception) {
+            logger.error("Error filling chest at {} with tier {}", chest.location, tier, e)
+            false
+        }
+    }
+
     // ── Lifecycle ───────────────────────────────────────────────────────────
 
     @PreDestroy
