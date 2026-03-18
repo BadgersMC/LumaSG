@@ -7,6 +7,7 @@ import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.chest.ChestManager
+import net.lumalyte.lumasg.domain.LootMode
 import org.bukkit.block.Chest
 import org.slf4j.LoggerFactory
 
@@ -35,8 +36,9 @@ class ConcurrentChestFiller(
      *
      * @param chests The list of chests to fill.
      * @param tier The loot tier to use.
+     * @param mode The loot mode to use.
      */
-    suspend fun fillChestsForGame(chests: List<Chest>, tier: String) = coroutineScope {
+    suspend fun fillChestsForGame(chests: List<Chest>, tier: String, mode: LootMode = LootMode.MODERN) = coroutineScope {
         if (chests.isEmpty()) return@coroutineScope
 
         var successCount = 0
@@ -44,7 +46,7 @@ class ConcurrentChestFiller(
 
         chests.map { chest ->
             launch {
-                val success = fillChestFromCache(chest, tier)
+                val success = fillChestFromCache(chest, tier, mode)
                 synchronized(this@ConcurrentChestFiller) {
                     if (success) successCount++ else failCount++
                 }
@@ -63,11 +65,12 @@ class ConcurrentChestFiller(
      *
      * @param chest The chest to fill.
      * @param tier The loot tier.
+     * @param mode The loot mode.
      * @return true if the chest was filled successfully.
      */
-    suspend fun fillChestFromCache(chest: Chest, tier: String): Boolean {
+    suspend fun fillChestFromCache(chest: Chest, tier: String, mode: LootMode = LootMode.MODERN): Boolean {
         return try {
-            val preGenerated = lootTableCache.getPreGeneratedChest(tier)
+            val preGenerated = lootTableCache.getPreGeneratedChest(tier, mode)
 
             if (preGenerated != null) {
                 withContext(bukkitDispatcher) {
@@ -76,7 +79,7 @@ class ConcurrentChestFiller(
             } else {
                 logger.debug("No cached loot for tier {}, falling back to direct fill", tier)
                 withContext(bukkitDispatcher) {
-                    chestManager.fillChest(chest.location, tier)
+                    chestManager.fillChest(chest.location, tier, mode)
                 }
             }
         } catch (e: Exception) {
