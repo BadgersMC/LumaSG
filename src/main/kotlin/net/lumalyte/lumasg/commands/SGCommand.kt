@@ -503,19 +503,27 @@ class SGCommand(
         }
     }
 
-    /** /sg debug dummies <arena> [count] — spawn test dummy villagers on spawn points */
+    /** /sg debug dummies <arena> [count] [mode] — spawn test dummy villagers on spawn points */
     @Subcommand("debug dummies")
     @Permission("lumasg.admin")
     @PlayerOnly
     fun debugDummies(
         @Context player: Player,
-        @Arg("arena") @Suggests("arenaNames") arenaName: String
+        @Arg("arena") @Suggests("arenaNames") arenaName: String,
+        @Arg("count", required = false) countStr: String?,
+        @Arg("mode", required = false) @Suggests("lootModeNames") modeName: String?
     ) {
         val arena = arenaService.getArena(arenaName) ?: run {
             player.sendMessage("§cArena '$arenaName' not found.")
             return
         }
-        val game = gameManager.getGameByArena(arena) ?: gameManager.createGame(arena, GameMode.Solo)
+        val lootMode = if (modeName != null) {
+            LootMode.fromString(modeName) ?: run {
+                player.sendMessage("§cInvalid loot mode '$modeName'. Valid: ${LootMode.entries.joinToString { it.name.lowercase() }}")
+                return
+            }
+        } else null
+        val game = gameManager.getGameByArena(arena) ?: gameManager.createGame(arena, GameMode.Solo, lootMode)
         if (game.phase !is GamePhase.Waiting) {
             player.sendMessage("§cCannot spawn dummies — game is already in progress.")
             return
@@ -525,13 +533,14 @@ class SGCommand(
             game.addPlayer(player)
         }
         val maxDummies = arena.spawnPoints.size - game.players.size
-        val toSpawn = maxDummies
+        val requestedCount = countStr?.toIntOrNull()
+        val toSpawn = if (requestedCount != null) minOf(requestedCount, maxDummies) else maxDummies
         if (toSpawn <= 0) {
             player.sendMessage("§cNo spawn points available for dummies.")
             return
         }
         val spawned = dummyManager.spawnDummies(game, toSpawn)
-        player.sendMessage("§aSpawned $spawned dummy villagers in arena '$arenaName'.")
+        player.sendMessage("§aSpawned $spawned dummy villagers in arena '$arenaName' [${game.lootMode.name}].")
         player.sendMessage("§7Use §e/sg start $arenaName §7to begin the game.")
     }
 
@@ -595,6 +604,7 @@ class SGCommand(
             sender.sendMessage("§e/sg arena select <name> §7— Select arena for editing")
             sender.sendMessage("§e/sg admin setup §7— Open setup menu")
             sender.sendMessage("§e/sg admin reload §7— Reload config")
+            sender.sendMessage("§e/sg debug dummies <arena> [count] [mode] §7— Spawn test dummies")
         }
     }
 }

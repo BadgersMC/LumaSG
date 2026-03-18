@@ -216,8 +216,8 @@ data class LumaSGConfig(
 
     data class PixelArtConfig(
         var enabled: Boolean = true,
-        @Comment("Crafatar API URL for player skin. Placeholder: <uuid>")
-        var apiUrl: String = "https://crafatar.com/avatars/<uuid>?size=8&overlay",
+        @Comment("Skin API URL for player face. Placeholders: <name>, <uuid>")
+        var apiUrl: String = "https://starlightskins.lunareclipse.studio/render/pixel/<name>/face",
         @Comment("Pixel art grid size")
         var size: Int = 8,
         @Comment("Character used for each pixel")

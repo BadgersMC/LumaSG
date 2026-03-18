@@ -56,6 +56,7 @@ class GameBrowserMenu(
             .setDisplayName("§6${game.arena.displayName}")
             .addLoreLines(
                 "§7Mode: §f${game.mode.displayName}",
+                "§7Loot: §f${game.lootMode.name.lowercase().replaceFirstChar { it.uppercase() }}",
                 "§7Players: §f${game.players.size}/${game.arena.maxPlayers}",
                 "§7Phase: §f${game.phase::class.simpleName}",
                 "",

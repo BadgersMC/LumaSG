@@ -71,6 +71,7 @@ private suspend fun renderPixelArtHead(
 
     val apiUrl = config.rewards.winnerAnnouncement.pixelArt.apiUrl
         .replace("<uuid>", winnerUuid.toString())
+        .replace("<name>", winnerName)
     val pixelChar = config.rewards.winnerAnnouncement.pixelArt.character.ifEmpty { PIXEL_CHAR }
     val size = config.rewards.winnerAnnouncement.pixelArt.size
 
