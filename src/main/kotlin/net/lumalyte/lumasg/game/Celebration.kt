@@ -85,7 +85,16 @@ private suspend fun renderPixelArtHead(
                 readTimeout = 5_000
                 setRequestProperty("User-Agent", "LumaSG-Plugin")
             }
-            ImageIO.read(conn.getInputStream())
+            val raw = ImageIO.read(conn.getInputStream()) ?: return@withContext null
+            // Starlight returns a full-size render — scale down to pixel art grid size
+            if (raw.width == size && raw.height == size) raw
+            else {
+                val scaled = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+                val g = scaled.createGraphics()
+                g.drawImage(raw, 0, 0, size, size, null)
+                g.dispose()
+                scaled
+            }
         } catch (e: Exception) {
             logger.warn("Failed to fetch Starlight skin for $winnerName: ${e::class.simpleName}: ${e.message}")
             null
