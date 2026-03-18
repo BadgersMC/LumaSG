@@ -6,6 +6,7 @@ import java.util.UUID
 data class PlayerStats(
     val uuid: UUID,
     val playerName: String,
+    val lootMode: LootMode = LootMode.MODERN,
     val kills: Int = 0,
     val deaths: Int = 0,
     val wins: Int = 0,
