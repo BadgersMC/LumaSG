@@ -2,6 +2,7 @@ package net.lumalyte.lumasg.config
 
 import net.badgersmc.nexus.config.Comment
 import net.badgersmc.nexus.config.ConfigFile
+import net.lumalyte.lumasg.domain.LootMode
 
 @ConfigFile("config")
 data class LumaSGConfig(
@@ -38,7 +39,9 @@ data class LumaSGConfig(
     @Comment("Smoke Grenade Settings")
     var smokeGrenade: SmokeGrenadeConfig = SmokeGrenadeConfig(),
     @Comment("Glider Feather Settings")
-    var glider: GliderConfig = GliderConfig()
+    var glider: GliderConfig = GliderConfig(),
+    @Comment("Loot Mode Settings — Classic, Modern, OP")
+    var modes: ModesSection = ModesSection()
 ) {
 
     data class LobbyConfig(
@@ -419,4 +422,40 @@ data class LumaSGConfig(
         @Comment("Prevent firework rockets from boosting glider")
         var blockFireworkBoost: Boolean = true
     )
+
+    data class ModeConfig(
+        @Comment("Display name (MiniMessage format)")
+        var displayName: String = "",
+        @Comment("Mode description")
+        var description: String = "",
+        @Comment("Optional timing overrides — keys: grace-period, game-duration, deathmatch-duration, countdown-time, chest-refill-delay")
+        var timingOverrides: Map<String, Int> = emptyMap()
+    )
+
+    data class ModesSection(
+        @Comment("Default loot mode when /sg start omits the mode argument")
+        var defaultMode: String = "modern",
+        @Comment("Classic mode — modernized 1.8-era loot")
+        var classic: ModeConfig = ModeConfig(
+            displayName = "<gold>Classic",
+            description = "Modernized 1.8-era survival games"
+        ),
+        @Comment("Modern mode — balanced middle ground")
+        var modern: ModeConfig = ModeConfig(
+            displayName = "<green>Modern",
+            description = "Balanced gameplay with all features"
+        ),
+        @Comment("OP mode — overpowered loot, chaotic battles")
+        var op: ModeConfig = ModeConfig(
+            displayName = "<red>OP",
+            description = "Overpowered loot, chaotic battles"
+        )
+    )
+}
+
+/** Resolve [LumaSGConfig.ModeConfig] for a given [LootMode]. */
+fun LumaSGConfig.ModesSection.forMode(mode: LootMode): LumaSGConfig.ModeConfig = when (mode) {
+    LootMode.CLASSIC -> classic
+    LootMode.MODERN -> modern
+    LootMode.OP -> op
 }
