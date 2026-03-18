@@ -510,7 +510,7 @@ class SGCommand(
     fun debugDummies(
         @Context player: Player,
         @Arg("arena") @Suggests("arenaNames") arenaName: String,
-        @Arg("count", required = false) countStr: String?,
+        @Arg("count", required = false) @Suggests("dummyCounts") countStr: String?,
         @Arg("mode", required = false) @Suggests("lootModeNames") modeName: String?
     ) {
         val arena = arenaService.getArena(arenaName) ?: run {

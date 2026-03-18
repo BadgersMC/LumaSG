@@ -47,6 +47,10 @@ class LumaSGPlugin : JavaPlugin() {
                 "lootModeNames" to SuggestionProvider<CommandSourceStack> { _, builder ->
                     LootMode.entries.forEach { builder.suggest(it.name.lowercase()) }
                     builder.buildFuture()
+                },
+                "dummyCounts" to SuggestionProvider<CommandSourceStack> { _, builder ->
+                    listOf("1", "2", "4", "8", "16").forEach { builder.suggest(it) }
+                    builder.buildFuture()
                 }
             )
         )

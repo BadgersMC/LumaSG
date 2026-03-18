@@ -44,7 +44,7 @@ private val FIREWORK_TYPES = listOf(
 private const val PIXEL_CHAR = "\u2B1B" // ⬛
 
 /**
- * Fetches the winner's 8x8 face from Crafatar and renders pixel art + winner
+ * Fetches the winner's 8x8 face from Starlight Skins API and renders pixel art + winner
  * info into chat for all participants.
  *
  * The HTTP fetch runs on [Dispatchers.IO]; chat messages are sent on
@@ -75,7 +75,7 @@ private suspend fun renderPixelArtHead(
     val pixelChar = config.rewards.winnerAnnouncement.pixelArt.character.ifEmpty { PIXEL_CHAR }
     val size = config.rewards.winnerAnnouncement.pixelArt.size
 
-    logger.info("Fetching Crafatar head for $winnerName ($winnerUuid) from: $apiUrl")
+    logger.info("Fetching Starlight skin for $winnerName ($winnerUuid) from: $apiUrl")
 
     val image: BufferedImage? = withContext(Dispatchers.IO) {
         try {
@@ -87,7 +87,7 @@ private suspend fun renderPixelArtHead(
             }
             ImageIO.read(conn.getInputStream())
         } catch (e: Exception) {
-            logger.warn("Failed to fetch Crafatar head for $winnerName: ${e::class.simpleName}: ${e.message}")
+            logger.warn("Failed to fetch Starlight skin for $winnerName: ${e::class.simpleName}: ${e.message}")
             null
         }
     }
@@ -97,7 +97,7 @@ private suspend fun renderPixelArtHead(
         return
     }
 
-    logger.info("Crafatar image loaded: ${image.width}x${image.height} — rendering pixel art")
+    logger.info("Starlight skin loaded: ${image.width}x${image.height} — rendering pixel art")
 
     // Build rows of colored pixel squares using configured size and character
     val imgWidth = minOf(size, image.width)
