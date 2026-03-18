@@ -2,6 +2,7 @@ package net.lumalyte.lumasg.chest
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.util.ItemUtils
 import org.bukkit.Material
 import org.bukkit.configuration.ConfigurationSection
@@ -30,7 +31,9 @@ class ChestItem(
     /** Whether this item is a Nexo item */
     val isNexoItem: Boolean = false,
     /** The Nexo item ID (only used for Nexo items) */
-    val nexoItemId: String? = null
+    val nexoItemId: String? = null,
+    /** Per-mode weight multipliers. Defaults to 1.0 for all modes (appears normally). */
+    val modeWeights: Map<LootMode, Double> = LootMode.entries.associateWith { 1.0 }
 ) {
 
     /**
@@ -99,6 +102,16 @@ class ChestItem(
             val chance = section.getDouble("chance", 10.0)
             val tier = section.getString("tier", "common") ?: "common"
 
+            // Parse mode-weights (optional — defaults to 1.0 for all modes)
+            val modeWeightsSection = section.getConfigurationSection("mode-weights")
+            val modeWeights: Map<LootMode, Double> = if (modeWeightsSection != null) {
+                LootMode.entries.associateWith { mode ->
+                    modeWeightsSection.getDouble(mode.name.lowercase(), 1.0)
+                }
+            } else {
+                LootMode.entries.associateWith { 1.0 }
+            }
+
             // Check if this is a Nexo item
             val nexoItemId = section.getString("nexo-item")
             if (!nexoItemId.isNullOrEmpty()) {
@@ -110,7 +123,8 @@ class ChestItem(
                     chance = chance,
                     tier = tier,
                     isNexoItem = true,
-                    nexoItemId = nexoItemId
+                    nexoItemId = nexoItemId,
+                    modeWeights = modeWeights
                 )
             }
 
@@ -123,7 +137,8 @@ class ChestItem(
                 minAmount = minAmount,
                 maxAmount = maxAmount,
                 chance = chance,
-                tier = tier
+                tier = tier,
+                modeWeights = modeWeights
             )
         }
     }
