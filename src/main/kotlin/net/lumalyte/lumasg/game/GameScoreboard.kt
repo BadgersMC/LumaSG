@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.game
 import kotlinx.coroutines.*
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.config.forMode
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.util.cache.ScoreboardCache
@@ -129,6 +130,10 @@ class GameScoreboard(
                     .replace("<arena>", arena.displayName)
             )
         }
+
+        // Show loot mode name
+        val modeConfig = config.modes.forMode(game.lootMode)
+        lines.add("§7Mode: ${legacyFromMiniMessage(modeConfig.displayName)}")
 
         if (phase is GamePhase.Deathmatch) {
             for (dmLine in config.scoreboard.deathmatchLines) {
