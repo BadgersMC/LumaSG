@@ -5,6 +5,7 @@ import org.jetbrains.exposed.sql.javatime.timestamp
 
 object PlayerStatsTable : Table("player_stats") {
     val uuid            = varchar("uuid", 36)
+    val lootMode        = varchar("loot_mode", 16).default("MODERN")
     val playerName      = varchar("player_name", 64)
     val kills           = integer("kills").default(0)
     val deaths          = integer("deaths").default(0)
@@ -23,5 +24,5 @@ object PlayerStatsTable : Table("player_stats") {
     val lastPlayed      = timestamp("last_played")
     val createdAt       = timestamp("created_at")
 
-    override val primaryKey = PrimaryKey(uuid)
+    override val primaryKey = PrimaryKey(uuid, lootMode)
 }
