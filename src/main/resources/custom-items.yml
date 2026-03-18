@@ -60,6 +60,10 @@ items:
         common: 8.0         # Common in basic chests
         uncommon: 12.0      # More common in mid-tier
         rare: 6.0           # Less common in rare (better items available)
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -119,6 +123,10 @@ items:
         common: 15.0        # Very common in basic chests
         uncommon: 10.0      # Common in mid-tier
         rare: 4.0           # Less common in rare chests
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -171,6 +179,10 @@ items:
         common: 6.0         # Uncommon in basic chests
         uncommon: 15.0      # Common in mid-tier
         rare: 18.0          # Very common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 2
       
@@ -222,6 +234,10 @@ items:
         common: 5.0         # Uncommon in basic chests
         uncommon: 12.0      # Common in mid-tier
         rare: 15.0          # Very common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -273,6 +289,10 @@ items:
         common: 0.0         # Never in basic chests
         uncommon: 1.0        # Very rare in mid-tier
         rare: 5.0            # Uncommon in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 0.15
+        op: 1.5
       min-amount: 1
       max-amount: 1
 
@@ -313,6 +333,10 @@ items:
         common: 4.0         # Uncommon in basic chests
         uncommon: 10.0       # Common in mid-tier
         rare: 8.0            # Common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.2
+        op: 1.5
       min-amount: 1
       max-amount: 2
 
@@ -350,6 +374,10 @@ items:
         common: 3.0         # Uncommon in basic chests
         uncommon: 8.0        # Common in mid-tier
         rare: 10.0           # Common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.5
       min-amount: 1
       max-amount: 1
 
@@ -401,6 +429,10 @@ items:
         common: 0.5         # Very rare in basic chests
         uncommon: 3.0       # Uncommon in mid-tier
         rare: 8.0           # More common in rare chests
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
