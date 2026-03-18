@@ -465,8 +465,8 @@ class SGCommand(
 
     // ── Debug commands ───────────────────────────────────────────────────
 
-    /** /sg debug skip-pvp <arena> — skip grace period on an arena */
-    @Subcommand("debug skip-pvp")
+    /** /sg debug-skip-pvp <arena> — skip grace period on an arena */
+    @Subcommand("debug-skip-pvp")
     @Permission("lumasg.admin")
     fun debugSkipPvp(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
         val game = gameManager.getGameByArena(arenaName)
@@ -503,8 +503,8 @@ class SGCommand(
         }
     }
 
-    /** /sg debug dummies <arena> [count] [mode] — spawn test dummy villagers on spawn points */
-    @Subcommand("debug dummies")
+    /** /sg debug-dummies <arena> [count] [mode] — spawn test dummy villagers on spawn points */
+    @Subcommand("debug-dummies")
     @Permission("lumasg.admin")
     @PlayerOnly
     fun debugDummies(
@@ -604,7 +604,8 @@ class SGCommand(
             sender.sendMessage("§e/sg arena select <name> §7— Select arena for editing")
             sender.sendMessage("§e/sg admin setup §7— Open setup menu")
             sender.sendMessage("§e/sg admin reload §7— Reload config")
-            sender.sendMessage("§e/sg debug dummies <arena> [count] [mode] §7— Spawn test dummies")
+            sender.sendMessage("§e/sg debug-dummies <arena> [count] [mode] §7— Spawn test dummies")
+            sender.sendMessage("§e/sg debug-skip-pvp <arena> §7— Skip grace period")
         }
     }
 }
