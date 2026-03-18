@@ -29,8 +29,7 @@ class ConfigurationManager(
 
     @PostConstruct
     fun init() {
-        // config.yml is NOT loaded here — Nexus manages it via @ConfigFile("config")
-        // which creates config.yaml. Avoid duplicate config files.
+        // config.yaml is managed by Nexus via @ConfigFile("config") on LumaSGConfig
         loadDefaultConfig("chest.yml")
         loadDefaultConfig("custom-items.yml")
         loadDefaultConfig("fishing.yml")
