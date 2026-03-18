@@ -14,6 +14,7 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.hooks.NexoHook
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -150,7 +151,7 @@ class ChestManager(
      * Fills a chest at [location] with weighted-random items from [tier].
      * Must be called on the main thread (or inside a BukkitDispatcher context).
      */
-    fun fillChest(location: Location, tier: String): Boolean {
+    fun fillChest(location: Location, tier: String, mode: LootMode = LootMode.MODERN): Boolean {
         val block = location.block
         val state = block.state
         if (state !is Chest) {
@@ -161,7 +162,7 @@ class ChestManager(
         val inventory = state.inventory
         inventory.clear()
 
-        val loot = getItemsForTier(tier)
+        val loot = getItemsForTier(tier, mode)
         if (loot.isEmpty()) {
             logger.warn("No items available for tier: {}", tier)
             return false
@@ -178,7 +179,7 @@ class ChestManager(
         while (filledSlots < itemCount && attempts < maxAttempts) {
             attempts++
 
-            val selected = weightedRandomItem(loot) ?: continue
+            val selected = weightedRandomItem(loot, mode) ?: continue
             val itemStack = selected.resolveItemStack() ?: continue
 
             // Randomise amount
@@ -206,11 +207,11 @@ class ChestManager(
      * Fill multiple chests concurrently. Inventory access runs on the
      * main thread via [bukkitDispatcher].
      */
-    suspend fun fillAll(chests: List<Chest>, tier: String) = coroutineScope {
+    suspend fun fillAll(chests: List<Chest>, tier: String, mode: LootMode = LootMode.MODERN) = coroutineScope {
         chests.map { chest ->
             launch {
                 withContext(bukkitDispatcher) {
-                    fillChest(chest.location, tier)
+                    fillChest(chest.location, tier, mode)
                 }
             }
         }
@@ -222,11 +223,11 @@ class ChestManager(
      * Returns a single weighted-random ItemStack from [tier],
      * with a randomised amount, or null if no items exist for that tier.
      */
-    fun getRandomItem(tier: String): ItemStack? {
-        val items = getItemsForTier(tier)
+    fun getRandomItem(tier: String, mode: LootMode = LootMode.MODERN): ItemStack? {
+        val items = getItemsForTier(tier, mode)
         if (items.isEmpty()) return null
 
-        val selected = weightedRandomItem(items) ?: return null
+        val selected = weightedRandomItem(items, mode) ?: return null
         val stack = selected.resolveItemStack() ?: return null
 
         stack.amount = if (selected.maxAmount > selected.minAmount) {
@@ -241,15 +242,15 @@ class ChestManager(
     /**
      * Returns [count] weighted-random ItemStacks from [tier].
      */
-    fun getRandomItems(tier: String, count: Int): List<ItemStack> {
-        val items = getItemsForTier(tier)
+    fun getRandomItems(tier: String, count: Int, mode: LootMode = LootMode.MODERN): List<ItemStack> {
+        val items = getItemsForTier(tier, mode)
         if (items.isEmpty()) {
             logger.warn("No items found for tier: {}", tier)
             return emptyList()
         }
 
         return (1..count).mapNotNull {
-            val selected = weightedRandomItem(items) ?: return@mapNotNull null
+            val selected = weightedRandomItem(items, mode) ?: return@mapNotNull null
             val stack = selected.resolveItemStack() ?: return@mapNotNull null
             stack.amount = if (selected.maxAmount > selected.minAmount) {
                 selected.minAmount + ThreadLocalRandom.current()
@@ -265,23 +266,23 @@ class ChestManager(
     fun getTiers(): Set<String> =
         chestItems.mapTo(mutableSetOf()) { it.tier }
 
-    /** Returns all loaded ChestItems for a given tier. */
-    fun getItemsForTier(tier: String): List<ChestItem> =
-        chestItems.filter { it.tier.equals(tier, ignoreCase = true) }
+    /** Returns all loaded ChestItems for a given tier, excluding items with zero weight for the given mode. */
+    fun getItemsForTier(tier: String, mode: LootMode = LootMode.MODERN): List<ChestItem> =
+        chestItems.filter { it.tier.equals(tier, ignoreCase = true) && (it.modeWeights[mode] ?: 1.0) > 0.0 }
 
     // ── Internals ───────────────────────────────────────────────────────────
 
-    private fun weightedRandomItem(loot: List<ChestItem>): ChestItem? {
+    private fun weightedRandomItem(loot: List<ChestItem>, mode: LootMode = LootMode.MODERN): ChestItem? {
         if (loot.isEmpty()) return null
 
-        val totalWeight = loot.sumOf { it.chance }
+        val totalWeight = loot.sumOf { it.chance * (it.modeWeights[mode] ?: 1.0) }
         if (totalWeight <= 0) {
             return loot[ThreadLocalRandom.current().nextInt(loot.size)]
         }
 
         var roll = ThreadLocalRandom.current().nextDouble() * totalWeight
         for (item in loot) {
-            roll -= item.chance
+            roll -= item.chance * (item.modeWeights[mode] ?: 1.0)
             if (roll <= 0) return item
         }
         return loot.last()
