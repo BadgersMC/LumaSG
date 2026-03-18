@@ -11,6 +11,7 @@ import net.lumalyte.lumasg.discord.DiscordService
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.statistics.StatisticsService
 import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.entity.Player
@@ -37,10 +38,14 @@ class GameManager(
      * Create and launch a new game instance on the given arena.
      * Returns immediately — the game runs entirely in its own coroutine scope.
      */
-    fun createGame(arena: Arena, mode: GameMode): Game {
+    fun createGame(arena: Arena, mode: GameMode, lootMode: LootMode? = null): Game {
+        val resolvedLootMode = lootMode
+            ?: LootMode.fromString(config.modes.defaultMode)
+            ?: LootMode.MODERN
         val game = Game(
             arena = arena,
             mode = mode,
+            lootMode = resolvedLootMode,
             parentScope = nexusScope,
             bukkitDispatcher = bukkitDispatcher,
             statisticsService = statisticsService,
@@ -59,7 +64,7 @@ class GameManager(
         }
 
         game.launch()
-        logger.info("Game ${game.id} launched on arena '${arena.name}' (${mode.displayName})")
+        logger.info("Game ${game.id} launched on arena '${arena.name}' (${mode.displayName}, ${resolvedLootMode.name})")
         return game
     }
 
@@ -119,8 +124,8 @@ class GameManager(
         activeGames.values.any { it.arena.name.equals(arena.name, ignoreCase = true) }
 
     /** Get or create a waiting game on the given arena. */
-    fun getOrCreateGame(arena: Arena, mode: GameMode = GameMode.Solo): Game =
-        findAvailableGame(arena) ?: createGame(arena, mode)
+    fun getOrCreateGame(arena: Arena, mode: GameMode = GameMode.Solo, lootMode: LootMode? = null): Game =
+        findAvailableGame(arena) ?: createGame(arena, mode, lootMode)
 
     /** Remove orphaned games (stuck in non-active states with no players). */
     fun cleanupOrphanedGames(): Int {
