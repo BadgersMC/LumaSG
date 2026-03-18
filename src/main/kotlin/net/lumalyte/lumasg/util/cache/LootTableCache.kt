@@ -6,6 +6,7 @@ import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.chest.ChestItem
 import net.lumalyte.lumasg.chest.ChestManager
+import net.lumalyte.lumasg.domain.LootMode
 import org.bukkit.inventory.ItemStack
 import org.slf4j.LoggerFactory
 import java.time.Duration
@@ -37,15 +38,18 @@ class LootTableCache(
         val itemCount: Int get() = items.size
     }
 
-    /** Caffeine cache storing pre-generated chests per tier. */
+    /** Cache key: (tier, lootMode) */
+    private data class CacheKey(val tier: String, val mode: LootMode)
+
+    /** Caffeine cache storing pre-generated chests per (tier, mode) bucket. */
     private val lootTableCache = Caffeine.newBuilder()
         .maximumSize(100)
         .expireAfterWrite(Duration.ofMinutes(30))
         .recordStats()
-        .build<String, List<PreGeneratedChest>>()
+        .build<CacheKey, List<PreGeneratedChest>>()
 
-    /** Round-robin counters for each tier. */
-    private val generationCounters = ConcurrentHashMap<String, AtomicInteger>()
+    /** Round-robin counters for each (tier, mode) bucket. */
+    private val generationCounters = ConcurrentHashMap<CacheKey, AtomicInteger>()
 
     /** Scheduled executor for periodic loot regeneration. */
     private lateinit var generationExecutor: ScheduledExecutorService
@@ -94,38 +98,44 @@ class LootTableCache(
     // ── Public API ──────────────────────────────────────────────────────────
 
     /**
-     * Pre-generates loot tables for all tiers known to the [ChestManager].
+     * Pre-generates loot tables for all tiers × modes known to the [ChestManager].
      */
     fun preGenerateLootTables() {
         val availableTiers = chestManager.getTiers()
+        val bucketCount = availableTiers.size * LootMode.entries.size
 
         for (tier in availableTiers) {
-            try {
-                generateLootTableForTier(tier)
-            } catch (e: Exception) {
-                logger.error("Error generating loot table for tier: {}", tier, e)
+            for (mode in LootMode.entries) {
+                try {
+                    generateLootTableForTier(tier, mode)
+                } catch (e: Exception) {
+                    logger.error("Error generating loot table for tier: {}, mode: {}", tier, mode, e)
+                }
             }
         }
 
-        logger.info("Pre-generated loot tables for {} tiers: {}", availableTiers.size, availableTiers)
+        logger.info("Pre-generated loot tables for {} buckets ({} tiers × {} modes)",
+            bucketCount, availableTiers.size, LootMode.entries.size)
     }
 
     /**
-     * Gets a pre-generated chest for a specific tier using round-robin selection.
-     * Generates on-demand if the cache is empty for the requested tier.
+     * Gets a pre-generated chest for a specific tier and mode using round-robin selection.
+     * Generates on-demand if the cache is empty for the requested (tier, mode) bucket.
      *
      * @param tier The tier to retrieve a chest for.
+     * @param mode The loot mode to retrieve a chest for.
      * @return A pre-generated chest, or null if generation failed.
      */
-    fun getPreGeneratedChest(tier: String): PreGeneratedChest? {
-        var chests = lootTableCache.getIfPresent(tier)
+    fun getPreGeneratedChest(tier: String, mode: LootMode = LootMode.MODERN): PreGeneratedChest? {
+        val key = CacheKey(tier, mode)
+        var chests = lootTableCache.getIfPresent(key)
         if (chests.isNullOrEmpty()) {
-            generateLootTableForTier(tier)
-            chests = lootTableCache.getIfPresent(tier)
+            generateLootTableForTier(tier, mode)
+            chests = lootTableCache.getIfPresent(key)
             if (chests.isNullOrEmpty()) return null
         }
 
-        val counter = generationCounters.computeIfAbsent(tier) { AtomicInteger(0) }
+        val counter = generationCounters.computeIfAbsent(key) { AtomicInteger(0) }
         val index = counter.getAndIncrement() % chests.size
         return chests[index]
     }
@@ -171,58 +181,62 @@ class LootTableCache(
      */
     fun getCacheStats(): String {
         val totalChests = lootTableCache.asMap().values.sumOf { it.size.toLong() }
-        return "LootTableCache - Cached Tiers: ${lootTableCache.estimatedSize()}, " +
+        return "LootTableCache - Cached Buckets: ${lootTableCache.estimatedSize()}, " +
             "Total Pre-generated Chests: $totalChests, " +
             "Hit Rate: ${"%.2f".format(lootTableCache.stats().hitRate() * 100)}%"
     }
 
     /**
-     * Returns detailed per-tier statistics.
+     * Returns detailed per-bucket statistics.
      */
     fun getDetailedStats(): String = buildString {
         appendLine("Loot Table Statistics:")
-        lootTableCache.asMap().forEach { (tier, chests) ->
-            val usageCount = generationCounters[tier]?.get() ?: 0
-            appendLine("  $tier: ${chests.size} chests, $usageCount used")
+        lootTableCache.asMap().forEach { (key, chests) ->
+            val usageCount = generationCounters[key]?.get() ?: 0
+            appendLine("  ${key.tier}/${key.mode}: ${chests.size} chests, $usageCount used")
         }
     }
 
     // ── Internal generation ─────────────────────────────────────────────────
 
     /**
-     * Periodic regeneration — only regenerates tiers whose cache has
+     * Periodic regeneration — only regenerates buckets whose cache has
      * fallen below half capacity.
      */
     private fun regenerateLootTables() {
         val availableTiers = chestManager.getTiers()
 
         for (tier in availableTiers) {
-            val existing = lootTableCache.getIfPresent(tier)
-            if (existing == null || existing.size < PREGENERATED_CHESTS_PER_TIER / 2) {
-                generateLootTableForTier(tier)
+            for (mode in LootMode.entries) {
+                val key = CacheKey(tier, mode)
+                val existing = lootTableCache.getIfPresent(key)
+                if (existing == null || existing.size < PREGENERATED_CHESTS_PER_TIER / 2) {
+                    generateLootTableForTier(tier, mode)
+                }
             }
         }
     }
 
-    private fun generateLootTableForTier(tier: String) {
-        val tierItems = chestManager.getItemsForTier(tier)
+    private fun generateLootTableForTier(tier: String, mode: LootMode = LootMode.MODERN) {
+        val tierItems = chestManager.getItemsForTier(tier, mode)
         if (tierItems.isEmpty()) {
-            logger.warn("No items found for tier: {}", tier)
+            logger.warn("No items found for tier: {}, mode: {}", tier, mode)
             return
         }
 
         val preGenerated = (0 until PREGENERATED_CHESTS_PER_TIER).mapNotNull {
-            generateSingleChest(tierItems)
+            generateSingleChest(tierItems, mode)
         }
 
         if (preGenerated.isNotEmpty()) {
-            lootTableCache.put(tier, preGenerated)
-            generationCounters.computeIfAbsent(tier) { AtomicInteger(0) }.set(0)
-            logger.debug("Generated {} chests for tier: {}", preGenerated.size, tier)
+            val key = CacheKey(tier, mode)
+            lootTableCache.put(key, preGenerated)
+            generationCounters.computeIfAbsent(key) { AtomicInteger(0) }.set(0)
+            logger.debug("Generated {} chests for tier: {}, mode: {}", preGenerated.size, tier, mode)
         }
     }
 
-    private fun generateSingleChest(tierItems: List<ChestItem>): PreGeneratedChest? {
+    private fun generateSingleChest(tierItems: List<ChestItem>, mode: LootMode): PreGeneratedChest? {
         val random = ThreadLocalRandom.current()
         val itemCount = random.nextInt(MIN_ITEMS_PER_CHEST, MAX_ITEMS_PER_CHEST + 1)
         val shuffledSlots = (0 until CHEST_SIZE).shuffled()
@@ -231,7 +245,7 @@ class LootTableCache(
         val slots = mutableListOf<Int>()
 
         for (i in 0 until minOf(itemCount, shuffledSlots.size)) {
-            val selected = weightedRandomItem(tierItems) ?: continue
+            val selected = weightedRandomItem(tierItems, mode) ?: continue
             val stack = selected.resolveItemStack() ?: continue
 
             stack.amount = if (selected.maxAmount > selected.minAmount) {
@@ -247,17 +261,17 @@ class LootTableCache(
         return if (items.isEmpty()) null else PreGeneratedChest(items, slots)
     }
 
-    private fun weightedRandomItem(tierItems: List<ChestItem>): ChestItem? {
+    private fun weightedRandomItem(tierItems: List<ChestItem>, mode: LootMode): ChestItem? {
         if (tierItems.isEmpty()) return null
 
-        val totalWeight = tierItems.sumOf { it.chance }
+        val totalWeight = tierItems.sumOf { it.chance * (it.modeWeights[mode] ?: 1.0) }
         if (totalWeight <= 0) {
             return tierItems[ThreadLocalRandom.current().nextInt(tierItems.size)]
         }
 
         var roll = ThreadLocalRandom.current().nextDouble() * totalWeight
         for (item in tierItems) {
-            roll -= item.chance
+            roll -= item.chance * (item.modeWeights[mode] ?: 1.0)
             if (roll <= 0) return item
         }
         return tierItems.last()
