@@ -13,6 +13,7 @@ import net.badgersmc.nexus.paper.commands.annotations.Suggests
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.domain.LootMode
+import net.lumalyte.lumasg.domain.StatType
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.game.TeamQueueManager
 import net.lumalyte.lumasg.gui.GameBrowserMenu
@@ -69,17 +70,25 @@ class SGCommand(
         game.removePlayer(player.uniqueId)
     }
 
-    /** /sg stats <player> — view a player's stats */
+    /** /sg stats <player> [mode] — view a player's stats */
     @Subcommand("stats")
     @Permission("lumasg.play")
     @Async
     suspend fun stats(
         @Context sender: CommandSender,
-        @Arg("target") target: Player
+        @Arg("target") target: Player,
+        @Arg("mode", required = false) @Suggests("lootModeNames") modeName: String?
     ) {
-        val s = statsService.getOrCreate(target.uniqueId, target.name)
+        val lootMode = modeName?.let { LootMode.fromString(it) }
+        val s = if (lootMode != null) {
+            statsService.getOrCreate(target.uniqueId, target.name, lootMode)
+        } else {
+            // Show combined stats summed across all modes
+            statsService.getAggregatedStats(target.uniqueId, target.name)
+        }
         val label = if (sender is Player && sender.uniqueId == target.uniqueId) "Your stats" else target.name
-        sender.sendMessage("§6$label: §fK/D ${String.format("%.2f", s.kdr)} | Wins ${s.wins}")
+        val modeLabel = lootMode?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Overall"
+        sender.sendMessage("§6$label ($modeLabel): §fK/D ${String.format("%.2f", s.kdr)} | Wins ${s.wins} | Games ${s.gamesPlayed}")
     }
 
     /** /sg menu — open main menu */
@@ -545,7 +554,7 @@ class SGCommand(
             sender.sendMessage("§e/sg team list §7— List team members")
             sender.sendMessage("§e/sg mute §7— Toggle queue broadcasts")
             sender.sendMessage("§e/sg myinfo §7— Show current game info")
-            sender.sendMessage("§e/sg stats <player> §7— View player stats")
+            sender.sendMessage("§e/sg stats <player> [mode] §7— View player stats (classic/modern/op)")
         }
 
         sender.sendMessage("§e/sg list §7— List all games and arenas")
