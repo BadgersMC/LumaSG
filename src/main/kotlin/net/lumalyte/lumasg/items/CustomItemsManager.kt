@@ -1,7 +1,9 @@
 package net.lumalyte.lumasg.items
 
 import net.badgersmc.nexus.annotations.PostConstruct
+import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
+import org.bukkit.event.Listener
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.chest.ChestManager
 import net.lumalyte.lumasg.config.LumaSGConfig
@@ -44,7 +46,28 @@ class CustomItemsManager(
             AirstrikeItem(plugin, config, gameManager, bukkitDispatcher)
         ).forEach { item ->
             registry[item.key.key] = item
+            // Manually invoke lifecycle for Listener items since they're not DI-managed
+            when (item) {
+                is GliderItem -> item.register()
+                is SmokeGrenadeItem -> item.register()
+                is AirstrikeItem -> item.register()
+            }
         }
+    }
+
+    private fun shutdownItems() {
+        registry.values.forEach { item ->
+            when (item) {
+                is GliderItem -> item.shutdown()
+                is SmokeGrenadeItem -> item.shutdown()
+                is AirstrikeItem -> item.shutdown()
+            }
+        }
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        shutdownItems()
     }
 
     /** Get a custom item by its string ID. */
@@ -74,6 +97,7 @@ class CustomItemsManager(
 
     /** Reload custom items from config. */
     fun reload() {
+        shutdownItems()
         registry.clear()
         registerDefaults()
         logger.info("Reloaded ${registry.size} custom items")
