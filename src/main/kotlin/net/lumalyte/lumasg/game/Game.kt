@@ -6,11 +6,13 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
 import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.config.forMode
 import net.lumalyte.lumasg.discord.DiscordService
 import net.lumalyte.lumasg.discord.GameEmbed
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.statistics.StatisticsService
 import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.Location
@@ -39,6 +41,7 @@ class Game(
     val id: UUID = UUID.randomUUID(),
     val arena: Arena,
     val mode: GameMode,
+    val lootMode: LootMode = LootMode.MODERN,
     parentScope: CoroutineScope,
     private val bukkitDispatcher: BukkitDispatcher,
     private val statisticsService: StatisticsService,
@@ -84,6 +87,10 @@ class Game(
     internal val worldManager = WorldManager(arena, config)
     private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config, scoreboardCache)
     private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
+
+    /** Resolve a timing value: mode override → global config fallback. */
+    private fun resolveTiming(key: String, globalValue: Int): Int =
+        config.modes.forMode(lootMode).timingOverrides[key] ?: globalValue
 
     // ── Player management ─────────────────────────────────────────────────
 
@@ -268,8 +275,9 @@ class Game(
             spawnEnforcementJob = null
             withContext(bukkitDispatcher) {
                 worldManager.removeBarriers()
+                val gracePeriod = resolveTiming("grace-period", config.game.gracePeriodSeconds)
                 val graceMsg = config.messages.gracePeriodStart
-                    .replace("<time>", config.game.gracePeriodSeconds.toString())
+                    .replace("<time>", gracePeriod.toString())
                 broadcastTitle(
                     mm.deserialize(config.messages.gameStart),
                     mm.deserialize(graceMsg),
@@ -336,7 +344,8 @@ class Game(
     }
 
     private suspend fun runCountdown() {
-        for (i in config.game.countdownSeconds downTo 1) {
+        val countdownTime = resolveTiming("countdown-time", config.game.countdownSeconds)
+        for (i in countdownTime downTo 1) {
             phase = GamePhase.Countdown(i)
             if (i <= 5 || i == 10 || i == 30) {
                 withContext(bukkitDispatcher) { broadcastCountdown(i) }
@@ -347,7 +356,8 @@ class Game(
 
     private suspend fun runGracePhase() {
         startTime = Instant.now()
-        for (i in config.game.gracePeriodSeconds downTo 1) {
+        val gracePeriod = resolveTiming("grace-period", config.game.gracePeriodSeconds)
+        for (i in gracePeriod downTo 1) {
             phase = GamePhase.Grace(i)
             if (i == 30 || i == 10 || i <= 5) {
                 withContext(bukkitDispatcher) { broadcastGraceWarning(i) }
@@ -358,7 +368,7 @@ class Game(
     }
 
     private suspend fun runActivePhase() {
-        val totalSeconds = config.game.gameTimeMinutes * 60
+        val totalSeconds = resolveTiming("game-duration", config.game.gameTimeMinutes) * 60
         val reminderTimes = config.messages.deathmatchReminders.reminderTimes.toSet()
         for (i in totalSeconds downTo 1) {
             phase = GamePhase.Active(i)
@@ -397,7 +407,7 @@ class Game(
     }
 
     private suspend fun runDeathmatchTimer() {
-        val dmSeconds = config.worldBorder.deathmatch.shrinkDurationSeconds.toInt()
+        val dmSeconds = resolveTiming("deathmatch-duration", config.worldBorder.deathmatch.shrinkDurationSeconds.toInt())
         val quarter = dmSeconds / 4
         val half = dmSeconds / 2
         val threeQuarter = (dmSeconds * 3) / 4
