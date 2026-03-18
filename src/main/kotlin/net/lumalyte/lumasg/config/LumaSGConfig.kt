@@ -18,7 +18,10 @@ data class LumaSGConfig(
     var database: DatabaseConfig = DatabaseConfig(),
     var discord: DiscordConfig = DiscordConfig(),
     var queue: QueueConfig = QueueConfig(),
-    var debug: DebugConfig = DebugConfig()
+    var debug: DebugConfig = DebugConfig(),
+    var airstrike: AirstrikeConfig = AirstrikeConfig(),
+    var smokeGrenade: SmokeGrenadeConfig = SmokeGrenadeConfig(),
+    var glider: GliderConfig = GliderConfig()
 ) {
 
     data class LobbyConfig(
@@ -226,5 +229,44 @@ data class LumaSGConfig(
     data class DebugConfig(
         var enabled: Boolean = false,
         var logLevel: String = "INFO"
+    )
+
+    data class AirstrikeConfig(
+        var enabled: Boolean = true,
+        var chargeTimeTicks: Int = 70,
+        var maxRange: Int = 80,
+        var cancelOnDamage: Boolean = false,
+        var blastRadius: Int = 18,
+        var meteorCount: Int = 5,
+        var deathmatchMeteorCount: Int = 1,
+        var meteorDelayTicks: Int = 30,
+        var warningDurationTicks: Int = 60,
+        var lockOnDurationTicks: Int = 10,
+        var explosionRadius: Int = 4,
+        var explosionDamage: Double = 6.0,
+        var debrisCountMultiplier: Int = 5,
+        var broadcastMessage: String = "<red><bold>⚠</bold></red> <yellow><player> called in an airstrike!</yellow> <red><bold>⚠</bold></red>",
+        var warningActionbar: String = "<red>⚠ AIRSTRIKE INCOMING ⚠</red>",
+        var lockActionbar: String = "<dark_red><bold>⚠ TARGET LOCKED ⚠</bold></dark_red>",
+        var noTargetMessage: String = "<gray>No target in range</gray>"
+    )
+
+    data class SmokeGrenadeConfig(
+        var enabled: Boolean = true,
+        var radius: Int = 16,
+        var durationTicks: Int = 200,
+        var fadeDurationTicks: Int = 40,
+        var particleTickRate: Int = 2,
+        var visibilityCheckRate: Int = 4,
+        var particleDensity: Int = 80,
+        var ambientSoundInterval: Int = 20
+    )
+
+    data class GliderConfig(
+        var enabled: Boolean = true,
+        var maxDurationTicks: Int = 300,
+        var minAirtimeTicks: Int = 10,
+        var landingFallDamage: Boolean = false,
+        var blockFireworkBoost: Boolean = true
     )
 }

@@ -426,4 +426,50 @@ discord:
     # Map Discord roles to plugin permissions
     role-permissions:
       "Admin": "lumasg.admin"
-      "Moderator": "lumasg.moderate" 
+      "Moderator": "lumasg.moderate"
+
+# Airstrike Designator Settings
+airstrike:
+  enabled: true
+  # Charge-up
+  charge-time-ticks: 70        # 3.5 seconds
+  max-range: 80                # blocks
+  cancel-on-damage: false
+  # Blast zone
+  blast-radius: 18             # blocks
+  # Barrage
+  meteor-count: 5
+  deathmatch-meteor-count: 1
+  meteor-delay-ticks: 30       # 1.5 seconds
+  # Warning
+  warning-duration-ticks: 60   # 3 seconds
+  lock-on-duration-ticks: 10   # 0.5 seconds
+  # Per-meteor explosion
+  explosion-radius: 4          # blocks
+  explosion-damage: 6.0        # base damage at epicenter
+  debris-count-multiplier: 5   # debris per radius unit (radius * this = total FallingBlocks)
+  # Messages (MiniMessage format)
+  broadcast-message: "<red><bold>⚠</bold></red> <yellow><player> called in an airstrike!</yellow> <red><bold>⚠</bold></red>"
+  warning-actionbar: "<red>⚠ AIRSTRIKE INCOMING ⚠</red>"
+  lock-actionbar: "<dark_red><bold>⚠ TARGET LOCKED ⚠</bold></dark_red>"
+  no-target-message: "<gray>No target in range</gray>"
+
+# Smoke Grenade Settings
+smoke-grenade:
+  enabled: true
+  radius: 16                   # blocks
+  duration-ticks: 200          # 10 seconds
+  fade-duration-ticks: 40      # last 2 seconds
+  particle-tick-rate: 2        # ticks between particle spawns
+  visibility-check-rate: 4     # ticks between nametag checks
+  particle-density: 80         # points per tick
+  # Audio
+  ambient-sound-interval: 20   # ticks between crackle sounds
+
+# Glider Feather Settings
+glider:
+  enabled: true
+  max-duration-ticks: 300      # 15 seconds
+  min-airtime-ticks: 10        # must be airborne this long before glide activates
+  landing-fall-damage: false   # cancel fall damage on glide landing
+  block-firework-boost: true   # prevent firework rockets from boosting glider
