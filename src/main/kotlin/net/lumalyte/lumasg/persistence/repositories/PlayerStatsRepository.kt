@@ -1,6 +1,7 @@
 package net.lumalyte.lumasg.persistence.repositories
 
 import net.badgersmc.nexus.annotations.Repository
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.domain.PlayerStats
 import net.lumalyte.lumasg.domain.StatType
 import net.lumalyte.lumasg.persistence.DatabaseService
@@ -13,10 +14,13 @@ import java.util.UUID
 @Repository
 class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService) {
 
-    suspend fun findByUuid(uuid: UUID): PlayerStats? = dbQuery {
+    suspend fun findByUuid(uuid: UUID, lootMode: LootMode = LootMode.MODERN): PlayerStats? = dbQuery {
         PlayerStatsTable
             .selectAll()
-            .where { PlayerStatsTable.uuid eq uuid.toString() }
+            .where {
+                (PlayerStatsTable.uuid eq uuid.toString()) and
+                (PlayerStatsTable.lootMode eq lootMode.name)
+            }
             .singleOrNull()
             ?.toPlayerStats()
     }
@@ -25,6 +29,7 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
         val now = Instant.now()
         PlayerStatsTable.upsert {
             it[uuid] = stats.uuid.toString()
+            it[lootMode] = stats.lootMode.name
             it[playerName] = stats.playerName
             it[kills] = stats.kills
             it[deaths] = stats.deaths
@@ -45,7 +50,7 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
         }
     }
 
-    suspend fun getLeaderboard(statType: StatType, limit: Int = 10): List<PlayerStats> = dbQuery {
+    suspend fun getLeaderboard(statType: StatType, limit: Int = 10, lootMode: LootMode? = null): List<PlayerStats> = dbQuery {
         val orderColumn: Expression<*> = when (statType) {
             StatType.WINS -> PlayerStatsTable.wins
             StatType.KILLS -> PlayerStatsTable.kills
@@ -59,16 +64,19 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
             StatType.KILL_DEATH_RATIO -> PlayerStatsTable.kills
             StatType.WIN_RATE -> PlayerStatsTable.wins
         }
-        PlayerStatsTable
-            .selectAll()
-            .orderBy(orderColumn to SortOrder.DESC)
+        val baseQuery = if (lootMode != null) {
+            PlayerStatsTable.selectAll().where { PlayerStatsTable.lootMode eq lootMode.name }
+        } else {
+            PlayerStatsTable.selectAll()
+        }
+        baseQuery.orderBy(orderColumn to SortOrder.DESC)
             .limit(limit)
             .map { it.toPlayerStats() }
     }
 
     /** Backwards-compatible overload — defaults to kills leaderboard. */
     suspend fun getLeaderboard(limit: Int = 10): List<PlayerStats> =
-        getLeaderboard(StatType.KILLS, limit)
+        getLeaderboard(StatType.KILLS, limit, null)
 
     suspend fun getTotalPlayerCount(): Long = dbQuery {
         PlayerStatsTable.selectAll().count()
@@ -79,6 +87,7 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
         for (stats in statsList) {
             PlayerStatsTable.upsert {
                 it[uuid] = stats.uuid.toString()
+                it[lootMode] = stats.lootMode.name
                 it[playerName] = stats.playerName
                 it[kills] = stats.kills
                 it[deaths] = stats.deaths
@@ -103,6 +112,7 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
     private fun ResultRow.toPlayerStats() = PlayerStats(
         uuid = UUID.fromString(this[PlayerStatsTable.uuid]),
         playerName = this[PlayerStatsTable.playerName],
+        lootMode = LootMode.fromString(this[PlayerStatsTable.lootMode]) ?: LootMode.MODERN,
         kills = this[PlayerStatsTable.kills],
         deaths = this[PlayerStatsTable.deaths],
         wins = this[PlayerStatsTable.wins],
