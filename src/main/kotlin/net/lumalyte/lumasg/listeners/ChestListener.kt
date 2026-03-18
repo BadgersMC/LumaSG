@@ -58,7 +58,7 @@ class ChestListener(
         // Fill on first open — determine tier by distance from arena center
         val tier = determineTier(chest, game)
         game.scope.launch {
-            chestFiller.fillChestFromCache(chest, tier)
+            chestFiller.fillChestFromCache(chest, tier, game.lootMode)
         }
 
         // Record stat
