@@ -263,7 +263,7 @@ class Game(
                 worldManager.setup()
                 scoreboard.start()
                 discordService?.announce(
-                    GameEmbed.gameStarted(arena.name, players.size, mode.displayName)
+                    GameEmbed.gameStarted(arena.name, players.size, mode.displayName, lootMode)
                 )
             }
 
