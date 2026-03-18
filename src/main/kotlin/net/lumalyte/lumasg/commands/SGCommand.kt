@@ -12,6 +12,7 @@ import net.badgersmc.nexus.paper.commands.annotations.Subcommand
 import net.badgersmc.nexus.paper.commands.annotations.Suggests
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.game.TeamQueueManager
 import net.lumalyte.lumasg.gui.GameBrowserMenu
@@ -167,21 +168,31 @@ class SGCommand(
 
     // ── Game management commands ──────────────────────────────────────────
 
-    /** /sg start <arena> — start a game in an arena */
+    /** /sg start <arena> [mode] — start a game in an arena */
     @Subcommand("start")
     @Permission("lumasg.admin")
-    fun start(@Context sender: CommandSender, @Arg("arena") @Suggests("arenaNames") arenaName: String) {
+    fun start(
+        @Context sender: CommandSender,
+        @Arg("arena") @Suggests("arenaNames") arenaName: String,
+        @Arg("mode", required = false) @Suggests("lootModeNames") modeName: String?
+    ) {
         val arena = arenaService.getArena(arenaName) ?: run {
             sender.sendMessage("§cArena '$arenaName' not found.")
             return
         }
+        val lootMode = if (modeName != null) {
+            LootMode.fromString(modeName) ?: run {
+                sender.sendMessage("§cInvalid loot mode '$modeName'. Valid: ${LootMode.entries.joinToString { it.name.lowercase() }}")
+                return
+            }
+        } else null
         val existing = gameManager.getGameByArena(arena)
         if (existing != null) {
             sender.sendMessage("§cA game is already running in arena '$arenaName' (${existing.phase::class.simpleName}).")
             return
         }
-        val game = gameManager.createGame(arena, GameMode.Solo)
-        sender.sendMessage("§aStarted game in arena '$arenaName' (ID: ${game.id}).")
+        val game = gameManager.createGame(arena, GameMode.Solo, lootMode)
+        sender.sendMessage("§aStarted game in arena '$arenaName' [${game.lootMode.name}] (ID: ${game.id}).")
     }
 
     /** /sg stop <arena> — stop a game in an arena */
@@ -543,7 +554,7 @@ class SGCommand(
 
         if (sender.hasPermission("lumasg.admin")) {
             sender.sendMessage("§c=== Admin Commands ===")
-            sender.sendMessage("§e/sg start <arena> §7— Start a game")
+            sender.sendMessage("§e/sg start <arena> [mode] §7— Start a game (classic/modern/op)")
             sender.sendMessage("§e/sg stop <arena> §7— Stop a game")
             sender.sendMessage("§e/sg forcestart <arena> §7— Force start a game")
             sender.sendMessage("§e/sg addplayer <player> <arena> §7— Add player to game")

@@ -5,6 +5,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack
 import net.badgersmc.nexus.core.NexusContext
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.badgersmc.nexus.paper.registerPaperCommands
+import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.service.ArenaService
 import net.lumalyte.lumasg.util.SplashScreen
 import org.bukkit.plugin.java.JavaPlugin
@@ -41,6 +42,10 @@ class LumaSGPlugin : JavaPlugin() {
             suggestionProviders = mapOf(
                 "arenaNames" to SuggestionProvider<CommandSourceStack> { _, builder ->
                     arenaService.getAllArenas().forEach { builder.suggest(it.name) }
+                    builder.buildFuture()
+                },
+                "lootModeNames" to SuggestionProvider<CommandSourceStack> { _, builder ->
+                    LootMode.entries.forEach { builder.suggest(it.name.lowercase()) }
                     builder.buildFuture()
                 }
             )
