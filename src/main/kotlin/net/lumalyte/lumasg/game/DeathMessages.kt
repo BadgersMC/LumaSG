@@ -63,6 +63,7 @@ fun weaponName(item: ItemStack): String {
         return when {
             "wooden" in materialName -> "wooden sword"
             "stone" in materialName -> "stone sword"
+            "copper" in materialName -> "copper sword"
             "iron" in materialName -> "iron sword"
             "golden" in materialName -> "golden sword"
             "diamond" in materialName -> "diamond sword"
@@ -76,6 +77,7 @@ fun weaponName(item: ItemStack): String {
         return when {
             "wooden" in materialName -> "wooden axe"
             "stone" in materialName -> "stone axe"
+            "copper" in materialName -> "copper axe"
             "iron" in materialName -> "iron axe"
             "golden" in materialName -> "golden axe"
             "diamond" in materialName -> "diamond axe"
@@ -84,11 +86,23 @@ fun weaponName(item: ItemStack): String {
         }
     }
 
+    // Spears
+    if ("spear" in materialName) {
+        return when {
+            "wooden" in materialName -> "wooden spear"
+            "stone" in materialName -> "stone spear"
+            "iron" in materialName -> "iron spear"
+            "diamond" in materialName -> "diamond spear"
+            else -> "spear"
+        }
+    }
+
     // Ranged / special
     return when (item.type) {
         Material.BOW -> "bow"
         Material.CROSSBOW -> "crossbow"
         Material.TRIDENT -> "trident"
+        Material.MACE -> "mace"
         Material.STICK -> "stick"
         else -> when {
             "pickaxe" in materialName -> "pickaxe"
