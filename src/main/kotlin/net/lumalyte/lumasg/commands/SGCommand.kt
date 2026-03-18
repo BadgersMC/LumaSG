@@ -91,6 +91,27 @@ class SGCommand(
         sender.sendMessage("§6$label ($modeLabel): §fK/D ${String.format("%.2f", s.kdr)} | Wins ${s.wins} | Games ${s.gamesPlayed}")
     }
 
+    /** /sg leaderboard [mode] — show top players */
+    @Subcommand("leaderboard")
+    @Permission("lumasg.play")
+    @Async
+    suspend fun leaderboard(
+        @Context sender: CommandSender,
+        @Arg("mode", required = false) @Suggests("lootModeNames") modeName: String?
+    ) {
+        val lootMode = modeName?.let { LootMode.fromString(it) }
+        val modeLabel = lootMode?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Overall"
+        val top = statsService.getLeaderboard(StatType.WINS, 10, lootMode)
+        sender.sendMessage("§6=== Leaderboard ($modeLabel) ===")
+        if (top.isEmpty()) {
+            sender.sendMessage("§7No stats recorded yet.")
+            return
+        }
+        top.forEachIndexed { index, stats ->
+            sender.sendMessage("§e${index + 1}. §f${stats.playerName} §7— §aWins: ${stats.wins} §7| §cKills: ${stats.kills}")
+        }
+    }
+
     /** /sg menu — open main menu */
     @Subcommand("menu")
     @Permission("lumasg.play")
@@ -555,6 +576,7 @@ class SGCommand(
             sender.sendMessage("§e/sg mute §7— Toggle queue broadcasts")
             sender.sendMessage("§e/sg myinfo §7— Show current game info")
             sender.sendMessage("§e/sg stats <player> [mode] §7— View player stats (classic/modern/op)")
+            sender.sendMessage("§e/sg leaderboard [mode] §7— Top players (classic/modern/op)")
         }
 
         sender.sendMessage("§e/sg list §7— List all games and arenas")
