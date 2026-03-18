@@ -40,7 +40,8 @@ class CustomItemsManager(
             PlayerTrackerItem(plugin, gameManager),
             AirdropFlareItem(plugin, gameManager, chestManager, bukkitDispatcher),
             GliderItem(plugin, config, gameManager),
-            SmokeGrenadeItem(plugin, config, gameManager)
+            SmokeGrenadeItem(plugin, config, gameManager),
+            AirstrikeItem(plugin, config, gameManager, bukkitDispatcher)
         ).forEach { item ->
             registry[item.key.key] = item
         }
