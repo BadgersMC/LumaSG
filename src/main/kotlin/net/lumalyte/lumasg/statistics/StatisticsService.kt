@@ -87,7 +87,11 @@ class StatisticsService(
         val totalPlayers = game.players.size
 
         game.players.values.forEach { gp ->
-            val stats = statsRepo.findByUuid(gp.uuid, lootMode) ?: return@forEach
+            val stats = statsRepo.findByUuid(gp.uuid, lootMode) ?: PlayerStats(
+                uuid = gp.uuid,
+                playerName = gp.name,
+                lootMode = lootMode
+            )
             val isWinner = gp.uuid == winnerUuid
             val isDead = !gp.isAlive
             val placement = gp.placement.takeIf { it > 0 } ?: totalPlayers
