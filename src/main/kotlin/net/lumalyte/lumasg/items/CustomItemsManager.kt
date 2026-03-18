@@ -4,6 +4,7 @@ import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.chest.ChestManager
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.game.GameManager
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory
 @Service
 class CustomItemsManager(
     private val plugin: JavaPlugin,
+    private val config: LumaSGConfig,
     private val gameManager: GameManager,
     private val chestManager: ChestManager,
     private val bukkitDispatcher: BukkitDispatcher
@@ -36,7 +38,9 @@ class CustomItemsManager(
             PoisonBombItem(plugin),
             KnockbackStickItem(plugin),
             PlayerTrackerItem(plugin, gameManager),
-            AirdropFlareItem(plugin, gameManager, chestManager, bukkitDispatcher)
+            AirdropFlareItem(plugin, gameManager, chestManager, bukkitDispatcher),
+            GliderItem(plugin, config, gameManager),
+            SmokeGrenadeItem(plugin, config, gameManager)
         ).forEach { item ->
             registry[item.key.key] = item
         }
