@@ -110,8 +110,8 @@ CODACY*.md
 #Plugin Documentation
 LumaSG_Architecture_Documentation.html
 
-# Exclude entire test directory to prevent security warnings
-src/test/
+# Exclude legacy Java test directory (contained mock credentials); Kotlin tests are tracked
+src/test/java/
 
 # Any test files containing mock credentials or security test data
 *Test.java
@@ -178,3 +178,13 @@ out/
 *credential*
 *auth*
 *key*
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+.worktrees/
+
+# Re-include Kotlin test sources (the broad **/*test* pattern above is too aggressive)
+!src/test/
+!src/test/kotlin/
+!src/test/kotlin/**

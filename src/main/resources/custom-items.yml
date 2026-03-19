@@ -60,6 +60,10 @@ items:
         common: 8.0         # Common in basic chests
         uncommon: 12.0      # More common in mid-tier
         rare: 6.0           # Less common in rare (better items available)
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -119,6 +123,10 @@ items:
         common: 15.0        # Very common in basic chests
         uncommon: 10.0      # Common in mid-tier
         rare: 4.0           # Less common in rare chests
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -171,6 +179,10 @@ items:
         common: 6.0         # Uncommon in basic chests
         uncommon: 15.0      # Common in mid-tier
         rare: 18.0          # Very common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 2
       
@@ -222,6 +234,10 @@ items:
         common: 5.0         # Uncommon in basic chests
         uncommon: 12.0      # Common in mid-tier
         rare: 15.0          # Very common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       
@@ -230,6 +246,145 @@ items:
       item-type: "custom_item"
       custom-id: "poison_bomb"
       category: "explosive"
+
+  # === TACTICAL ITEMS ===
+  airstrike:
+    material: SPYGLASS
+    name: "<gradient:#ff0000:#ff6600><bold>🎯 Airstrike Designator</bold></gradient>"
+    lore:
+      - "<gray>A targeting device that calls"
+      - "<gray>a devastating meteor barrage"
+      - ""
+      - "<yellow>• <white>Hold spyglass to charge 🔭"
+      - "<yellow>• <white>3.5 second charge time ⏱️"
+      - "<yellow>• <white>5 meteor barrage (1 in deathmatch) ☄️"
+      - "<yellow>• <red>You are NOT immune to the blast! 💀"
+      - ""
+      - "<red>Hold right-click to aim and charge"
+      - "<dark_red>Extremely powerful!"
+    unbreakable: true
+    item-flags:
+      - HIDE_ATTRIBUTES
+      - HIDE_UNBREAKABLE
+    custom-model-data: 2006
+
+    behavior:
+      type: AIRSTRIKE
+      charge-time-ticks: 70
+      max-range: 80
+      cancel-on-damage: false
+      blast-radius: 18
+      meteor-count: 5
+      deathmatch-meteor-count: 1
+      meteor-delay-ticks: 30
+      warning-duration-ticks: 60
+      lock-on-duration-ticks: 10
+      explosion-radius: 4
+      explosion-damage: 6.0
+      debris-count-multiplier: 5
+
+    loot:
+      enabled: true
+      tier-weights:
+        common: 0.0         # Never in basic chests
+        uncommon: 1.0        # Very rare in mid-tier
+        rare: 5.0            # Uncommon in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 0.15
+        op: 1.5
+      min-amount: 1
+      max-amount: 1
+
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "airstrike"
+      category: "tactical"
+
+  smoke_grenade:
+    material: SNOWBALL
+    name: "<gradient:#aaaaaa:#666666><bold>💨 Smoke Grenade</bold></gradient>"
+    lore:
+      - "<gray>A tactical grenade that deploys"
+      - "<gray>a dense smoke cloud on impact"
+      - ""
+      - "<yellow>• <white>16 block smoke radius 💨"
+      - "<yellow>• <white>10 second duration ⏱️"
+      - "<yellow>• <white>Blocks nametag visibility 👁️"
+      - "<yellow>• <white>Great for escaping or ambushing 🛡️"
+      - ""
+      - "<red>Right-click to throw"
+      - "<gray>Use smoke to your advantage!"
+    custom-model-data: 2007
+
+    behavior:
+      type: SMOKE_GRENADE
+      radius: 16
+      duration-ticks: 200
+      fade-duration-ticks: 40
+      particle-tick-rate: 2
+      visibility-check-rate: 4
+      particle-density: 80
+      ambient-sound-interval: 20
+
+    loot:
+      enabled: true
+      tier-weights:
+        common: 4.0         # Uncommon in basic chests
+        uncommon: 10.0       # Common in mid-tier
+        rare: 8.0            # Common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.2
+        op: 1.5
+      min-amount: 1
+      max-amount: 2
+
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "smoke_grenade"
+      category: "tactical"
+
+  glider:
+    material: FEATHER
+    name: "<gradient:#87ceeb:#4169e1><bold>🪶 Glider Feather</bold></gradient>"
+    lore:
+      - "<gray>An enchanted feather that grants"
+      - "<gray>the power of elytra flight"
+      - ""
+      - "<yellow>• <white>Hold feather while airborne 🪶"
+      - "<yellow>• <white>15 second max glide time ⏱️"
+      - "<yellow>• <white>No fall damage on landing ❤️"
+      - "<yellow>• <white>Firework boost blocked 🚫"
+      - ""
+      - "<red>Jump and hold feather to glide"
+      - "<aqua>Soar above the competition!"
+    custom-model-data: 2008
+
+    behavior:
+      type: GLIDER
+      max-duration-ticks: 300
+      min-airtime-ticks: 10
+      landing-fall-damage: false
+      block-firework-boost: true
+
+    loot:
+      enabled: true
+      tier-weights:
+        common: 3.0         # Uncommon in basic chests
+        uncommon: 8.0        # Common in mid-tier
+        rare: 10.0           # Common in rare chests
+      mode-weights:
+        classic: 0.0
+        modern: 1.0
+        op: 1.5
+      min-amount: 1
+      max-amount: 1
+
+    persistent-data:
+      item-type: "custom_item"
+      custom-id: "glider"
+      category: "tactical"
 
   # === AIRDROP ITEMS ===
   airdrop_flare:
@@ -274,6 +429,10 @@ items:
         common: 0.5         # Very rare in basic chests
         uncommon: 3.0       # Uncommon in mid-tier
         rare: 8.0           # More common in rare chests
+      mode-weights:
+        classic: 1.0
+        modern: 1.0
+        op: 1.0
       min-amount: 1
       max-amount: 1
       

@@ -1,14 +1,19 @@
 # LumaSG Chest Configuration
 # This file contains the configuration for chest loot in the Survival Games
-# 
+#
 # NEW WEIGHTED TIER SYSTEM:
 # All items can appear in all chest tiers, but with different weights/probabilities
 # Higher tier chests have better odds for rare items
 #
 # Tier weights determine how likely an item is to appear in each tier:
 # - common: Basic items have high weight, rare items have very low weight
-# - uncommon: Balanced distribution, moderate weights for all items  
+# - uncommon: Balanced distribution, moderate weights for all items
 # - rare: Rare items have high weight, basic items have low weight
+#
+# Mode weights determine item availability per game mode:
+# - classic: Survival Games classic style (wooden/stone weapons common, diamond rare)
+# - modern: Balanced modern style (iron/diamond more accessible)
+# - op: Overpowered mode (diamond/netherite common, ender pearls everywhere)
 
 # Global loot pool - all items available in all tiers with different weights
 items:
@@ -25,7 +30,11 @@ items:
       rare: 2.0         # Rare in high-tier chests
       epic: 0.5         # Very rare in epic chests
       legendary: 0.1    # Almost never in legendary chests
-      
+    mode-weights:
+      classic: 1.5
+      modern: 0.8
+      op: 0.0
+
   stone_axe:
     material: STONE_AXE
     min-amount: 1
@@ -38,7 +47,11 @@ items:
       rare: 5.0
       epic: 1.0
       legendary: 0.2
-      
+    mode-weights:
+      classic: 1.5
+      modern: 0.8
+      op: 0.0
+
   leather_helmet:
     material: LEATHER_HELMET
     min-amount: 1
@@ -51,8 +64,12 @@ items:
       rare: 3.0
       epic: 0.5
       legendary: 0.1
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.0
     # Random trim will be applied if not specified
-      
+
   leather_chestplate:
     material: LEATHER_CHESTPLATE
     min-amount: 1
@@ -63,7 +80,11 @@ items:
       common: 15.0
       uncommon: 8.0
       rare: 2.0
-      
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.0
+
   leather_leggings:
     material: LEATHER_LEGGINGS
     min-amount: 1
@@ -74,10 +95,14 @@ items:
       common: 15.0
       uncommon: 8.0
       rare: 2.0
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.0
     trim:
       pattern: "wild"
       material: "iron"
-      
+
   leather_boots:
     material: LEATHER_BOOTS
     min-amount: 1
@@ -88,7 +113,11 @@ items:
       common: 18.0
       uncommon: 10.0
       rare: 3.0
-      
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.0
+
   bread:
     material: BREAD
     min-amount: 1
@@ -97,7 +126,11 @@ items:
       common: 30.0
       uncommon: 15.0
       rare: 5.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   apple:
     material: APPLE
     min-amount: 1
@@ -106,7 +139,11 @@ items:
       common: 25.0
       uncommon: 12.0
       rare: 4.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   arrow:
     material: ARROW
     min-amount: 2
@@ -115,7 +152,11 @@ items:
       common: 20.0
       uncommon: 25.0    # More arrows in mid-tier
       rare: 15.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 0.8
+
   stick:
     material: STICK
     min-amount: 1
@@ -124,7 +165,11 @@ items:
       common: 25.0
       uncommon: 10.0
       rare: 3.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   iron_ingot:
     material: IRON_INGOT
     min-amount: 1
@@ -133,6 +178,10 @@ items:
       common: 12.0
       uncommon: 20.0
       rare: 15.0
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
 
   # === INTERMEDIATE ITEMS ===
   stone_sword:
@@ -147,7 +196,11 @@ items:
       common: 8.0       # Can appear in common but less likely
       uncommon: 20.0    # Most common in uncommon
       rare: 12.0        # Still decent chance in rare
-      
+    mode-weights:
+      classic: 1.5
+      modern: 0.8
+      op: 0.0
+
   iron_axe:
     material: IRON_AXE
     min-amount: 1
@@ -158,7 +211,11 @@ items:
       common: 5.0
       uncommon: 15.0
       rare: 18.0
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   chainmail_helmet:
     material: CHAINMAIL_HELMET
     min-amount: 1
@@ -169,7 +226,11 @@ items:
       common: 6.0
       uncommon: 18.0
       rare: 12.0
-      
+    mode-weights:
+      classic: 0.6
+      modern: 0.8
+      op: 0.4
+
   chainmail_chestplate:
     material: CHAINMAIL_CHESTPLATE
     min-amount: 1
@@ -180,7 +241,11 @@ items:
       common: 4.0
       uncommon: 15.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 0.6
+      modern: 0.8
+      op: 0.4
+
   chainmail_leggings:
     material: CHAINMAIL_LEGGINGS
     min-amount: 1
@@ -191,7 +256,11 @@ items:
       common: 4.0
       uncommon: 15.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 0.6
+      modern: 0.8
+      op: 0.4
+
   chainmail_boots:
     material: CHAINMAIL_BOOTS
     min-amount: 1
@@ -202,7 +271,11 @@ items:
       common: 6.0
       uncommon: 18.0
       rare: 12.0
-      
+    mode-weights:
+      classic: 0.6
+      modern: 0.8
+      op: 0.4
+
   bow:
     material: BOW
     min-amount: 1
@@ -213,7 +286,11 @@ items:
       common: 8.0
       uncommon: 20.0
       rare: 15.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 0.8
+
   cooked_beef:
     material: COOKED_BEEF
     min-amount: 1
@@ -222,7 +299,11 @@ items:
       common: 10.0
       uncommon: 25.0
       rare: 18.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   golden_apple:
     material: GOLDEN_APPLE
     min-amount: 1
@@ -231,7 +312,11 @@ items:
       common: 3.0       # Rare in common chests
       uncommon: 12.0    # More common in uncommon
       rare: 20.0        # Very common in rare chests
-      
+    mode-weights:
+      classic: 0.3
+      modern: 0.8
+      op: 1.5
+
   fishing_rod:
     material: FISHING_ROD
     min-amount: 1
@@ -242,6 +327,10 @@ items:
       common: 5.0
       uncommon: 12.0
       rare: 8.0
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
 
   diamond:
     material: DIAMOND
@@ -251,7 +340,11 @@ items:
       common: 1.0       # Very rare in common
       uncommon: 8.0     # Uncommon in mid-tier
       rare: 18.0        # Common in rare chests
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   experience_bottle:
     material: EXPERIENCE_BOTTLE
     min-amount: 2
@@ -260,7 +353,11 @@ items:
       common: 2.0
       uncommon: 12.0
       rare: 15.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   splash_potion_poison:
     material: SPLASH_POTION
     min-amount: 1
@@ -277,6 +374,10 @@ items:
       common: 3.0
       uncommon: 10.0
       rare: 12.0
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
 
   # === HIGH-TIER ITEMS ===
   iron_sword:
@@ -299,7 +400,11 @@ items:
       common: 0.5       # Extremely rare in common
       uncommon: 5.0     # Rare in uncommon
       rare: 20.0        # Common in rare
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   diamond_axe:
     material: DIAMOND_AXE
     min-amount: 1
@@ -312,7 +417,11 @@ items:
       common: 0.2
       uncommon: 2.0
       rare: 15.0
-      
+    mode-weights:
+      classic: 0.05
+      modern: 0.6
+      op: 1.5
+
   iron_helmet:
     material: IRON_HELMET
     min-amount: 1
@@ -325,7 +434,11 @@ items:
       common: 0.5
       uncommon: 4.0
       rare: 18.0
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   iron_chestplate:
     material: IRON_CHESTPLATE
     min-amount: 1
@@ -338,7 +451,11 @@ items:
       common: 0.3
       uncommon: 3.0
       rare: 15.0
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   iron_leggings:
     material: IRON_LEGGINGS
     min-amount: 1
@@ -351,7 +468,11 @@ items:
       common: 0.3
       uncommon: 3.0
       rare: 15.0
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   iron_boots:
     material: IRON_BOOTS
     min-amount: 1
@@ -364,7 +485,11 @@ items:
       common: 0.5
       uncommon: 4.0
       rare: 18.0
-      
+    mode-weights:
+      classic: 0.8
+      modern: 1.0
+      op: 0.5
+
   power_bow:
     material: BOW
     min-amount: 1
@@ -378,7 +503,11 @@ items:
       common: 0.5
       uncommon: 6.0
       rare: 20.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 0.8
+
   diamond_sword:
     material: DIAMOND_SWORD
     min-amount: 1
@@ -398,6 +527,10 @@ items:
       common: 0.1       # Extremely rare in common
       uncommon: 1.0     # Very rare in uncommon
       rare: 12.0        # Uncommon even in rare chests
+    mode-weights:
+      classic: 0.05
+      modern: 0.6
+      op: 1.5
 
   # === ENCHANTED BOOKS ===
   enchanted_book_sharpness:
@@ -410,7 +543,11 @@ items:
       common: 0.2
       uncommon: 2.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   enchanted_book_protection:
     material: ENCHANTED_BOOK
     min-amount: 1
@@ -421,7 +558,11 @@ items:
       common: 0.2
       uncommon: 2.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   enchanted_book_power:
     material: ENCHANTED_BOOK
     min-amount: 1
@@ -432,7 +573,11 @@ items:
       common: 0.2
       uncommon: 2.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   # === LEGENDARY ITEMS ===
   ender_pearl:
     material: ENDER_PEARL
@@ -443,7 +588,11 @@ items:
       common: 0.1
       uncommon: 1.0
       rare: 8.0
-      
+    mode-weights:
+      classic: 0.0
+      modern: 0.3
+      op: 1.5
+
   notch_apple:
     material: ENCHANTED_GOLDEN_APPLE
     min-amount: 1
@@ -454,9 +603,13 @@ items:
       - "<!italic><gray>healing item</gray>"
     tier-weights:
       common: 0.05      # Almost impossible in common
-      uncommon: 0.5     # Very rare even in uncommon  
+      uncommon: 0.5     # Very rare even in uncommon
       rare: 3.0         # Rare even in rare chests
-      
+    mode-weights:
+      classic: 0.3
+      modern: 0.8
+      op: 1.5
+
   splash_healing:
     material: SPLASH_POTION
     min-amount: 1
@@ -467,7 +620,11 @@ items:
       common: 0.5
       uncommon: 3.0
       rare: 10.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   # === NEXO ITEMS (if available) ===
   nexo_sword:
     nexo-item: "legendary_sword"
@@ -477,7 +634,11 @@ items:
       common: 0.1
       uncommon: 0.5
       rare: 5.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   nexo_bow:
     nexo-item: "explosive_bow"
     min-amount: 1
@@ -486,7 +647,11 @@ items:
       common: 0.1
       uncommon: 0.5
       rare: 5.0
-      
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
   # === CUSTOM LEGENDARY ITEMS ===
   custom_helmet:
     material: DIAMOND_HELMET
@@ -514,6 +679,201 @@ items:
       common: 0.02      # Legendary rarity
       uncommon: 0.2
       rare: 2.0
+    mode-weights:
+      classic: 0.05
+      modern: 0.6
+      op: 1.5
+
+  # === COPPER ARMOR ===
+  copper_helmet:
+    material: COPPER_HELMET
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Helmet</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 12.0
+      uncommon: 10.0
+      rare: 4.0
+      epic: 1.0
+      legendary: 0.2
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.3
+
+  copper_chestplate:
+    material: COPPER_CHESTPLATE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Chestplate</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 10.0
+      uncommon: 8.0
+      rare: 3.0
+      epic: 0.8
+      legendary: 0.1
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.3
+
+  copper_leggings:
+    material: COPPER_LEGGINGS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Leggings</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 10.0
+      uncommon: 8.0
+      rare: 3.0
+      epic: 0.8
+      legendary: 0.1
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.3
+
+  copper_boots:
+    material: COPPER_BOOTS
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Boots</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 12.0
+      uncommon: 10.0
+      rare: 4.0
+      epic: 1.0
+      legendary: 0.2
+    mode-weights:
+      classic: 1.5
+      modern: 1.0
+      op: 0.3
+
+  # === COPPER WEAPONS ===
+  copper_sword:
+    material: COPPER_SWORD
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Sword</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 15.0
+      uncommon: 10.0
+      rare: 3.0
+      epic: 0.8
+      legendary: 0.1
+    mode-weights:
+      classic: 1.2
+      modern: 1.0
+      op: 0.0
+
+  copper_axe:
+    material: COPPER_AXE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Copper Axe</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 15.0
+      uncommon: 10.0
+      rare: 3.0
+      epic: 0.8
+      legendary: 0.1
+    mode-weights:
+      classic: 1.2
+      modern: 1.0
+      op: 0.0
+
+  # === SPEARS ===
+  wooden_spear:
+    material: WOODEN_SPEAR
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Wooden Spear</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 18.0
+      uncommon: 8.0
+      rare: 2.0
+      epic: 0.3
+      legendary: 0.05
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
+  stone_spear:
+    material: STONE_SPEAR
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><gray>Stone Spear</gray>"
+    unbreakable: true
+    tier-weights:
+      common: 12.0
+      uncommon: 14.0
+      rare: 6.0
+      epic: 1.0
+      legendary: 0.2
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
+  iron_spear:
+    material: IRON_SPEAR
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><aqua>Iron Spear</aqua>"
+    unbreakable: true
+    tier-weights:
+      common: 3.0
+      uncommon: 10.0
+      rare: 18.0
+      epic: 8.0
+      legendary: 2.0
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
+  diamond_spear:
+    material: DIAMOND_SPEAR
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><light_purple>Diamond Spear</light_purple>"
+    unbreakable: true
+    tier-weights:
+      common: 0.1
+      uncommon: 1.0
+      rare: 8.0
+      epic: 15.0
+      legendary: 20.0
+    mode-weights:
+      classic: 1.0
+      modern: 1.0
+      op: 1.0
+
+  # === MACE ===
+  mace:
+    material: MACE
+    min-amount: 1
+    max-amount: 1
+    name: "<!italic><dark_purple>Mace</dark_purple>"
+    unbreakable: true
+    tier-weights:
+      common: 0.0
+      uncommon: 0.5
+      rare: 2.0
+      epic: 5.0
+      legendary: 8.0
+    mode-weights:
+      classic: 0.0
+      modern: 0.0
+      op: 1.5
 
 # Tier settings - controls how many items appear in each tier
 tier-settings:
@@ -521,22 +881,22 @@ tier-settings:
     min-items: 4
     max-items: 7
     # Common chests favor basic survival items
-    
+
   uncommon:
     min-items: 3
     max-items: 6
     # Uncommon chests have balanced loot distribution
-    
+
   rare:
     min-items: 3
     max-items: 5
     # Rare chests favor high-quality items but fewer total items
-    
+
   epic:
     min-items: 2
     max-items: 4
     # Epic chests contain mostly high-tier items
-    
+
   legendary:
     min-items: 2
     max-items: 3
@@ -546,12 +906,12 @@ tier-settings:
 settings:
   # Enable debug logging for chest filling
   debug-logging: true
-  
+
   # Maximum attempts to fill a chest before giving up
   max-fill-attempts: 50
-  
+
   # Whether to allow duplicate items in the same chest
   allow-duplicates: true
-  
+
   # Minimum distance between identical items (if duplicates disabled)
   duplicate-distance: 2
