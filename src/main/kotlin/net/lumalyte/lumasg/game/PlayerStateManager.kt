@@ -7,6 +7,8 @@ import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.bukkit.permissions.PermissionAttachment
+import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -19,7 +21,13 @@ import java.util.concurrent.ConcurrentHashMap
  * Call [restore] when the game ends or the player leaves mid-game.
  */
 @Service
-class PlayerStateManager(private val config: LumaSGConfig) {
+class PlayerStateManager(private val config: LumaSGConfig, private val plugin: JavaPlugin) {
+
+    private companion object {
+        const val PVP_BYPASS_PERMISSION = "deluxehub.bypass.pvp"
+    }
+
+    private val pvpBypassAttachments = ConcurrentHashMap<UUID, PermissionAttachment>()
 
     fun getLobbyLocation(): Location? {
         val lobby = config.lobby
@@ -76,6 +84,7 @@ class PlayerStateManager(private val config: LumaSGConfig) {
         player.exp = 0f
         player.level = 0
         player.teleport(spawnLocation)
+        grantPvpBypass(player)
     }
 
     /**
@@ -84,6 +93,7 @@ class PlayerStateManager(private val config: LumaSGConfig) {
      * No-op if no state is saved for this player.
      */
     fun restore(player: Player) {
+        revokePvpBypass(player.uniqueId)
         val state = saved.remove(player.uniqueId) ?: return
 
         player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
@@ -117,4 +127,21 @@ class PlayerStateManager(private val config: LumaSGConfig) {
 
     /** Returns true if we have saved state for this player. */
     fun hasSavedState(uuid: UUID) = saved.containsKey(uuid)
+
+    private fun grantPvpBypass(player: Player) {
+        pvpBypassAttachments.remove(player.uniqueId)?.let { runCatching { player.removeAttachment(it) } }
+        val attachment = player.addAttachment(plugin)
+        attachment.setPermission(PVP_BYPASS_PERMISSION, true)
+        pvpBypassAttachments[player.uniqueId] = attachment
+        player.recalculatePermissions()
+    }
+
+    private fun revokePvpBypass(uuid: UUID) {
+        val attachment = pvpBypassAttachments.remove(uuid) ?: return
+        val player = Bukkit.getPlayer(uuid)
+        if (player != null) {
+            runCatching { player.removeAttachment(attachment) }
+            player.recalculatePermissions()
+        }
+    }
 }
