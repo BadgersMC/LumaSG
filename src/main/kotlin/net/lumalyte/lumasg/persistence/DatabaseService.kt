@@ -62,6 +62,10 @@ class DatabaseService(
         dataSource = HikariDataSource(hikariConfig)
         Database.connect(dataSource)
 
+        if (db.type.equals("SQLITE", ignoreCase = true)) {
+            migrateSqliteLegacyArenasTable()
+        }
+
         transaction {
             SchemaUtils.createMissingTablesAndColumns(
                 PlayerStatsTable,
@@ -70,6 +74,71 @@ class DatabaseService(
             )
         }
         logger.info("Database connected (${db.type}) and schema verified.")
+    }
+
+    /**
+     * SQLite forbids `ALTER TABLE ADD PRIMARY KEY`, so legacy `arenas` tables
+     * created without a primary key on `name` cannot be retrofitted by Exposed's
+     * createMissingTablesAndColumns. Detect that case and rebuild the table
+     * via the standard SQLite copy-and-rename pattern, preserving all rows.
+     */
+    private fun migrateSqliteLegacyArenasTable() {
+        transaction {
+            val conn = this.connection.connection as java.sql.Connection
+            val tableExists = conn.metaData.getTables(null, null, "arenas", null).use { it.next() }
+            if (!tableExists) return@transaction
+
+            val hasPrimaryKey = conn.metaData.getPrimaryKeys(null, null, "arenas").use { rs ->
+                var found = false
+                while (rs.next()) { if (rs.getString("COLUMN_NAME") == "name") { found = true; break } }
+                found
+            }
+            if (hasPrimaryKey) return@transaction
+
+            logger.warn("Legacy arenas table detected without primary key on 'name' — rebuilding")
+            conn.createStatement().use { stmt ->
+                stmt.executeUpdate("PRAGMA foreign_keys = OFF")
+                stmt.executeUpdate(
+                    """
+                    CREATE TABLE arenas_new (
+                        id TEXT NOT NULL,
+                        name VARCHAR(64) PRIMARY KEY,
+                        display_name VARCHAR(128) NOT NULL,
+                        world_name VARCHAR(64) NOT NULL,
+                        min_players INTEGER NOT NULL DEFAULT 2,
+                        max_players INTEGER NOT NULL DEFAULT 24,
+                        radius DOUBLE NOT NULL DEFAULT 500.0,
+                        spawn_points_json TEXT NOT NULL,
+                        center_x DOUBLE NOT NULL,
+                        center_y DOUBLE NOT NULL,
+                        center_z DOUBLE NOT NULL,
+                        chest_locations_json TEXT NOT NULL DEFAULT '[]',
+                        lobby_spawn_json TEXT,
+                        spectator_spawn_json TEXT,
+                        allowed_blocks_json TEXT NOT NULL DEFAULT '[]',
+                        enabled INTEGER NOT NULL DEFAULT 1
+                    )
+                    """.trimIndent()
+                )
+                val existingCols = mutableListOf<String>()
+                conn.metaData.getColumns(null, null, "arenas", null).use { rs ->
+                    while (rs.next()) existingCols += rs.getString("COLUMN_NAME")
+                }
+                val targetCols = listOf(
+                    "id", "name", "display_name", "world_name", "min_players", "max_players",
+                    "radius", "spawn_points_json", "center_x", "center_y", "center_z",
+                    "chest_locations_json", "lobby_spawn_json", "spectator_spawn_json",
+                    "allowed_blocks_json", "enabled"
+                )
+                val sharedCols = targetCols.filter { it in existingCols }
+                val colList = sharedCols.joinToString(", ") { "\"$it\"" }
+                stmt.executeUpdate("INSERT INTO arenas_new ($colList) SELECT $colList FROM arenas")
+                stmt.executeUpdate("DROP TABLE arenas")
+                stmt.executeUpdate("ALTER TABLE arenas_new RENAME TO arenas")
+                stmt.executeUpdate("PRAGMA foreign_keys = ON")
+            }
+            logger.info("arenas table migrated successfully")
+        }
     }
 
     @PreDestroy
