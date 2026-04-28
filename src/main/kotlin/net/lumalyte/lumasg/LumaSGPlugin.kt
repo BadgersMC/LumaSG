@@ -4,6 +4,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import net.badgersmc.nexus.core.NexusContext
 import net.badgersmc.nexus.paper.BukkitDispatcher
+import kotlinx.coroutines.runBlocking
 import net.badgersmc.nexus.paper.registerPaperCommands
 import net.lumalyte.lumasg.domain.LootMode
 import net.lumalyte.lumasg.service.ArenaService
@@ -60,6 +61,9 @@ class LumaSGPlugin : JavaPlugin() {
 
     override fun onDisable() {
         if (::nexus.isInitialized) {
+            runCatching {
+                runBlocking { nexus.getBean<ArenaService>().saveAll() }
+            }.onFailure { logger.warning("Failed to flush arenas before shutdown: ${it.message}") }
             nexus.close()
         }
         logger.info("LumaSG disabled.")

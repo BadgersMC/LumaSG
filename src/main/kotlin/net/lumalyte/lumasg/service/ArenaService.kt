@@ -29,8 +29,7 @@ class ArenaService(
     }
 
     @PreDestroy
-    suspend fun stop() {
-        saveAll()
+    fun stop() {
         cache.clear()
         selectedArenas.clear()
         logger.info("ArenaService shut down")
