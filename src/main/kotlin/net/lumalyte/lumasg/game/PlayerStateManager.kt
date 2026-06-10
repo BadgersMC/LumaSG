@@ -36,7 +36,7 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
     }
 
     private data class SavedState(
-        val location: Location,
+        val location: Location?,
         val gameMode: GameMode,
         val inventory: Array<ItemStack?>,
         val armor: Array<ItemStack?>,
@@ -58,7 +58,7 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
      */
     fun saveAndPrepare(player: Player, spawnLocation: Location) {
         saved[player.uniqueId] = SavedState(
-            location = if (config.game.saveLocation) player.location.clone() else spawnLocation,
+            location = if (config.game.saveLocation) player.location.clone() else null,
             gameMode = player.gameMode,
             inventory = player.inventory.contents.map { it?.clone() }.toTypedArray(),
             armor = player.inventory.armorContents.map { it?.clone() }.toTypedArray(),
@@ -111,13 +111,15 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
         state.potionEffects.forEach { player.addPotionEffect(it) }
         player.gameMode = state.gameMode
 
-        // Teleport: lobby if configured, otherwise saved location
+        // Teleport: lobby if configured or saved location is null, otherwise saved location
         val destination = if (config.lobby.teleportOnEnd) {
             getLobbyLocation() ?: state.location
         } else {
-            state.location
+            state.location ?: getLobbyLocation()
         }
-        player.teleport(destination)
+        if (destination != null) {
+            player.teleport(destination)
+        }
     }
 
     /** Set a player to spectator mode (used when eliminated mid-game). */
@@ -125,8 +127,34 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
         player.gameMode = GameMode.SPECTATOR
     }
 
+    /**
+     * Prepares a player for the game (teleport, gamemode, health, inventory clear)
+     * WITHOUT saving their current state. Used for reconnections where the original
+     * snapshot must be preserved.
+     * Must be called on the main thread.
+     */
+    fun prepareWithoutSaving(player: Player, spawnLocation: Location) {
+        player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
+        if (config.game.clearInventory) {
+            player.inventory.clear()
+            player.inventory.setArmorContents(arrayOfNulls(4))
+            player.setItemOnCursor(null)
+        }
+        player.gameMode = GameMode.SURVIVAL
+        player.health = player.maxHealth
+        player.foodLevel = 20
+        player.saturation = 0f
+        player.exp = 0f
+        player.level = 0
+        player.teleport(spawnLocation)
+        grantPvpBypass(player)
+    }
+
     /** Returns true if we have saved state for this player. */
     fun hasSavedState(uuid: UUID) = saved.containsKey(uuid)
+
+    /** Test seam: returns the saved location for a player, or null. */
+    internal fun savedLocationOf(uuid: UUID): Location? = saved[uuid]?.location
 
     private fun grantPvpBypass(player: Player) {
         pvpBypassAttachments.remove(player.uniqueId)?.let { runCatching { player.removeAttachment(it) } }

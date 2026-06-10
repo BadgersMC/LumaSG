@@ -163,7 +163,7 @@ class Game(
         _players[player.uniqueId]?.isAlive = true
         val spawn = arena.spawnPoints.getOrNull(_players.keys.toList().indexOf(player.uniqueId))
             ?.toBukkit() ?: arena.center.toBukkit() ?: return false
-        playerStateManager.saveAndPrepare(player, spawn)
+        playerStateManager.prepareWithoutSaving(player, spawn)
         scoreboard.addPlayer(player)
         return true
     }
