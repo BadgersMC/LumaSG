@@ -13,6 +13,7 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.domain.LootMode
+import net.lumalyte.lumasg.domain.isJoinable
 import net.lumalyte.lumasg.statistics.StatisticsService
 import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.Location
@@ -103,6 +104,7 @@ class Game(
     }
 
     fun addPlayer(player: Player) {
+        if (!phase.isJoinable() || _players.size >= arena.maxPlayers) return
         val spawn = arena.spawnPoints.getOrNull(_players.size)?.toBukkit()
             ?: arena.center.toBukkit()
             ?: player.location

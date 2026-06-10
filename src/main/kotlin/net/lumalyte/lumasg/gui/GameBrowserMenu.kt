@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.gui
 import net.badgersmc.nexus.annotations.Service
 import net.lumalyte.lumasg.game.Game
 import net.lumalyte.lumasg.game.GameManager
+import net.lumalyte.lumasg.domain.isJoinable
 import net.lumalyte.lumasg.util.cache.GuiComponentCache
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -66,6 +67,10 @@ class GameBrowserMenu(
         viewer.closeInventory()
         if (gameManager.isPlayerInGame(viewer)) {
             viewer.sendMessage("§cYou are already in a game.")
+            return@SimpleItem
+        }
+        if (!game.phase.isJoinable()) {
+            viewer.sendMessage("§cThat game has already started.")
             return@SimpleItem
         }
         if (game.players.size >= game.arena.maxPlayers) {
