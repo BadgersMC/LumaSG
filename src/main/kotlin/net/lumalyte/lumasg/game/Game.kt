@@ -138,7 +138,9 @@ class Game(
     }
 
     fun eliminate(uuid: UUID) {
-        _players[uuid]?.isAlive = false
+        val gp = _players[uuid] ?: return
+        if (!gp.isAlive) return
+        gp.isAlive = false
         disconnectedPlayers.remove(uuid)
         eliminationOrder.add(0, uuid)
         teamManager.removeFromTeam(uuid)
