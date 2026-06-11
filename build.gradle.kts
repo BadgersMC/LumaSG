@@ -5,6 +5,7 @@ plugins {
     kotlin("plugin.noarg") version "2.1.0"
     id("com.gradleup.shadow") version "8.3.5"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    jacoco
     `maven-publish`
 }
 
@@ -121,6 +122,14 @@ tasks.test {
 detekt {
     config.setFrom(file("config/detekt/detekt.yml"))
     buildUponDefaultConfig = true
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }
 
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {

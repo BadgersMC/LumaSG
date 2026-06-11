@@ -2,7 +2,6 @@ package net.lumalyte.lumasg.listeners
 
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
-import net.lumalyte.lumasg.chest.ChestManager
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.Game
 import net.lumalyte.lumasg.game.GameManager
@@ -17,7 +16,6 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.inventory.InventoryOpenEvent
 import org.bukkit.event.world.ChunkLoadEvent
-import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.config.LumaSGConfig
 import org.bukkit.Bukkit
 import org.bukkit.block.BlockState
@@ -29,13 +27,11 @@ import java.util.concurrent.ConcurrentHashMap
 class ChestListener(
     private val plugin: JavaPlugin,
     private val gameManager: GameManager,
-    private val chestManager: ChestManager,
     private val chestFiller: ConcurrentChestFiller,
     private val config: LumaSGConfig
 ) : Listener {
 
     private val logger = LoggerFactory.getLogger(ChestListener::class.java)
-    private val mm = MiniMessage.miniMessage()
 
     /** Tracks which chests have already been filled (by block location hash). */
     private val filledChests = ConcurrentHashMap.newKeySet<Long>()

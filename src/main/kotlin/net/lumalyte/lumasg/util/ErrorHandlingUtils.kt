@@ -6,6 +6,9 @@ import java.io.IOException
 import java.sql.SQLException
 import java.util.concurrent.ConcurrentHashMap
 
+/** Thrown when a retried operation or open circuit breaker gives up. */
+class OperationFailedException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
 /**
  * Utility object for advanced error handling, retry mechanisms, and error classification.
  *
@@ -56,7 +59,7 @@ object ErrorHandlingUtils {
                 return operation()
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
-                throw RuntimeException("Operation interrupted during retry: $operationName", e)
+                throw OperationFailedException("Operation interrupted during retry: $operationName", e)
             } catch (e: Exception) {
                 lastException = e
 
@@ -74,7 +77,7 @@ object ErrorHandlingUtils {
             }
         }
 
-        throw RuntimeException(
+        throw OperationFailedException(
             "Operation failed after ${maxRetries + 1} attempts: $operationName",
             lastException
         )
@@ -122,7 +125,7 @@ object ErrorHandlingUtils {
             }
         }
 
-        throw RuntimeException(
+        throw OperationFailedException(
             "Operation failed after ${maxRetries + 1} attempts: $operationName",
             lastException
         )
@@ -309,7 +312,7 @@ object ErrorHandlingUtils {
 
             // If circuit is open, fail fast
             if (isOpen) {
-                throw RuntimeException(
+                throw OperationFailedException(
                     "Circuit breaker is open for $operationName " +
                         "(failures: $failureCount, threshold: $failureThreshold)"
                 )
@@ -335,7 +338,7 @@ object ErrorHandlingUtils {
                     )
                 }
 
-                throw RuntimeException("Operation failed in circuit breaker: $operationName", e)
+                throw OperationFailedException("Operation failed in circuit breaker: $operationName", e)
             }
         }
     }
