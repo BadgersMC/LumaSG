@@ -13,6 +13,7 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.GameMode
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.domain.LootMode
+import net.lumalyte.lumasg.domain.isJoinable
 import net.lumalyte.lumasg.statistics.StatisticsService
 import net.lumalyte.lumasg.util.cache.ScoreboardCache
 import org.bukkit.Location
@@ -84,6 +85,10 @@ class Game(
 
     private var countdownJob: Job? = null
 
+    /** Set by [forceStart] to cut the lobby countdown short on the next tick. */
+    @Volatile
+    private var forceStartRequested = false
+
     internal val worldManager = WorldManager(arena, config)
     private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config, scoreboardCache)
     private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
@@ -103,6 +108,7 @@ class Game(
     }
 
     fun addPlayer(player: Player) {
+        if (!phase.isJoinable() || _players.size >= arena.maxPlayers) return
         val spawn = arena.spawnPoints.getOrNull(_players.size)?.toBukkit()
             ?: arena.center.toBukkit()
             ?: player.location
@@ -136,7 +142,9 @@ class Game(
     }
 
     fun eliminate(uuid: UUID) {
-        _players[uuid]?.isAlive = false
+        val gp = _players[uuid] ?: return
+        if (!gp.isAlive) return
+        gp.isAlive = false
         disconnectedPlayers.remove(uuid)
         eliminationOrder.add(0, uuid)
         teamManager.removeFromTeam(uuid)
@@ -161,7 +169,7 @@ class Game(
         _players[player.uniqueId]?.isAlive = true
         val spawn = arena.spawnPoints.getOrNull(_players.keys.toList().indexOf(player.uniqueId))
             ?.toBukkit() ?: arena.center.toBukkit() ?: return false
-        playerStateManager.saveAndPrepare(player, spawn)
+        playerStateManager.prepareWithoutSaving(player, spawn)
         scoreboard.addPlayer(player)
         return true
     }
@@ -346,11 +354,25 @@ class Game(
     private suspend fun runCountdown() {
         val countdownTime = resolveTiming("countdown-time", config.game.countdownSeconds)
         for (i in countdownTime downTo 1) {
+            if (forceStartRequested) break
             phase = GamePhase.Countdown(i)
             if (i <= 5 || i == 10 || i == 30) {
                 withContext(bukkitDispatcher) { broadcastCountdown(i) }
             }
             delay(1_000)
+        }
+    }
+
+    /**
+     * Force the game out of the lobby countdown immediately.
+     *
+     * Games auto-launch their countdown on creation, so "force start" means skipping the
+     * remaining countdown rather than starting a stalled lobby. Safe to call from any
+     * thread. No-op once the grace period or later has begun. (H3)
+     */
+    fun forceStart() {
+        if (phase is GamePhase.Waiting || phase is GamePhase.Countdown) {
+            forceStartRequested = true
         }
     }
 
