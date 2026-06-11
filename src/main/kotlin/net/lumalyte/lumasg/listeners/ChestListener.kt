@@ -167,7 +167,10 @@ class ChestListener(
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
             val phase = game.phase
             if (phase is GamePhase.Active || phase is GamePhase.Deathmatch) {
-                filledChests.clear()
+                // Only reset this arena's fill tracking — a shared-world arena's refill
+                // must not wipe another arena's state (keeps H13 isolation intact).
+                val prefix = "${game.arena.name}:"
+                filledChests.removeIf { it.startsWith(prefix) }
                 game.broadcastRefillMessage()
             }
         }, config.chest.refillTimeSeconds * 20L)

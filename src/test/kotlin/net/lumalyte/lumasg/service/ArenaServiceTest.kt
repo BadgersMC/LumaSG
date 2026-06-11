@@ -1,5 +1,6 @@
 package net.lumalyte.lumasg.service
 
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -36,5 +37,21 @@ class ArenaServiceTest {
 
         assertEquals(a, service.getArena("alpha"))
         coVerify(exactly = 1) { repo.save(a) }
+    }
+
+    @Test
+    fun `addToCache keeps the arena cached even when every persist attempt fails`() = runTest {
+        val repo = mockk<ArenaRepository>(relaxed = true)
+        coEvery { repo.save(any()) } throws RuntimeException("DB unavailable")
+        val config = mockk<LumaSGConfig>(relaxed = true)
+        val service = ArenaService(repo, config, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
+        val a = arena("bravo")
+        service.addToCache(a)
+
+        // Cache update is synchronous and must survive a failed async persist (H12 contract).
+        assertEquals(a, service.getArena("bravo"))
+        // All retry attempts were made before giving up.
+        coVerify(exactly = 3) { repo.save(a) }
     }
 }

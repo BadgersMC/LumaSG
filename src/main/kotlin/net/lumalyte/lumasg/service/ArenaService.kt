@@ -8,6 +8,7 @@ import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.SerializableLocation
 import net.lumalyte.lumasg.persistence.repositories.ArenaRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.bukkit.Location
 import org.bukkit.entity.Player
@@ -24,6 +25,10 @@ class ArenaService(
     private val logger = LoggerFactory.getLogger(ArenaService::class.java)
     private val cache = ConcurrentHashMap<String, Arena>()
     private val selectedArenas = ConcurrentHashMap<UUID, String>()
+
+    private companion object {
+        const val MAX_PERSIST_ATTEMPTS = 3
+    }
 
     @PostConstruct
     suspend fun loadAll() {
@@ -63,8 +68,19 @@ class ArenaService(
     fun addToCache(arena: Arena) {
         cache[arena.name.lowercase()] = arena
         scope.launch {
-            runCatching { arenaRepo.save(arena) }
-                .onFailure { logger.warn("Failed to persist arena '${arena.name}' from addToCache", it) }
+            // Retry transient DB failures with exponential backoff so a brief blip doesn't
+            // silently drop the edit (the cache is already updated above for immediate use).
+            var lastError: Throwable? = null
+            for (attempt in 1..MAX_PERSIST_ATTEMPTS) {
+                val result = runCatching { arenaRepo.save(arena) }
+                if (result.isSuccess) { lastError = null; break }
+                lastError = result.exceptionOrNull()
+                logger.warn("Persist attempt $attempt/$MAX_PERSIST_ATTEMPTS failed for arena '${arena.name}'", lastError)
+                if (attempt < MAX_PERSIST_ATTEMPTS) delay(100L * (1L shl (attempt - 1)))
+            }
+            if (lastError != null) {
+                logger.error("Gave up persisting arena '${arena.name}' after $MAX_PERSIST_ATTEMPTS attempts; edit lives only in cache", lastError)
+            }
         }
     }
 
