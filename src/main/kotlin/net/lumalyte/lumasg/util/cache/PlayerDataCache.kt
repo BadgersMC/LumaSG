@@ -193,7 +193,7 @@ class PlayerDataCache(
                 ?: PlayerStats(uuid = uuid, playerName = "Unknown Player")
         } catch (e: Exception) {
             logger.error("Failed to load player stats from database for UUID: {}", uuid, e)
-            PlayerStats(uuid = uuid, playerName = "Unknown Player")
+            throw e  // propagate so Caffeine does NOT cache the failed load
         }
 
     private fun loadPermissionFromBukkit(permissionKey: String): Boolean =
