@@ -4,6 +4,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Particle
+import org.slf4j.LoggerFactory
 import java.util.UUID
 
 data class Arena(
@@ -31,11 +32,21 @@ data class Arena(
     /**
      * Scans the arena world for chest blocks within [radius] of center.
      * Returns the discovered chest locations. Must be called on main thread.
+     *
+     * The scan radius is capped at [MAX_CHEST_SCAN_RADIUS]: an uncapped cubic scan at the
+     * default radius of 500 is ~10^9 `getBlockAt` calls and freezes the main thread for
+     * minutes (C2). A radius beyond the cap is clamped and logged so the operator knows.
      */
     fun scanForChests(): List<SerializableLocation> {
         val world = Bukkit.getWorld(worldName) ?: return emptyList()
         val centerLoc = center.toBukkit() ?: return emptyList()
-        val r = radius.toInt()
+        if (!isChestScanRadiusSafe(radius)) {
+            logger.warn(
+                "Arena '{}' chest-scan radius {} exceeds the safe cap of {}; clamping to avoid a main-thread freeze.",
+                name, radius.toInt(), MAX_CHEST_SCAN_RADIUS
+            )
+        }
+        val r = radius.toInt().coerceIn(0, MAX_CHEST_SCAN_RADIUS)
         val cx = centerLoc.blockX
         val cy = centerLoc.blockY
         val cz = centerLoc.blockZ
@@ -68,6 +79,15 @@ data class Arena(
     fun cleanup() { /* no-op: DB-backed arena has no runtime state to clean */ }
 
     companion object {
+        private val logger = LoggerFactory.getLogger(Arena::class.java)
+
+        /** Hard cap on the [scanForChests] radius — keeps the cubic scan bounded (C2). */
+        const val MAX_CHEST_SCAN_RADIUS: Int = 64
+
+        /** Whether [radius] is within the safe cap for an on-main-thread chest scan. */
+        fun isChestScanRadiusSafe(radius: Double): Boolean =
+            radius >= 1.0 && radius <= MAX_CHEST_SCAN_RADIUS
+
         val DEFAULT_ALLOWED_BLOCKS: Set<Material> = setOf(
             Material.TALL_GRASS, Material.SHORT_GRASS, Material.FERN,
             Material.DEAD_BUSH, Material.VINE, Material.LILY_PAD,

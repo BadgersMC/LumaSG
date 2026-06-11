@@ -37,8 +37,11 @@ class ChestListener(
     private val logger = LoggerFactory.getLogger(ChestListener::class.java)
     private val mm = MiniMessage.miniMessage()
 
-    /** Tracks which chests have already been filled (by block location hash). */
-    private val filledChests = ConcurrentHashMap.newKeySet<Long>()
+    /**
+     * Tracks which chests have already been filled, keyed by "arenaName:blockKey" so two
+     * arenas sharing a world keep independent fill state (H13).
+     */
+    private val filledChests = ConcurrentHashMap.newKeySet<String>()
 
     @PostConstruct
     fun register() {
@@ -59,21 +62,29 @@ class ChestListener(
         val chunk = event.chunk
         val worldName = chunk.world.name
 
-        // Find the game running in this world (if any)
-        val game = gameManager.getAllActiveGames().firstOrNull {
-            it.arena.worldName == worldName
-        } ?: return
-
-        // Only fill during active gameplay phases
-        val phase = game.phase
-        if (phase is GamePhase.Waiting || phase is GamePhase.Countdown || phase is GamePhase.Ended) return
+        // All games active (in a fillable phase) in this world. Multiple arenas can share
+        // a world, so we resolve the owning game per chest by arena bounds (H13).
+        val games = gameManager.getAllActiveGames().filter { g ->
+            g.arena.worldName == worldName &&
+                g.phase !is GamePhase.Waiting &&
+                g.phase !is GamePhase.Countdown &&
+                g.phase !is GamePhase.Ended
+        }
+        if (games.isEmpty()) return
 
         // Scan chunk tile entities for chests and fill any that haven't been filled yet
         val tileEntities = chunk.tileEntities
         var filled = 0
         for (state: BlockState in tileEntities) {
             if (state !is Chest) continue
-            val locKey = state.location.toBlockKey()
+            // Only fill a chest with the game whose arena bounds actually contain it.
+            val game = games.firstOrNull { g ->
+                val center = g.arena.center.toBukkit() ?: return@firstOrNull false
+                state.location.world == center.world &&
+                    state.location.distanceSquared(center) <= g.arena.radius * g.arena.radius
+            } ?: continue
+
+            val locKey = "${game.arena.name}:${state.location.toBlockKey()}"
             if (!filledChests.add(locKey)) continue // already filled
 
             val tier = determineTier(state, game)
@@ -82,8 +93,8 @@ class ChestListener(
         }
 
         if (filled > 0) {
-            logger.debug("Chunk [{}, {}] loaded — filled {} chests (arena '{}')",
-                chunk.x, chunk.z, filled, game.arena.name)
+            logger.debug("Chunk [{}, {}] loaded — filled {} chests in world '{}'",
+                chunk.x, chunk.z, filled, worldName)
         }
     }
 
@@ -101,7 +112,7 @@ class ChestListener(
         val phase = game.phase
         if (phase is GamePhase.Waiting || phase is GamePhase.Ended) return
 
-        val locKey = chest.location.toBlockKey()
+        val locKey = "${game.arena.name}:${chest.location.toBlockKey()}"
         if (filledChests.add(locKey)) {
             // Wasn't filled by chunk-load — fill now as fallback
             val tier = determineTier(chest, game)
@@ -156,7 +167,10 @@ class ChestListener(
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
             val phase = game.phase
             if (phase is GamePhase.Active || phase is GamePhase.Deathmatch) {
-                filledChests.clear()
+                // Only reset this arena's fill tracking — a shared-world arena's refill
+                // must not wipe another arena's state (keeps H13 isolation intact).
+                val prefix = "${game.arena.name}:"
+                filledChests.removeIf { it.startsWith(prefix) }
                 game.broadcastRefillMessage()
             }
         }, config.chest.refillTimeSeconds * 20L)
