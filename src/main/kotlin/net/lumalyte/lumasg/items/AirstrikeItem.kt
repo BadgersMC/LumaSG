@@ -186,11 +186,11 @@ class AirstrikeItem(
         player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1f, pitch)
 
         if (state.lockTicks >= cfg.lockOnDurationTicks) {
+            val game = gameManager.getGameForPlayer(uuid) ?: return
             toRemove.add(uuid)
             val held = player.inventory.itemInMainHand
             if (isAirstrikeItem(held)) held.amount--
             player.sendActionBar(Component.empty())
-            val game = gameManager.getGameForPlayer(uuid) ?: return
             launchAirstrike(state.targetLocation, game, uuid, player.name)
         }
     }
