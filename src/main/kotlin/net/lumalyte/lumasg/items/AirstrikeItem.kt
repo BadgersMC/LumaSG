@@ -44,6 +44,11 @@ class AirstrikeItem(
     private val bukkitDispatcher: BukkitDispatcher
 ) : CustomItem, Listener {
 
+    companion object {
+        fun airstrikeImmuneUuids(teamMembers: Collection<UUID>?, callerUuid: UUID): Set<UUID> =
+            (teamMembers?.toSet() ?: emptySet()) + callerUuid
+    }
+
     override val material = Material.SPYGLASS
     override val displayName = "§c§lAirstrike Designator"
     override val key = NamespacedKey(plugin, "airstrike")
@@ -290,12 +295,8 @@ class AirstrikeItem(
                     approachAngle = Math.random() * 2 * Math.PI,
                     bukkitDispatcher = bukkitDispatcher
                 ) {
-                    val immuneUUIDs = mutableSetOf<UUID>()
                     val callerTeam = game.teamManager.getTeamForPlayer(callerUuid)
-                    if (callerTeam != null) {
-                        immuneUUIDs.addAll(callerTeam.members)
-                    }
-                    immuneUUIDs.remove(callerUuid)
+                    val immuneUUIDs = airstrikeImmuneUuids(callerTeam?.members, callerUuid)
 
                     val chunk = impactPoint.chunk
                     if (!chunk.isLoaded) chunk.load()
