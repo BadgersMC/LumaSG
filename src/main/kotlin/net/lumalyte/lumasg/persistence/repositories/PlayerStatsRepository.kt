@@ -58,27 +58,30 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
         }
 
         when (statType) {
+            // KDR/Win-Rate have no stored column to ORDER BY, so we fetch a candidate set
+            // ordered by the numerator (kills/wins) and re-sort in Kotlin by the computed
+            // ratio, using the same definitions as PlayerStats.kdr / .winRate for consistency.
+            //
+            // Trade-off: a player with a strong ratio but very few games (e.g. 1 win / 1 game)
+            // can fall outside a numerator-ordered candidate window and be missed. We widen the
+            // window to bound that bias rather than scan the whole table on every call; a fully
+            // exact ranking would need a SQL computed-column ORDER BY.
             StatType.KILL_DEATH_RATIO -> {
-                // Fetch candidate set ordered by kills DESC; sort in Kotlin by computed KDR.
-                // Bounded fetch (limit*5) avoids loading full table for every leaderboard call.
-                val candidates = baseQuery
+                baseQuery
                     .orderBy(PlayerStatsTable.kills to SortOrder.DESC)
-                    .limit(limit * 5)
+                    .limit(candidateWindow(limit))
                     .map { it.toPlayerStats() }
-                candidates.sortedByDescending { stats ->
-                    if (stats.deaths == 0) Double.MAX_VALUE else stats.kills.toDouble() / stats.deaths
-                }.take(limit)
+                    .sortedByDescending { it.kdr }
+                    .take(limit)
             }
 
             StatType.WIN_RATE -> {
-                // Fetch candidate set ordered by wins DESC; sort in Kotlin by computed win rate.
-                val candidates = baseQuery
+                baseQuery
                     .orderBy(PlayerStatsTable.wins to SortOrder.DESC)
-                    .limit(limit * 5)
+                    .limit(candidateWindow(limit))
                     .map { it.toPlayerStats() }
-                candidates.sortedByDescending { stats ->
-                    if (stats.gamesPlayed == 0) 0.0 else stats.wins.toDouble() / stats.gamesPlayed
-                }.take(limit)
+                    .sortedByDescending { it.winRate }
+                    .take(limit)
             }
 
             else -> {
@@ -100,6 +103,13 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
             }
         }
     }
+
+    /**
+     * Candidate-set size for the Kotlin-side ratio leaderboards (KDR/Win-Rate). Wide enough
+     * to bound the "great ratio, few games" bias, with a floor so small servers still rank
+     * everyone.
+     */
+    private fun candidateWindow(limit: Int): Int = (limit * 20).coerceAtLeast(100)
 
     /** Backwards-compatible overload — defaults to kills leaderboard. */
     suspend fun getLeaderboard(limit: Int = 10): List<PlayerStats> =

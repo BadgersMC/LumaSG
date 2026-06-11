@@ -6,9 +6,11 @@ import net.lumalyte.lumasg.persistence.repositories.PlayerStatsRepository
 import net.lumalyte.lumasg.persistence.tables.PlayerStatsTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.UUID
@@ -32,6 +34,13 @@ class PlayerStatsRepositoryTest {
     }
 
     private val repo = PlayerStatsRepository(db = io.mockk.mockk(relaxed = true))
+
+    @BeforeEach
+    fun clearTable() {
+        // Isolate each test — the H2 instance is shared (DB_CLOSE_DELAY=-1), so leftover
+        // rows from earlier tests could otherwise skew the bounded ratio leaderboards.
+        transaction { PlayerStatsTable.deleteAll() }
+    }
 
     @Test
     fun `upsert and retrieve player stats`() = runTest {
