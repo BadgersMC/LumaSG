@@ -85,6 +85,10 @@ class Game(
 
     private var countdownJob: Job? = null
 
+    /** Set by [forceStart] to cut the lobby countdown short on the next tick. */
+    @Volatile
+    private var forceStartRequested = false
+
     internal val worldManager = WorldManager(arena, config)
     private val scoreboard = GameScoreboard(arena, this, scope, bukkitDispatcher, config, scoreboardCache)
     private val nameplateManager = NameplateManager(plugin, bukkitDispatcher, scope)
@@ -350,11 +354,25 @@ class Game(
     private suspend fun runCountdown() {
         val countdownTime = resolveTiming("countdown-time", config.game.countdownSeconds)
         for (i in countdownTime downTo 1) {
+            if (forceStartRequested) break
             phase = GamePhase.Countdown(i)
             if (i <= 5 || i == 10 || i == 30) {
                 withContext(bukkitDispatcher) { broadcastCountdown(i) }
             }
             delay(1_000)
+        }
+    }
+
+    /**
+     * Force the game out of the lobby countdown immediately.
+     *
+     * Games auto-launch their countdown on creation, so "force start" means skipping the
+     * remaining countdown rather than starting a stalled lobby. Safe to call from any
+     * thread. No-op once the grace period or later has begun. (H3)
+     */
+    fun forceStart() {
+        if (phase is GamePhase.Waiting || phase is GamePhase.Countdown) {
+            forceStartRequested = true
         }
     }
 

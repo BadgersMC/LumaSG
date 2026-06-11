@@ -305,17 +305,16 @@ class SGCommand(
             sender.sendMessage("§cNo game found in arena '$arenaName'.")
             return
         }
-        if (game.phase !is GamePhase.Waiting) {
-            sender.sendMessage("§cGame in arena '$arenaName' is not in waiting state (${game.phase::class.simpleName}).")
+        if (game.phase !is GamePhase.Waiting && game.phase !is GamePhase.Countdown) {
+            sender.sendMessage("§cGame in arena '$arenaName' has already started (${game.phase::class.simpleName}).")
             return
         }
         if (game.players.isEmpty()) {
             sender.sendMessage("§cNo players in game for arena '$arenaName'.")
             return
         }
-        // Game lifecycle is already launched — it waits for players.
-        // Force-starting by creating the game already triggered launch().
-        sender.sendMessage("§aForce-started game in arena '$arenaName' with ${game.players.size} players.")
+        game.forceStart()
+        sender.sendMessage("§aForce-started game in arena '$arenaName' with ${game.players.size} players — skipping countdown.")
     }
 
     /** /sg list — list all games and arenas */
