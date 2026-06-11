@@ -7,6 +7,8 @@ import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.Arena
 import net.lumalyte.lumasg.domain.SerializableLocation
 import net.lumalyte.lumasg.persistence.repositories.ArenaRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.slf4j.LoggerFactory
@@ -16,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class ArenaService(
     private val arenaRepo: ArenaRepository,
-    private val config: LumaSGConfig
+    private val config: LumaSGConfig,
+    private val scope: CoroutineScope
 ) {
     private val logger = LoggerFactory.getLogger(ArenaService::class.java)
     private val cache = ConcurrentHashMap<String, Arena>()
@@ -50,8 +53,19 @@ class ArenaService(
         cache.values.forEach { arenaRepo.save(it) }
     }
 
+    /**
+     * Update the in-memory arena and persist it asynchronously.
+     *
+     * Callers are synchronous Bukkit event handlers (e.g. the admin wand), so the DB write
+     * is fire-and-forget on the service scope rather than a suspend call. Without the
+     * persist, wand edits survived only until the next reload/crash (H12).
+     */
     fun addToCache(arena: Arena) {
         cache[arena.name.lowercase()] = arena
+        scope.launch {
+            runCatching { arenaRepo.save(arena) }
+                .onFailure { logger.warn("Failed to persist arena '${arena.name}' from addToCache", it) }
+        }
     }
 
     suspend fun removeArena(arena: Arena) {
