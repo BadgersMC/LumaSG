@@ -53,6 +53,7 @@ fun killNotification(victim: Player, killerKills: Int, config: LumaSGConfig? = n
  * Returns a human-readable weapon name for the item held by the killer.
  * Handles swords, axes, bows, crossbows, tridents, tools, and custom items.
  */
+@Suppress("CyclomaticComplexMethod") // flat when-mapping of material -> weapon name
 fun weaponName(item: ItemStack): String {
     if (item.type == Material.AIR) return "fists"
 

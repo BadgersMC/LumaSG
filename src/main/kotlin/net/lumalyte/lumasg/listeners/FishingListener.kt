@@ -4,7 +4,6 @@ import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.minimessage.MiniMessage
 import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.util.ItemUtils
@@ -21,8 +20,6 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.random.Random
-
-private val mm = MiniMessage.miniMessage()
 
 /**
  * Handles special fishing loot during Survival Games matches.
@@ -63,6 +60,7 @@ class FishingListener(
     }
 
     @EventHandler
+    @Suppress("CyclomaticComplexMethod", "ReturnCount") // guard-clause-heavy event handler; clearer flat
     fun onFish(event: PlayerFishEvent) {
         if (event.state != PlayerFishEvent.State.CAUGHT_FISH) return
 

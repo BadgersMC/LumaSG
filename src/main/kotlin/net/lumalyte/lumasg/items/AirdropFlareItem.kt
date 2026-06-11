@@ -43,6 +43,7 @@ class AirdropFlareItem(
         return tag(stack)
     }
 
+    @Suppress("LongMethod") // single coroutine driving the full airdrop sequence
     override fun onUse(player: Player, item: ItemStack) {
         val dropLocation = player.location.clone()
         val game = gameManager.getGameForPlayer(player.uniqueId) ?: return

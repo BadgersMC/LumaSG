@@ -18,6 +18,7 @@ import kotlin.math.*
 object MeteorUtils {
     private val GOLDEN_RATIO = Math.PI * (1 + sqrt(5.0))
 
+    @Suppress("LongMethod") // particle/sound choreography for one sphere effect
     fun spawnMeteorSphere(
         center: Location,
         sphereRadius: Int = 3,

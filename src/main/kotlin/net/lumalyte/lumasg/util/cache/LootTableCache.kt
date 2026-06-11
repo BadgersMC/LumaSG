@@ -42,7 +42,7 @@ class LootTableCache(
     private data class CacheKey(val tier: String, val mode: LootMode)
 
     /** Caffeine cache storing pre-generated chests per (tier, mode) bucket. */
-    private val lootTableCache = Caffeine.newBuilder()
+    private val chestBucketCache = Caffeine.newBuilder()
         .maximumSize(100)
         .expireAfterWrite(Duration.ofMinutes(30))
         .recordStats()
@@ -128,10 +128,10 @@ class LootTableCache(
      */
     fun getPreGeneratedChest(tier: String, mode: LootMode = LootMode.MODERN): PreGeneratedChest? {
         val key = CacheKey(tier, mode)
-        var chests = lootTableCache.getIfPresent(key)
+        var chests = chestBucketCache.getIfPresent(key)
         if (chests.isNullOrEmpty()) {
             generateLootTableForTier(tier, mode)
-            chests = lootTableCache.getIfPresent(key)
+            chests = chestBucketCache.getIfPresent(key)
             if (chests.isNullOrEmpty()) return null
         }
 
@@ -144,7 +144,7 @@ class LootTableCache(
      * Invalidates all cached loot tables and regenerates them.
      */
     fun forceRegeneration() {
-        lootTableCache.invalidateAll()
+        chestBucketCache.invalidateAll()
         generationCounters.clear()
         preGenerateLootTables()
         logger.info("Forced regeneration of all loot tables completed")
@@ -156,7 +156,7 @@ class LootTableCache(
     fun shutdown() {
         logger.info("Shutting down LootTableCache...")
 
-        lootTableCache.invalidateAll()
+        chestBucketCache.invalidateAll()
         generationCounters.clear()
 
         if (::generationExecutor.isInitialized) {
@@ -180,10 +180,10 @@ class LootTableCache(
      * Returns a summary of cache statistics for monitoring.
      */
     fun getCacheStats(): String {
-        val totalChests = lootTableCache.asMap().values.sumOf { it.size.toLong() }
-        return "LootTableCache - Cached Buckets: ${lootTableCache.estimatedSize()}, " +
+        val totalChests = chestBucketCache.asMap().values.sumOf { it.size.toLong() }
+        return "LootTableCache - Cached Buckets: ${chestBucketCache.estimatedSize()}, " +
             "Total Pre-generated Chests: $totalChests, " +
-            "Hit Rate: ${"%.2f".format(lootTableCache.stats().hitRate() * 100)}%"
+            "Hit Rate: ${"%.2f".format(chestBucketCache.stats().hitRate() * 100)}%"
     }
 
     /**
@@ -191,7 +191,7 @@ class LootTableCache(
      */
     fun getDetailedStats(): String = buildString {
         appendLine("Loot Table Statistics:")
-        lootTableCache.asMap().forEach { (key, chests) ->
+        chestBucketCache.asMap().forEach { (key, chests) ->
             val usageCount = generationCounters[key]?.get() ?: 0
             appendLine("  ${key.tier}/${key.mode}: ${chests.size} chests, $usageCount used")
         }
@@ -209,7 +209,7 @@ class LootTableCache(
         for (tier in availableTiers) {
             for (mode in LootMode.entries) {
                 val key = CacheKey(tier, mode)
-                val existing = lootTableCache.getIfPresent(key)
+                val existing = chestBucketCache.getIfPresent(key)
                 if (existing == null || existing.size < PREGENERATED_CHESTS_PER_TIER / 2) {
                     generateLootTableForTier(tier, mode)
                 }
@@ -230,7 +230,7 @@ class LootTableCache(
 
         if (preGenerated.isNotEmpty()) {
             val key = CacheKey(tier, mode)
-            lootTableCache.put(key, preGenerated)
+            chestBucketCache.put(key, preGenerated)
             generationCounters.computeIfAbsent(key) { AtomicInteger(0) }.set(0)
             logger.debug("Generated {} chests for tier: {}, mode: {}", preGenerated.size, tier, mode)
         }

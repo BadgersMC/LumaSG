@@ -135,6 +135,7 @@ class PlayerTrackerItem(
 
     // ── Periodic update task ─────────────────────────────────────────────────
 
+    @Suppress("LoopWithTooManyJumpStatements") // compass-target loop in the update tick
     private fun startUpdateTask() {
         updateTask = object : BukkitRunnable() {
             override fun run() {
@@ -164,6 +165,7 @@ class PlayerTrackerItem(
 
     // ── Compass generation ───────────────────────────────────────────────────
 
+    @Suppress("CyclomaticComplexMethod", "LoopWithTooManyJumpStatements") // builds compass lines from live game state
     private fun generateCompass(player: Player, game: Game): Component {
         val playerLoc = player.location
         val playerYaw = playerLoc.yaw.toDouble()

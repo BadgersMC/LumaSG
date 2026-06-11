@@ -37,6 +37,7 @@ private val mm = MiniMessage.miniMessage()
  *
  * Multiple games can run in parallel — they do not share state.
  */
+@Suppress("TooManyFunctions") // the game aggregate genuinely owns this many lifecycle/query operations
 class Game(
     val id: UUID = UUID.randomUUID(),
     val arena: Arena,
@@ -178,6 +179,7 @@ class Game(
      * @param teleportToLobby whether to teleport the player back to lobby
      * @param restoreState whether to restore the player's saved state
      */
+    @Suppress("UnusedParameter") // teleportToLobby kept for API symmetry; teleport policy lives in config
     fun removePlayer(player: Player, teleportToLobby: Boolean = true, restoreState: Boolean = true) {
         _players.remove(player.uniqueId)
         spectators.remove(player.uniqueId)
@@ -319,6 +321,7 @@ class Game(
         }
     }
 
+    @Suppress("LoopWithTooManyJumpStatements") // per-player continue guards in the enforcement sweep
     private fun startSpawnEnforcement() {
         spawnEnforcementJob = scope.launch {
             while (isActive) {
