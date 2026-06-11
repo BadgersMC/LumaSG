@@ -13,8 +13,8 @@ import org.bukkit.inventory.PlayerInventory
 import org.bukkit.plugin.java.JavaPlugin
 import org.junit.jupiter.api.Test
 import java.util.UUID
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PlayerStateManagerTest {
 
@@ -77,13 +77,13 @@ class PlayerStateManagerTest {
         manager.saveAndPrepare(player, Location(world, 100.0, 64.0, 100.0))
 
         // Now verify saved state has the marker
-        assertNotNull(manager.hasSavedState(player.uniqueId))
+        assertTrue(manager.hasSavedState(player.uniqueId))
 
         // prepareWithoutSaving should NOT touch saved state
         manager.prepareWithoutSaving(player, Location(world, 200.0, 64.0, 200.0))
 
         // Saved state should still exist (not overwritten)
-        assertNotNull(manager.hasSavedState(player.uniqueId),
+        assertTrue(manager.hasSavedState(player.uniqueId),
             "prepareWithoutSaving must not overwrite or remove saved state")
     }
 }
