@@ -44,6 +44,11 @@ class AirstrikeItem(
     private val bukkitDispatcher: BukkitDispatcher
 ) : CustomItem, Listener {
 
+    companion object {
+        fun airstrikeImmuneUuids(teamMembers: Collection<UUID>?, callerUuid: UUID): Set<UUID> =
+            (teamMembers?.toSet() ?: emptySet()) + callerUuid
+    }
+
     override val material = Material.SPYGLASS
     override val displayName = "§c§lAirstrike Designator"
     override val key = NamespacedKey(plugin, "airstrike")
@@ -181,11 +186,18 @@ class AirstrikeItem(
         player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1f, pitch)
 
         if (state.lockTicks >= cfg.lockOnDurationTicks) {
+            val game = gameManager.getGameForPlayer(uuid)
+            if (game == null) {
+                // No game (player left / game ended): clear the lock so we don't loop the
+                // charge forever, but do NOT consume the item since no strike fires.
+                toRemove.add(uuid)
+                player.sendActionBar(Component.empty())
+                return
+            }
             toRemove.add(uuid)
             val held = player.inventory.itemInMainHand
             if (isAirstrikeItem(held)) held.amount--
             player.sendActionBar(Component.empty())
-            val game = gameManager.getGameForPlayer(uuid) ?: return
             launchAirstrike(state.targetLocation, game, uuid, player.name)
         }
     }
@@ -290,12 +302,8 @@ class AirstrikeItem(
                     approachAngle = Math.random() * 2 * Math.PI,
                     bukkitDispatcher = bukkitDispatcher
                 ) {
-                    val immuneUUIDs = mutableSetOf<UUID>()
                     val callerTeam = game.teamManager.getTeamForPlayer(callerUuid)
-                    if (callerTeam != null) {
-                        immuneUUIDs.addAll(callerTeam.members)
-                    }
-                    immuneUUIDs.remove(callerUuid)
+                    val immuneUUIDs = airstrikeImmuneUuids(callerTeam?.members, callerUuid)
 
                     val chunk = impactPoint.chunk
                     if (!chunk.isLoaded) chunk.load()

@@ -3,6 +3,7 @@ package net.lumalyte.lumasg.items
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
+import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.chest.ChestManager
@@ -58,9 +59,18 @@ class CustomItemsManager(
     private fun shutdownItems() {
         registry.values.forEach { item ->
             when (item) {
-                is GliderItem -> item.shutdown()
-                is SmokeGrenadeItem -> item.shutdown()
-                is AirstrikeItem -> item.shutdown()
+                is GliderItem -> {
+                    item.shutdown()
+                    HandlerList.unregisterAll(item)
+                }
+                is SmokeGrenadeItem -> {
+                    item.shutdown()
+                    HandlerList.unregisterAll(item)
+                }
+                is AirstrikeItem -> {
+                    item.shutdown()
+                    HandlerList.unregisterAll(item)
+                }
             }
         }
     }
