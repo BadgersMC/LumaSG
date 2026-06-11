@@ -70,7 +70,15 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
             expProgress = player.exp,
             potionEffects = player.activePotionEffects.map { it }
         )
+        prepare(player, spawnLocation)
+    }
 
+    /**
+     * Shared player-preparation: clear effects, reset gamemode/health/food/xp, optionally
+     * clear inventory, teleport, and grant the PvP bypass. Used by both [saveAndPrepare]
+     * and [prepareWithoutSaving] so the two stay in sync.
+     */
+    private fun prepare(player: Player, spawnLocation: Location) {
         player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
         if (config.game.clearInventory) {
             player.inventory.clear()
@@ -111,11 +119,13 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
         state.potionEffects.forEach { player.addPotionEffect(it) }
         player.gameMode = state.gameMode
 
-        // Teleport: lobby if configured or saved location is null, otherwise saved location
+        // Teleport target: lobby when teleportOnEnd is set; otherwise the saved location
+        // (null when saveLocation was off — in which case we leave the player where they
+        // are rather than forcing a lobby trip the operator didn't ask for).
         val destination = if (config.lobby.teleportOnEnd) {
             getLobbyLocation() ?: state.location
         } else {
-            state.location ?: getLobbyLocation()
+            state.location
         }
         if (destination != null) {
             player.teleport(destination)
@@ -134,20 +144,7 @@ class PlayerStateManager(private val config: LumaSGConfig, private val plugin: J
      * Must be called on the main thread.
      */
     fun prepareWithoutSaving(player: Player, spawnLocation: Location) {
-        player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
-        if (config.game.clearInventory) {
-            player.inventory.clear()
-            player.inventory.setArmorContents(arrayOfNulls(4))
-            player.setItemOnCursor(null)
-        }
-        player.gameMode = GameMode.SURVIVAL
-        player.health = player.maxHealth
-        player.foodLevel = 20
-        player.saturation = 0f
-        player.exp = 0f
-        player.level = 0
-        player.teleport(spawnLocation)
-        grantPvpBypass(player)
+        prepare(player, spawnLocation)
     }
 
     /** Returns true if we have saved state for this player. */
