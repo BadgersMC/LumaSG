@@ -186,7 +186,14 @@ class AirstrikeItem(
         player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1f, pitch)
 
         if (state.lockTicks >= cfg.lockOnDurationTicks) {
-            val game = gameManager.getGameForPlayer(uuid) ?: return
+            val game = gameManager.getGameForPlayer(uuid)
+            if (game == null) {
+                // No game (player left / game ended): clear the lock so we don't loop the
+                // charge forever, but do NOT consume the item since no strike fires.
+                toRemove.add(uuid)
+                player.sendActionBar(Component.empty())
+                return
+            }
             toRemove.add(uuid)
             val held = player.inventory.itemInMainHand
             if (isAirstrikeItem(held)) held.amount--

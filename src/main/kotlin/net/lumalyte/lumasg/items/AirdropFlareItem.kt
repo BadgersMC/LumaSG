@@ -101,8 +101,8 @@ class AirdropFlareItem(
 
                 // Place airdrop chest safely
                 val chestLoc = findSolidGround(dropLocation)
-                if (chestLoc.y <= chestLoc.world.minHeight) {
-                    plugin.logger.fine("AirdropFlare: chest location at void level, skipping")
+                if (chestLoc == null) {
+                    plugin.logger.fine("AirdropFlare: no solid ground (void column), skipping chest")
                 } else {
                     val chest = placeChestSafely(chestLoc)
                     if (chest != null) {
@@ -128,7 +128,7 @@ class AirdropFlareItem(
             repeat(9) {
                 delay(1_000)
                 withContext(bukkitDispatcher) {
-                    if (chestLoc.block.type == Material.CHEST) {
+                    if (chestLoc != null && chestLoc.block.type == Material.CHEST) {
                         world.spawnParticle(
                             Particle.END_ROD,
                             chestLoc.clone().add(0.5, 1.0, 0.5),
@@ -166,12 +166,14 @@ class AirdropFlareItem(
 
     // ── Find solid ground for chest placement ───────────────────────────────
 
-    private fun findSolidGround(impact: Location): Location {
+    /** Returns the block above the first solid ground below [impact], or null over a void column. */
+    private fun findSolidGround(impact: Location): Location? {
         val loc = impact.clone()
-        val world = loc.world ?: return loc
+        val world = loc.world ?: return null
         while (loc.y > world.minHeight && !loc.block.type.isSolid) {
             loc.subtract(0.0, 1.0, 0.0)
         }
+        if (!loc.block.type.isSolid) return null // hit the void without finding solid ground
         loc.add(0.0, 1.0, 0.0) // place on top of solid block
         return loc
     }
