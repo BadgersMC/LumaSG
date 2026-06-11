@@ -59,6 +59,7 @@ private const val PIXEL_CHAR = "\u2B1B" // ⬛
  * @param participants  UUIDs of everyone who should see the render
  * @param bukkitDispatcher Main-thread dispatcher
  */
+@Suppress("LongMethod", "CyclomaticComplexMethod", "UnusedParameter") // pixel-art renderer; kept whole for readability
 private suspend fun renderPixelArtHead(
     winnerUuid: UUID,
     winnerName: String,
@@ -189,6 +190,7 @@ private suspend fun renderPixelArtHead(
  * @param config       Plugin config for rewards and announcements
  * @param plugin       Plugin instance for firework spawning
  */
+@Suppress("LongMethod", "CyclomaticComplexMethod") // sequential celebration choreography
 suspend fun runCelebration(
     winnerUuid: UUID?,
     participants: Collection<UUID>,

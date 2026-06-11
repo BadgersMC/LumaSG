@@ -28,6 +28,7 @@ import kotlin.math.*
 class SmokeGrenadeItem(
     private val plugin: JavaPlugin,
     private val config: LumaSGConfig,
+    @Suppress("UnusedPrivateProperty") // injected for parity with other items; not yet read
     private val gameManager: GameManager
 ) : CustomItem, Listener {
 
@@ -242,6 +243,7 @@ class SmokeGrenadeItem(
 
     // ── Cleanup ───────────────────────────────────────────────────────────
 
+    @Suppress("UnusedParameter") // cloud reserved for future per-cloud restore scoping
     private fun restoreVisibilityForCloud(cloud: SmokeCloud) {
         for ((observerUuid, hiddenSet) in hiddenPlayers) {
             val observer = Bukkit.getPlayer(observerUuid) ?: continue

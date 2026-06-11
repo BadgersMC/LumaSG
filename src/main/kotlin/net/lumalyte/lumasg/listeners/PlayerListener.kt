@@ -50,6 +50,7 @@ class PlayerListener(
     // ── Entity damage (all sources) ──────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @Suppress("CyclomaticComplexMethod") // damage rules: phase/pvp/friendly-fire guard clauses
     fun onEntityDamage(event: EntityDamageEvent) {
         val player = event.entity as? Player ?: return
         val game = gameManager.getGameForPlayer(player.uniqueId) ?: return

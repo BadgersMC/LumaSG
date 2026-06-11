@@ -146,6 +146,7 @@ class AirstrikeItem(
         chargeTask!!.runTaskTimer(plugin, 0L, 2L)
     }
 
+    @Suppress("UnusedParameter") // toRemove kept for signature parity with handleLocked
     private fun handleCharging(player: Player, state: ChargeState.Charging, uuid: UUID, toRemove: MutableList<UUID>) {
         val rayResult = player.world.rayTraceBlocks(
             player.eyeLocation, player.eyeLocation.direction,
@@ -247,6 +248,7 @@ class AirstrikeItem(
 
     // ── Airstrike coroutine ───────────────────────────────────────────────
 
+    @Suppress("LongMethod") // multi-meteor launch with per-impact damage/immunity handling
     private fun launchAirstrike(target: Location, game: Game, callerUuid: UUID, callerName: String) {
         game.scope.launch {
             // Broadcast

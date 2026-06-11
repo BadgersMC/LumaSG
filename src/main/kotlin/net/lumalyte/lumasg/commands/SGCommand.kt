@@ -33,6 +33,7 @@ import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
 @Command(name = "sg", description = "SurvivalGames commands", aliases = ["survivalgames"])
+@Suppress("LongParameterList", "TooManyFunctions") // command hub: one DI'd service per feature, one handler per subcommand
 class SGCommand(
     private val plugin: JavaPlugin,
     private val gameManager: GameManager,

@@ -83,7 +83,6 @@ class StatisticsService(
     suspend fun recordGameEnd(game: Game, winnerUuid: UUID?) {
         if (!config.statistics.enabled) return
         val lootMode = game.lootMode
-        val gameTime = game.getTimeRemaining().toLong()
         val totalPlayers = game.players.size
 
         game.players.values.forEach { gp ->

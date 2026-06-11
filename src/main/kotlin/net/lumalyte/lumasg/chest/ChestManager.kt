@@ -151,6 +151,7 @@ class ChestManager(
      * Fills a chest at [location] with weighted-random items from [tier].
      * Must be called on the main thread (or inside a BukkitDispatcher context).
      */
+    @Suppress("LoopWithTooManyJumpStatements") // fill loop uses continue/break for slot/attempt limits
     fun fillChest(location: Location, tier: String, mode: LootMode = LootMode.MODERN): Boolean {
         val block = location.block
         val state = block.state

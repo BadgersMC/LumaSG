@@ -4,6 +4,8 @@ plugins {
     kotlin("jvm") version "2.1.0"
     kotlin("plugin.noarg") version "2.1.0"
     id("com.gradleup.shadow") version "8.3.5"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    jacoco
     `maven-publish`
 }
 
@@ -24,7 +26,8 @@ dependencies {
     // Platform
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
-    // Nexus DI + coroutines (local Maven)
+    // Nexus DI + coroutines — resolved via JitPack (public; same coords as other
+    // BadgersMC projects). Was mavenLocal-only, which CI could not resolve.
     implementation("com.github.BadgersMC.Nexus:nexus-core:v2.2.1")
     implementation("com.github.BadgersMC.Nexus:nexus-paper:v2.2.1")
 
@@ -114,4 +117,26 @@ noArg {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+detekt {
+    config.setFrom(file("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "21"
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        sarif.required.set(true)
+    }
 }

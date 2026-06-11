@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Reduces object allocation and improves GUI loading performance.
  */
 @Service
+@Suppress("TooManyFunctions") // cache exposes one accessor per cached GUI component type
 class GuiComponentCache {
 
     private val logger = LoggerFactory.getLogger(GuiComponentCache::class.java)
@@ -95,6 +96,7 @@ class GuiComponentCache {
         getCachedGuiItem("border:$borderType")
 
     /** Creates a button item with the given type, display name, and optional lore lines. */
+    @Suppress("UnusedParameter") // loreLines part of the cache key signature; lore baked at build time
     fun createButtonItem(buttonType: String, displayName: String, vararg loreLines: String): Item {
         val key = "button:$buttonType:${displayName.hashCode()}"
 

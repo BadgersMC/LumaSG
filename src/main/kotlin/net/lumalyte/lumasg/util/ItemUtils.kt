@@ -212,6 +212,7 @@ object ItemUtils {
         }
     }
 
+    @Suppress("UnusedParameter") // itemKey kept for symmetry/logging across apply* helpers
     private fun applyAttributes(
         section: ConfigurationSection,
         meta: org.bukkit.inventory.meta.ItemMeta,
@@ -245,6 +246,7 @@ object ItemUtils {
         }
     }
 
+    @Suppress("UnusedParameter") // itemKey kept for symmetry/logging across apply* helpers
     private fun applyPotionEffects(
         section: ConfigurationSection,
         meta: org.bukkit.inventory.meta.ItemMeta,

@@ -82,6 +82,7 @@ class GliderItem(
 
     // ── Repeating task: check airborne + holding feather ──────────────────
 
+    @Suppress("LoopWithTooManyJumpStatements") // particle loop in the glide tick task
     private fun ensureTaskRunning() {
         if (glideTask != null) return
         glideTask = object : BukkitRunnable() {
@@ -214,7 +215,7 @@ class GliderItem(
     // ── Cancel fall damage on glide landing ───────────────────────────────
 
     private val recentlyGliding = ConcurrentHashMap<UUID, Long>()
-    private val FALL_DAMAGE_GRACE_TICKS = 5L
+    private val fallDamageGraceTicks = 5L
 
     @EventHandler(priority = EventPriority.HIGH)
     fun onDamage(event: EntityDamageEvent) {
@@ -226,7 +227,7 @@ class GliderItem(
             return
         }
         val endedAt = recentlyGliding[player.uniqueId] ?: return
-        if (player.world.fullTime - endedAt <= FALL_DAMAGE_GRACE_TICKS) {
+        if (player.world.fullTime - endedAt <= fallDamageGraceTicks) {
             event.isCancelled = true
             recentlyGliding.remove(player.uniqueId)
         }

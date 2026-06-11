@@ -41,7 +41,7 @@ class CustomItemListener(
 
     // Per-player cooldowns in milliseconds
     private val cooldowns = ConcurrentHashMap<UUID, Long>()
-    private val COOLDOWN_MS = 1_000L
+    private val cooldownMs = 1_000L
 
     @PostConstruct
     fun register() {
@@ -65,7 +65,7 @@ class CustomItemListener(
         // Cooldown check
         val now = System.currentTimeMillis()
         val lastUse = cooldowns[player.uniqueId] ?: 0L
-        if (now - lastUse < COOLDOWN_MS) return
+        if (now - lastUse < cooldownMs) return
         cooldowns[player.uniqueId] = now
 
         event.isCancelled = true
@@ -239,7 +239,7 @@ class CustomItemListener(
             var ticks = 0
             override fun run() {
                 if (ticks >= 100) { cancel(); return }
-                for (i in 0 until 20) {
+                repeat(20) {
                     val theta = Math.random() * Math.PI * 2
                     val phi = Math.random() * Math.PI
                     val r = Math.random() * radius
