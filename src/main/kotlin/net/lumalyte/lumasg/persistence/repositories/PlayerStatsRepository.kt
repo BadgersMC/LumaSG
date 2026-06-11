@@ -50,6 +50,7 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
         }
     }
 
+    @Suppress("CyclomaticComplexMethod") // one branch per StatType ordering strategy
     suspend fun getLeaderboard(statType: StatType, limit: Int = 10, lootMode: LootMode? = null): List<PlayerStats> = dbQuery {
         val baseQuery = if (lootMode != null) {
             PlayerStatsTable.selectAll().where { PlayerStatsTable.lootMode eq lootMode.name }

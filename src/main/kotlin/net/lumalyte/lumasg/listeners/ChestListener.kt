@@ -54,6 +54,7 @@ class ChestListener(
      * the chest, it's already populated — zero interaction delay.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @Suppress("CyclomaticComplexMethod", "LoopWithTooManyJumpStatements") // per-chest arena-bounds resolution (H13)
     fun onChunkLoad(event: ChunkLoadEvent) {
         val chunk = event.chunk
         val worldName = chunk.world.name
