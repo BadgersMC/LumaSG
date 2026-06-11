@@ -434,7 +434,6 @@ class SGCommand(
     @Subcommand("create")
     @Permission("lumasg.admin")
     @PlayerOnly
-    @Async
     suspend fun create(
         @Context player: Player,
         @Arg("name") name: String,
