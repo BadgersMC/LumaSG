@@ -6,9 +6,12 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.PreDestroy
 import net.badgersmc.nexus.annotations.Service
+import net.badgersmc.nexus.paper.BukkitDispatcher
 import net.lumalyte.lumasg.domain.PlayerStats
 import net.lumalyte.lumasg.persistence.repositories.PlayerStatsRepository
 import org.bukkit.entity.Player
@@ -24,7 +27,8 @@ import java.util.concurrent.ForkJoinPool
 class PlayerDataCache(
     private val plugin: JavaPlugin,
     private val playerStatsRepository: PlayerStatsRepository,
-    private val nexusScope: CoroutineScope
+    private val nexusScope: CoroutineScope,
+    private val bukkitDispatcher: BukkitDispatcher
 ) {
     private val logger = LoggerFactory.getLogger(PlayerDataCache::class.java)
     private val executor: Executor = ForkJoinPool.commonPool()
@@ -103,16 +107,18 @@ class PlayerDataCache(
             return CompletableFuture.completedFuture(it)
         }
 
-        return CompletableFuture.supplyAsync({
-            val player = plugin.server.getPlayer(uuid)
-            val displayName = player?.displayName()?.toString()
-                ?: plugin.server.getOfflinePlayer(uuid).name
+        return nexusScope.future {
+            withContext(bukkitDispatcher) {
+                val player = plugin.server.getPlayer(uuid)
+                val displayName = player?.displayName()?.toString()
+                    ?: plugin.server.getOfflinePlayer(uuid).name
 
-            if (displayName != null) {
-                displayNameCache.put(uuid, displayName)
+                if (displayName != null) {
+                    displayNameCache.put(uuid, displayName)
+                }
+                displayName ?: "Unknown Player"
             }
-            displayName ?: "Unknown Player"
-        }, executor)
+        }
     }
 
     /**
@@ -200,8 +206,12 @@ class PlayerDataCache(
         try {
             val (uuidStr, permission) = permissionKey.split(":", limit = 2)
             val uuid = UUID.fromString(uuidStr)
-            val player = plugin.server.getPlayer(uuid)
-            player?.hasPermission(permission) ?: false
+            runBlocking {
+                withContext(bukkitDispatcher) {
+                    val player = plugin.server.getPlayer(uuid)
+                    player?.hasPermission(permission) ?: false
+                }
+            }
         } catch (e: Exception) {
             logger.warn("Failed to load permission: {}", permissionKey, e)
             false
