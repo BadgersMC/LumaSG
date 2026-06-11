@@ -51,27 +51,54 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
     }
 
     suspend fun getLeaderboard(statType: StatType, limit: Int = 10, lootMode: LootMode? = null): List<PlayerStats> = dbQuery {
-        val orderColumn: Expression<*> = when (statType) {
-            StatType.WINS -> PlayerStatsTable.wins
-            StatType.KILLS -> PlayerStatsTable.kills
-            StatType.GAMES_PLAYED -> PlayerStatsTable.gamesPlayed
-            StatType.TIME_PLAYED -> PlayerStatsTable.totalTimePlayed
-            StatType.BEST_PLACEMENT -> PlayerStatsTable.bestPlacement
-            StatType.WIN_STREAK -> PlayerStatsTable.bestWinStreak
-            StatType.TOP3_FINISHES -> PlayerStatsTable.top3Finishes
-            StatType.DAMAGE_DEALT -> PlayerStatsTable.damageDealt
-            StatType.CHESTS_OPENED -> PlayerStatsTable.chestsOpened
-            StatType.KILL_DEATH_RATIO -> PlayerStatsTable.kills
-            StatType.WIN_RATE -> PlayerStatsTable.wins
-        }
         val baseQuery = if (lootMode != null) {
             PlayerStatsTable.selectAll().where { PlayerStatsTable.lootMode eq lootMode.name }
         } else {
             PlayerStatsTable.selectAll()
         }
-        baseQuery.orderBy(orderColumn to SortOrder.DESC)
-            .limit(limit)
-            .map { it.toPlayerStats() }
+
+        when (statType) {
+            StatType.KILL_DEATH_RATIO -> {
+                // Fetch candidate set ordered by kills DESC; sort in Kotlin by computed KDR.
+                // Bounded fetch (limit*5) avoids loading full table for every leaderboard call.
+                val candidates = baseQuery
+                    .orderBy(PlayerStatsTable.kills to SortOrder.DESC)
+                    .limit(limit * 5)
+                    .map { it.toPlayerStats() }
+                candidates.sortedByDescending { stats ->
+                    if (stats.deaths == 0) Double.MAX_VALUE else stats.kills.toDouble() / stats.deaths
+                }.take(limit)
+            }
+
+            StatType.WIN_RATE -> {
+                // Fetch candidate set ordered by wins DESC; sort in Kotlin by computed win rate.
+                val candidates = baseQuery
+                    .orderBy(PlayerStatsTable.wins to SortOrder.DESC)
+                    .limit(limit * 5)
+                    .map { it.toPlayerStats() }
+                candidates.sortedByDescending { stats ->
+                    if (stats.gamesPlayed == 0) 0.0 else stats.wins.toDouble() / stats.gamesPlayed
+                }.take(limit)
+            }
+
+            else -> {
+                val orderColumn: Expression<*> = when (statType) {
+                    StatType.WINS -> PlayerStatsTable.wins
+                    StatType.KILLS -> PlayerStatsTable.kills
+                    StatType.GAMES_PLAYED -> PlayerStatsTable.gamesPlayed
+                    StatType.TIME_PLAYED -> PlayerStatsTable.totalTimePlayed
+                    StatType.BEST_PLACEMENT -> PlayerStatsTable.bestPlacement
+                    StatType.WIN_STREAK -> PlayerStatsTable.bestWinStreak
+                    StatType.TOP3_FINISHES -> PlayerStatsTable.top3Finishes
+                    StatType.DAMAGE_DEALT -> PlayerStatsTable.damageDealt
+                    StatType.CHESTS_OPENED -> PlayerStatsTable.chestsOpened
+                    else -> PlayerStatsTable.kills // unreachable; exhaustiveness guard
+                }
+                baseQuery.orderBy(orderColumn to SortOrder.DESC)
+                    .limit(limit)
+                    .map { it.toPlayerStats() }
+            }
+        }
     }
 
     /** Backwards-compatible overload — defaults to kills leaderboard. */
