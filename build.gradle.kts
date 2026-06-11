@@ -25,8 +25,8 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
     // Nexus DI + coroutines (local Maven)
-    implementation("net.badgersmc:nexus-core:1.6.0")
-    implementation("net.badgersmc:nexus-paper:1.6.0")
+    implementation("com.github.BadgersMC.Nexus:nexus-core:v2.2.1")
+    implementation("com.github.BadgersMC.Nexus:nexus-paper:v2.2.1")
 
     // Kotlin (downloaded at startup by LumaSGLoader)
     compileOnly(kotlin("stdlib"))
