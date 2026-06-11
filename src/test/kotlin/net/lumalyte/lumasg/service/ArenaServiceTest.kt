@@ -5,6 +5,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.domain.Arena
@@ -48,6 +49,7 @@ class ArenaServiceTest {
 
         val a = arena("bravo")
         service.addToCache(a)
+        advanceUntilIdle() // let the retry/backoff loop run to exhaustion
 
         // Cache update is synchronous and must survive a failed async persist (H12 contract).
         assertEquals(a, service.getArena("bravo"))
