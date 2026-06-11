@@ -51,28 +51,65 @@ class PlayerStatsRepository(@Suppress("unused") private val db: DatabaseService)
     }
 
     suspend fun getLeaderboard(statType: StatType, limit: Int = 10, lootMode: LootMode? = null): List<PlayerStats> = dbQuery {
-        val orderColumn: Expression<*> = when (statType) {
-            StatType.WINS -> PlayerStatsTable.wins
-            StatType.KILLS -> PlayerStatsTable.kills
-            StatType.GAMES_PLAYED -> PlayerStatsTable.gamesPlayed
-            StatType.TIME_PLAYED -> PlayerStatsTable.totalTimePlayed
-            StatType.BEST_PLACEMENT -> PlayerStatsTable.bestPlacement
-            StatType.WIN_STREAK -> PlayerStatsTable.bestWinStreak
-            StatType.TOP3_FINISHES -> PlayerStatsTable.top3Finishes
-            StatType.DAMAGE_DEALT -> PlayerStatsTable.damageDealt
-            StatType.CHESTS_OPENED -> PlayerStatsTable.chestsOpened
-            StatType.KILL_DEATH_RATIO -> PlayerStatsTable.kills
-            StatType.WIN_RATE -> PlayerStatsTable.wins
-        }
         val baseQuery = if (lootMode != null) {
             PlayerStatsTable.selectAll().where { PlayerStatsTable.lootMode eq lootMode.name }
         } else {
             PlayerStatsTable.selectAll()
         }
-        baseQuery.orderBy(orderColumn to SortOrder.DESC)
-            .limit(limit)
-            .map { it.toPlayerStats() }
+
+        when (statType) {
+            // KDR/Win-Rate have no stored column to ORDER BY, so we fetch a candidate set
+            // ordered by the numerator (kills/wins) and re-sort in Kotlin by the computed
+            // ratio, using the same definitions as PlayerStats.kdr / .winRate for consistency.
+            //
+            // Trade-off: a player with a strong ratio but very few games (e.g. 1 win / 1 game)
+            // can fall outside a numerator-ordered candidate window and be missed. We widen the
+            // window to bound that bias rather than scan the whole table on every call; a fully
+            // exact ranking would need a SQL computed-column ORDER BY.
+            StatType.KILL_DEATH_RATIO -> {
+                baseQuery
+                    .orderBy(PlayerStatsTable.kills to SortOrder.DESC)
+                    .limit(candidateWindow(limit))
+                    .map { it.toPlayerStats() }
+                    .sortedByDescending { it.kdr }
+                    .take(limit)
+            }
+
+            StatType.WIN_RATE -> {
+                baseQuery
+                    .orderBy(PlayerStatsTable.wins to SortOrder.DESC)
+                    .limit(candidateWindow(limit))
+                    .map { it.toPlayerStats() }
+                    .sortedByDescending { it.winRate }
+                    .take(limit)
+            }
+
+            else -> {
+                val orderColumn: Expression<*> = when (statType) {
+                    StatType.WINS -> PlayerStatsTable.wins
+                    StatType.KILLS -> PlayerStatsTable.kills
+                    StatType.GAMES_PLAYED -> PlayerStatsTable.gamesPlayed
+                    StatType.TIME_PLAYED -> PlayerStatsTable.totalTimePlayed
+                    StatType.BEST_PLACEMENT -> PlayerStatsTable.bestPlacement
+                    StatType.WIN_STREAK -> PlayerStatsTable.bestWinStreak
+                    StatType.TOP3_FINISHES -> PlayerStatsTable.top3Finishes
+                    StatType.DAMAGE_DEALT -> PlayerStatsTable.damageDealt
+                    StatType.CHESTS_OPENED -> PlayerStatsTable.chestsOpened
+                    else -> PlayerStatsTable.kills // unreachable; exhaustiveness guard
+                }
+                baseQuery.orderBy(orderColumn to SortOrder.DESC)
+                    .limit(limit)
+                    .map { it.toPlayerStats() }
+            }
+        }
     }
+
+    /**
+     * Candidate-set size for the Kotlin-side ratio leaderboards (KDR/Win-Rate). Wide enough
+     * to bound the "great ratio, few games" bias, with a floor so small servers still rank
+     * everyone.
+     */
+    private fun candidateWindow(limit: Int): Int = (limit * 20).coerceAtLeast(100)
 
     /** Backwards-compatible overload — defaults to kills leaderboard. */
     suspend fun getLeaderboard(limit: Int = 10): List<PlayerStats> =

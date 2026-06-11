@@ -2,6 +2,7 @@ package net.lumalyte.lumasg.listeners
 
 import net.badgersmc.nexus.annotations.PostConstruct
 import net.badgersmc.nexus.annotations.Service
+import net.lumalyte.lumasg.config.LumaSGConfig
 import net.lumalyte.lumasg.items.CustomItem
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.util.MeteorUtils
@@ -34,6 +35,7 @@ import kotlin.math.sqrt
 class CustomItemListener(
     private val plugin: JavaPlugin,
     private val gameManager: GameManager,
+    private val config: LumaSGConfig,
     private val customItems: List<CustomItem>
 ) : Listener {
 
@@ -163,6 +165,11 @@ class CustomItemListener(
             .filterIsInstance<Player>()
             .filter { it.uniqueId.toString() != throwerId }
             .forEach { target ->
+                val throwerUuid = runCatching { UUID.fromString(throwerId) }.getOrNull() ?: return@forEach
+                val game = gameManager.getGameForPlayer(throwerUuid) ?: return@forEach
+                if (!game.isPvpEnabled()) return@forEach
+                if (!config.game.teams.friendlyFire && game.teamManager.areTeammates(throwerUuid, target.uniqueId)) return@forEach
+
                 val distance = target.location.distance(center)
                 val multiplier = 1.0 - (distance / radius)
                 if (multiplier <= 0) return@forEach
@@ -207,6 +214,11 @@ class CustomItemListener(
             .filterIsInstance<Player>()
             .filter { it.uniqueId != shooterUuid }
             .forEach { target ->
+                val shooterId = shooterUuid ?: return@forEach
+                val game = gameManager.getGameForPlayer(shooterId) ?: return@forEach
+                if (!game.isPvpEnabled()) return@forEach
+                if (!config.game.teams.friendlyFire && game.teamManager.areTeammates(shooterId, target.uniqueId)) return@forEach
+
                 target.addPotionEffect(
                     PotionEffect(PotionEffectType.POISON, 100, 1, false, true, true)
                 )

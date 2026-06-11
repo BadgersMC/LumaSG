@@ -16,9 +16,7 @@ data class Team(
     var isEliminated: Boolean = false
         private set
 
-    val isAlive: Boolean get() = !isEliminated && members.any { uuid ->
-        Bukkit.getPlayer(uuid)?.isOnline == true
-    }
+    val isAlive: Boolean get() = !isEliminated && members.isNotEmpty()
 
     val isFull: Boolean get() = members.size >= maxSize
 

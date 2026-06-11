@@ -11,3 +11,5 @@ sealed class GamePhase {
     data class  Deathmatch(val secondsRemaining: Int) : GamePhase()
     data class  Ended(val winner: UUID?) : GamePhase()
 }
+
+fun GamePhase.isJoinable(): Boolean = this is GamePhase.Waiting || this is GamePhase.Countdown

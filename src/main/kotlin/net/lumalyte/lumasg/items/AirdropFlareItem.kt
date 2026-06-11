@@ -100,12 +100,17 @@ class AirdropFlareItem(
                 // onImpact — runs on main thread
                 MeteorUtils.spawnExplosion(center = dropLocation, plugin = plugin)
 
-                // Place airdrop chest
+                // Place airdrop chest safely
                 val chestLoc = findSolidGround(dropLocation)
-                chestLoc.block.type = Material.CHEST
-                val chest = chestLoc.block.state as? Chest
-                if (chest != null) {
-                    chestManager.fillAll(listOf(chest), "rare")
+                if (chestLoc == null) {
+                    plugin.logger.fine("AirdropFlare: no solid ground (void column), skipping chest")
+                } else {
+                    val chest = placeChestSafely(chestLoc)
+                    if (chest != null) {
+                        chestManager.fillAll(listOf(chest), "rare")
+                    } else {
+                        plugin.logger.fine("AirdropFlare: no safe chest location near ${dropLocation.blockX}, ${dropLocation.blockZ}")
+                    }
                 }
 
                 // Announce arrival
@@ -124,7 +129,7 @@ class AirdropFlareItem(
             repeat(9) {
                 delay(1_000)
                 withContext(bukkitDispatcher) {
-                    if (chestLoc.block.type == Material.CHEST) {
+                    if (chestLoc != null && chestLoc.block.type == Material.CHEST) {
                         world.spawnParticle(
                             Particle.END_ROD,
                             chestLoc.clone().add(0.5, 1.0, 0.5),
@@ -138,13 +143,38 @@ class AirdropFlareItem(
         item.amount--
     }
 
+    // ── Safe chest placement ────────────────────────────────────────────────
+
+    private fun placeChestSafely(loc: Location): Chest? {
+        // Try original spot
+        if (loc.block.type.isAir && !hasPlayerAt(loc)) {
+            loc.block.type = Material.CHEST
+            return loc.block.state as? Chest
+        }
+        // Search upward for an air block
+        for (dy in 1..5) {
+            val candidate = loc.clone().add(0.0, dy.toDouble(), 0.0)
+            if (candidate.block.type.isAir && !hasPlayerAt(candidate)) {
+                candidate.block.type = Material.CHEST
+                return candidate.block.state as? Chest
+            }
+        }
+        return null
+    }
+
+    private fun hasPlayerAt(loc: Location): Boolean =
+        loc.world?.getNearbyEntities(loc, 1.0, 1.0, 1.0)?.any { it is Player } ?: false
+
     // ── Find solid ground for chest placement ───────────────────────────────
 
-    private fun findSolidGround(impact: Location): Location {
+    /** Returns the block above the first solid ground below [impact], or null over a void column. */
+    private fun findSolidGround(impact: Location): Location? {
         val loc = impact.clone()
-        while (loc.y > 0 && !loc.block.type.isSolid) {
+        val world = loc.world ?: return null
+        while (loc.y > world.minHeight && !loc.block.type.isSolid) {
             loc.subtract(0.0, 1.0, 0.0)
         }
+        if (!loc.block.type.isSolid) return null // hit the void without finding solid ground
         loc.add(0.0, 1.0, 0.0) // place on top of solid block
         return loc
     }

@@ -79,6 +79,12 @@ class TeamQueueManager(
             player.sendMessage(miniMessage.deserialize("<red>No pending invitation found."))
             return false
         }
+        // Leave any prior pre-game team before joining the new one — a player must be
+        // in at most one team, else team-size and win-condition counts break (H5).
+        preGameTeams[player.uniqueId]?.takeIf { it !== invitation.team }?.remove(player.uniqueId)
+        for (team in preGameTeams.values) {
+            if (team !== invitation.team) team.remove(player.uniqueId)
+        }
         invitation.team.add(player.uniqueId)
         preGameTeams[player.uniqueId] = invitation.team
         val inviterName = Bukkit.getOfflinePlayer(invitation.inviter).name ?: "Unknown"

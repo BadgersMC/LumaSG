@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
 import net.lumalyte.lumasg.config.LumaSGConfig
+import net.lumalyte.lumasg.util.sanitizeCommandArg
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.FireworkEffect
@@ -241,7 +242,7 @@ suspend fun runCelebration(
         // Execute winner reward command
         if (winner != null && config.rewards.enabled && config.rewards.winCommand.isNotEmpty()) {
             val cmd = config.rewards.winCommand
-                .replace("<player>", winner.name)
+                .replace("<player>", sanitizeCommandArg(winner.name))
                 .replace("<kills>", kills.toString())
             plugin.server.dispatchCommand(plugin.server.consoleSender, cmd)
         }

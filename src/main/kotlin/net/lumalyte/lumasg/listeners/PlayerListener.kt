@@ -11,6 +11,7 @@ import net.lumalyte.lumasg.domain.GamePhase
 import net.lumalyte.lumasg.game.GameManager
 import net.lumalyte.lumasg.statistics.StatisticsService
 import net.lumalyte.lumasg.util.cache.PlayerDataCache
+import net.lumalyte.lumasg.util.sanitizeCommandArg
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.entity.Firework
@@ -121,7 +122,7 @@ class PlayerListener(
                 statsService.recordKill(it.uniqueId)
                 if (config.rewards.enabled && config.rewards.killCommand.isNotEmpty()) {
                     val cmd = config.rewards.killCommand
-                        .replace("<player>", it.name)
+                        .replace("<player>", sanitizeCommandArg(it.name))
                         .replace("<kills>", (game.players[it.uniqueId]?.kills ?: 0).toString())
                     plugin.server.dispatchCommand(plugin.server.consoleSender, cmd)
                 }
